@@ -68,6 +68,7 @@ final class RuntimeViewController: UIViewController {
         var status = "runtime.title_menu"
         var command = "none"
         var items: [[String]] = []
+        var sceneResourceCount = 0
         for line in lines {
             let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
             guard parts.count == 2 else { continue }
@@ -76,6 +77,7 @@ final class RuntimeViewController: UIViewController {
             case "status": status = parts[1]
             case "command": command = parts[1]
             case "item": items.append(parts[1].split(separator: "|").map(String.init))
+            case "scene_resource": sceneResourceCount += 1
             default: break
             }
         }
@@ -87,7 +89,7 @@ final class RuntimeViewController: UIViewController {
             selectedLabel.text = statusLabel(for: status)
         }
         commandLabel.text = command == "start_new_game"
-            ? "La escena de juego se conectará en la siguiente fase."
+            ? "Nueva partida: (sceneResourceCount) recursos base listos para el renderer."
             : command == "open_settings" ? "Las opciones se conectarán en la siguiente fase." : ""
     }
 

@@ -72,9 +72,10 @@ class RuntimeMenuActivity : Activity() {
         val selectedItem = items.getOrNull(selected)
         selectedLabel.text = selectedItem?.getOrNull(1)?.let(::labelFor) ?: statusLabel(statusKey)
         val command = values.firstOrNull { it.first == "command" }?.second ?: "none"
+        val sceneResourceCount = values.count { it.first == "scene_resource" }
         commandStatus.text = when (command) {
             "request_authorized_import" -> "Selecciona una copia autorizada desde el menú de importación."
-            "start_new_game" -> "La escena de juego se conectará en la siguiente fase."
+            "start_new_game" -> "Nueva partida: $sceneResourceCount recursos base listos para el renderer."
             "open_settings" -> "Las opciones se conectarán en la siguiente fase."
             else -> ""
         }

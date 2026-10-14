@@ -44,6 +44,7 @@ struct RuntimeSnapshot {
     std::string status_key;
     bool initial_content_ready = false;
     std::uint64_t initial_content_files = 0;
+    std::vector<InitialSceneResource> scene_resources;
 };
 
 struct RuntimeTransition {
@@ -71,6 +72,7 @@ private:
     RuntimeBootInfo boot_{};
     bool initial_content_ready_ = false;
     std::uint64_t initial_content_files_ = 0;
+    std::vector<InitialSceneResource> scene_resources_;
     RuntimeScreen screen_ = RuntimeScreen::Import;
     std::size_t selected_index_ = 0;
     std::vector<RuntimeMenuItem> items_;

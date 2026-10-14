@@ -109,10 +109,32 @@ void test_reports_missing_archive() {
     assert(result.error->code == "initial_content_not_found");
 }
 
+void test_selects_scene_resources_by_role_and_path() {
+    ykw2::core::Arc0Archive archive;
+    archive.files = {
+        {"data/map/z999999/z999999.xc", 300, 30, 0},
+        {"data/character/c000010/c000010_p10.xc", 200, 20, 0},
+        {"data/map/bg/bg02.xi", 500, 50, 0},
+        {"data/map/e100g002/e100g002.xc", 100, 10, 0},
+        {"data/map/bg/bg01.xi", 400, 40, 0},
+        {"data/character/c000010/c000010_p00.xc", 150, 15, 0},
+    };
+
+    const auto resources = ykw2::core::select_initial_scene_resources(archive);
+    assert(resources.size() == 3);
+    assert(resources[0].role == ykw2::core::InitialSceneResourceRole::Map);
+    assert(resources[0].path == "data/map/e100g002/e100g002.xc");
+    assert(resources[1].role == ykw2::core::InitialSceneResourceRole::Character);
+    assert(resources[1].path == "data/character/c000010/c000010_p00.xc");
+    assert(resources[2].role == ykw2::core::InitialSceneResourceRole::Background);
+    assert(resources[2].path == "data/map/bg/bg01.xi");
+}
+
 }  // namespace
 
 int main() {
     test_loads_canonical_archive_and_fallback_path();
     test_reports_missing_archive();
+    test_selects_scene_resources_by_role_and_path();
     return 0;
 }

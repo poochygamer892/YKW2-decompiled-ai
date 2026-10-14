@@ -64,6 +64,23 @@ void test_title_menu_waits_for_initial_content() {
            std::string::npos);
 }
 
+void test_title_menu_exposes_scene_resource_plan() {
+    ykw2::core::InitialContentInfo content;
+    content.archive_files = 3;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30});
+
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    const auto snapshot = scene.snapshot();
+    assert(snapshot.scene_resources.size() == 1);
+    assert(snapshot.scene_resources[0].path == "data/map/e100g002/e100g002.xc");
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
+               "scene_resource=map|data/map/e100g002/e100g002.xc|30|100\n") !=
+           std::string::npos);
+}
+
 }  // namespace
 
 int main() {
@@ -71,5 +88,6 @@ int main() {
     test_incomplete_import_screen();
     test_title_menu_navigation();
     test_title_menu_waits_for_initial_content();
+    test_title_menu_exposes_scene_resource_plan();
     return 0;
 }

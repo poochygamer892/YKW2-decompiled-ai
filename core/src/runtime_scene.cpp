@@ -13,6 +13,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     boot_ = boot;
     initial_content_ready_ = initial_content_ready && boot.state == RuntimeBootState::Ready;
     initial_content_files_ = initial_content_ready_ ? initial_content_files : 0;
+    scene_resources_.clear();
     selected_index_ = 0;
     items_.clear();
     if (boot.state != RuntimeBootState::Ready) {
@@ -30,6 +31,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
 
 void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& content) {
     start(boot, true, content.archive_files);
+    scene_resources_ = content.scene_resources;
 }
 
 bool RuntimeScene::selected_item_enabled() const {
@@ -94,6 +96,7 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.items = items_;
     result.initial_content_ready = initial_content_ready_;
     result.initial_content_files = initial_content_files_;
+    result.scene_resources = scene_resources_;
     if (screen_ == RuntimeScreen::Import) {
         result.status_key = boot_.state == RuntimeBootState::ImportIncomplete
                                 ? "import.incomplete"
@@ -137,6 +140,12 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
               snapshot.status_key + "\n";
     result += "content_ready=" + std::string(snapshot.initial_content_ready ? "1\n" : "0\n");
     result += "content_files=" + std::to_string(snapshot.initial_content_files) + "\n";
+    for (const auto& resource : snapshot.scene_resources) {
+        result += "scene_resource=" +
+                  std::string(initial_scene_resource_role_name(resource.role)) + "|" +
+                  resource.path + "|" + std::to_string(resource.size) + "|" +
+                  std::to_string(resource.offset) + "\n";
+    }
     for (const auto& item : snapshot.items) {
         result += "item=" + item.id + "|" + item.label_key + "|" +
                   (item.enabled ? "1" : "0") + "\n";
