@@ -9,9 +9,19 @@ Esta nota registra solo cabeceras y tamaños observados directamente desde la Ro
 Los ocho archivos `.fa` empiezan con:
 
 - Magic ASCII: `ARC0`
-- Variante de cabecera observada: `ARC0H`
-- Tamaño de cabecera little-endian: `0x48`
+- Cabecera de 72 bytes (`0x48`); el valor `0x48` es el primer campo de offset, no parte del magic.
 - Los campos de índice cambian entre `yw2_a.fa` y los siete archivos de idioma, por lo que el archivo principal y la localización comparten formato pero no necesariamente el mismo número de entradas.
+
+El índice usa cuatro regiones comprimidas: entradas de directorio, hashes de directorio, entradas de archivo y tabla de nombres Shift-JIS. En esta ROM se observó la misma combinación en los ocho contenedores:
+
+| Región | Compresión |
+|---|---|
+| Entradas de directorio | Level-5 Huffman 8-bit |
+| Hashes de directorio | Sin compresión |
+| Entradas de archivo | Level-5 Huffman 8-bit |
+| Nombres | Level-5 LZ10 |
+
+La herramienta reproducible es [`tools/inspect_arc0.py`](../tools/inspect_arc0.py). Su estructura sigue el lector ARC0 público de [Kuriimu2](https://github.com/FanTranslatorsInternational/Kuriimu2/blob/imgui/plugins/Level5/plugin_level5/N3DS/Archive/Arc0.cs), pero solo implementa lectura de metadatos para este proyecto.
 
 Tamaños lógicos:
 
@@ -35,14 +45,14 @@ Las cabeceras son reconocibles sin decodificar el contenido:
 
 Esto permite separar desde el principio el trabajo del port en tres lectores independientes: archivo `ARC0`, banco de audio `CSAR` y stream `CSTM`.
 
-## Siguiente tarea técnica
+## Resultado del lector
 
-Implementar un lector de índice `ARC0` que emita únicamente:
+El lector emite:
 
 1. ruta lógica,
 2. offset,
 3. tamaño,
 4. flags de compresión,
-5. hash local opcional.
+5. CRC32 almacenado para el nombre.
 
-El lector debe escribir un manifiesto fuera del repositorio y mantener los datos propietarios fuera de GitHub. Después se podrá comparar la estructura con los contenedores de la versión móvil de referencia.
+Los manifiestos completos se escriben fuera del repositorio y mantienen los datos propietarios fuera de GitHub. El resumen de comparación está en [`analysis/ARC0_INVENTORY.md`](ARC0_INVENTORY.md).

@@ -63,7 +63,7 @@ Formatos identificados por cabecera:
 | `.bcsar` | 7 | `CSAR` | bancos/índices de audio |
 | `.moflex` | 74 | `L2AA` | vídeo comprimido |
 
-La distribución confirma que el siguiente objetivo técnico debe ser un lector de contenedores `FA/ARC0`, seguido por identificación de tablas, texturas, modelos y scripts; no conviene empezar extrayendo todo el RomFS.
+La distribución confirmó que el primer objetivo técnico es el lector de índices `FA/ARC0`, implementado en [`tools/inspect_arc0.py`](../tools/inspect_arc0.py). El resumen de sus resultados está en [`analysis/ARC0_INVENTORY.md`](ARC0_INVENTORY.md); no se extrajo todo el RomFS.
 
 ## Relación con las versiones móviles
 
@@ -85,5 +85,5 @@ Las dos versiones móviles contienen una biblioteca nativa común conceptualment
 
 - No se han subido binarios ni assets propietarios a GitHub.
 - Los nombres y tamaños anteriores son un inventario, no una redistribución de contenido.
-- Falta identificar internamente el índice de `ARC0` y clasificar sus entradas.
+- El índice `ARC0` ya está identificado y documentado; falta clasificar las cabeceras de sus formatos internos.
 - Después conviene comparar hashes de archivos homólogos 3DS/móvil localmente y documentar solo resultados agregados.
