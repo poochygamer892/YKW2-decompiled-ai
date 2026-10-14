@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
     private let rightsSwitch = UISwitch()
     private let statusLabel = UILabel()
+    private let runtimeButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -30,11 +31,15 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         button.setTitle("Seleccionar ROM", for: .normal)
         button.addTarget(self, action: #selector(selectRom), for: .touchUpInside)
 
+        runtimeButton.setTitle("Abrir menú inicial", for: .normal)
+        runtimeButton.addTarget(self, action: #selector(openRuntime), for: .touchUpInside)
+        runtimeButton.isHidden = true
+
         statusLabel.text = "Selecciona una copia local autorizada para comenzar."
         statusLabel.numberOfLines = 0
         statusLabel.textAlignment = .center
 
-        let stack = UIStackView(arrangedSubviews: [titleLabel, rightsRow, button, statusLabel])
+        let stack = UIStackView(arrangedSubviews: [titleLabel, rightsRow, button, runtimeButton, statusLabel])
         stack.axis = .vertical
         stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -52,7 +57,23 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             create: true
         ).appendingPathComponent("ykw2-cache", isDirectory: true),
            YKW2ImportBridge.hasReadyImport(at: cacheURL) {
+            runtimeButton.isHidden = false
             statusLabel.text = "Recursos importados y verificados. El runtime del juego aún está en desarrollo."
+        }
+    }
+
+    @objc private func openRuntime() {
+        guard let cacheURL = try? FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ).appendingPathComponent("ykw2-cache", isDirectory: true) else { return }
+        let controller = RuntimeViewController(cacheURL: cacheURL)
+        if let navigationController {
+            navigationController.pushViewController(controller, animated: true)
+        } else {
+            present(controller, animated: true)
         }
     }
 
@@ -114,6 +135,7 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                 DispatchQueue.main.async {
                     url.stopAccessingSecurityScopedResource()
                     if success {
+                        self.runtimeButton.isHidden = false
                         self.statusLabel.text = "Importación completada. Recursos guardados en el caché privado."
                     } else {
                         self.statusLabel.text = "No se pudo extraer la RomFS: \(importError?.localizedDescription ?? "error desconocido")"

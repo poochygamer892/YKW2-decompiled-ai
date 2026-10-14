@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <sys/stat.h>
@@ -16,6 +17,7 @@
 #include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
+#include "ykw2/core/runtime_scene.hpp"
 
 namespace {
 
@@ -24,6 +26,54 @@ NSError *ImportError(std::string_view code) {
     return [NSError errorWithDomain:@"com.ykw2.port.import"
                                code:1
                            userInfo:@{NSLocalizedDescriptionKey: message ?: @"Import failed"}];
+}
+
+bool markerValue(NSString *marker, NSString *key, std::uint64_t& value) {
+    for (NSString *line in [marker componentsSeparatedByString:@"\n"]) {
+        NSArray<NSString *> *parts = [line componentsSeparatedByString:@"="];
+        if (parts.count == 2 && [parts[0] isEqualToString:key]) {
+            value = static_cast<std::uint64_t>(parts[1].longLongValue);
+            return true;
+        }
+    }
+    return false;
+}
+
+ykw2::core::RuntimeBootInfo loadRuntimeBoot(NSURL *cacheURL) {
+    ykw2::core::RuntimeBootInfo boot;
+    NSString *catalogPath = [cacheURL.path stringByAppendingPathComponent:@".catalog"];
+    NSString *markerPath = [cacheURL.path stringByAppendingPathComponent:@".import-complete"];
+    NSData *catalogData = [NSData dataWithContentsOfFile:catalogPath];
+    NSString *marker = [NSString stringWithContentsOfFile:markerPath
+                                                   encoding:NSUTF8StringEncoding error:nil];
+    if (catalogData == nil || marker == nil) {
+        boot.state = ykw2::core::RuntimeBootState::ImportRequired;
+        return boot;
+    }
+    const auto catalogText = std::string(static_cast<const char *>(catalogData.bytes), catalogData.length);
+    const auto catalog = ykw2::core::parse_resource_catalog(catalogText);
+    if (!catalog) {
+        boot.state = ykw2::core::RuntimeBootState::ImportIncomplete;
+        return boot;
+    }
+    std::uint64_t files = 0;
+    std::uint64_t bytes = 0;
+    std::uint64_t fingerprint = 0;
+    if (!markerValue(marker, @"files", files) || !markerValue(marker, @"bytes", bytes) ||
+        !markerValue(marker, @"fingerprint", fingerprint)) {
+        boot.state = ykw2::core::RuntimeBootState::ImportIncomplete;
+        return boot;
+    }
+    return ykw2::core::evaluate_runtime_boot(
+        *catalog.value, true, files, bytes, fingerprint);
+}
+
+std::mutex runtimeMutex;
+ykw2::core::RuntimeScene runtimeScene;
+bool runtimeStarted = false;
+
+NSString *runtimeString(const std::string& value) {
+    return [NSString stringWithUTF8String:value.c_str()] ?: @"";
 }
 
 class FileSource final : public ykw2::core::ResourceSource {
@@ -189,6 +239,45 @@ private:
     const auto boot = ykw2::core::evaluate_runtime_boot(
         *catalog.value, true, files, bytes, fingerprint);
     return boot.state == ykw2::core::RuntimeBootState::Ready;
+}
+
++ (NSString *)startRuntimeAtURL:(NSURL *)cacheURL {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    runtimeScene.start(loadRuntimeBoot(cacheURL));
+    runtimeStarted = true;
+    return runtimeString(ykw2::core::serialize_runtime_response(
+        {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
+}
+
++ (NSString *)handleRuntimeInput:(NSInteger)input {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (!runtimeStarted) {
+        ykw2::core::RuntimeBootInfo boot;
+        boot.state = ykw2::core::RuntimeBootState::ImportRequired;
+        runtimeScene.start(boot);
+        runtimeStarted = true;
+    }
+    ykw2::core::RuntimeInput runtimeInput;
+    switch (input) {
+        case 0:
+            runtimeInput = ykw2::core::RuntimeInput::MoveNext;
+            break;
+        case 1:
+            runtimeInput = ykw2::core::RuntimeInput::MovePrevious;
+            break;
+        case 2:
+            runtimeInput = ykw2::core::RuntimeInput::Confirm;
+            break;
+        case 3:
+            runtimeInput = ykw2::core::RuntimeInput::Back;
+            break;
+        default:
+            return runtimeString(ykw2::core::serialize_runtime_response(
+                {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
+    }
+    const auto transition = runtimeScene.handle(runtimeInput);
+    return runtimeString(ykw2::core::serialize_runtime_response(
+        transition, runtimeScene.snapshot()));
 }
 
 + (BOOL)importDocumentAtURL:(NSURL *)sourceURL

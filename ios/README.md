@@ -21,4 +21,9 @@ contenedor privado. Tras extraerlos genera `.catalog` y después
 descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
 mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
+`RuntimeViewController.swift` ya hospeda la primera escena portable: muestra
+el snapshot del núcleo y envía navegación/confirmación al puente
+Objective-C++. Las acciones de nueva partida y opciones aún son puntos de
+extensión, no una implementación de juego.
+
 No incluyas IPA, símbolos de distribución ni recursos propietarios en Git.

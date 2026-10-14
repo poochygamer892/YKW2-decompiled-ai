@@ -18,6 +18,7 @@ import kotlin.concurrent.thread
 class ImportActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var selectButton: Button
+    private lateinit var runtimeButton: Button
     private lateinit var rightsCheck: CheckBox
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,6 +58,15 @@ class ImportActivity : Activity() {
             setOnClickListener { openDocumentPicker() }
         }
         layout.addView(selectButton)
+
+        runtimeButton = Button(this).apply {
+            text = "Abrir menú inicial"
+            visibility = View.GONE
+            setOnClickListener {
+                startActivity(Intent(this@ImportActivity, RuntimeMenuActivity::class.java))
+            }
+        }
+        layout.addView(runtimeButton)
 
         status = TextView(this).apply {
             text = "Selecciona una copia local autorizada para comenzar."
@@ -131,7 +141,10 @@ class ImportActivity : Activity() {
             runOnUiThread {
                 selectButton.isEnabled = rightsCheck.isChecked
                 status.text = when (result) {
-                    0 -> "Importación completada. Recursos guardados en el caché privado."
+                    0 -> {
+                        refreshImportState()
+                        "Importación completada. Recursos guardados en el caché privado."
+                    }
                     1 -> "La imagen seleccionada no se puede leer."
                     2 -> "La imagen no es un dump NCSD/3DS válido."
                     else -> "No se pudo extraer la RomFS; revisa que el dump esté descifrado y completo."
@@ -143,8 +156,15 @@ class ImportActivity : Activity() {
     private fun refreshImportState() {
         if (!RomImportBridge.available) return
         when (RomImportBridge.nativeCheckImport(filesDir.resolve("ykw2-cache").absolutePath)) {
-            0 -> status.text = "Recursos importados y verificados. El runtime del juego aún está en desarrollo."
-            2 -> status.text = "La caché existe, pero la importación está incompleta; selecciona la ROM de nuevo."
+            0 -> {
+                runtimeButton.visibility = View.VISIBLE
+                status.text = "Recursos importados y verificados."
+            }
+            2 -> {
+                runtimeButton.visibility = View.GONE
+                status.text = "La caché existe, pero la importación está incompleta; selecciona la ROM de nuevo."
+            }
+            else -> runtimeButton.visibility = View.GONE
         }
     }
 
@@ -188,4 +208,6 @@ object RomImportBridge {
     external fun nativeValidateRom(fileDescriptor: Int, imageSize: Long): Int
     external fun nativeImportRom(fileDescriptor: Int, imageSize: Long, cacheDirectory: String): Int
     external fun nativeCheckImport(cacheDirectory: String): Int
+    external fun nativeStartRuntime(cacheDirectory: String): String
+    external fun nativeRuntimeInput(input: Int): String
 }

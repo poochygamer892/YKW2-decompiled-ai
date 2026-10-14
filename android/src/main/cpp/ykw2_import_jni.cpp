@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iterator>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <sys/stat.h>
@@ -19,6 +20,7 @@
 #include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
+#include "ykw2/core/runtime_scene.hpp"
 
 namespace {
 
@@ -220,15 +222,17 @@ bool marker_value(std::string_view marker, std::string_view key, std::uint64_t& 
     return false;
 }
 
-int check_import(const std::string& cache_path) {
+int load_runtime_boot(const std::string& cache_path, ykw2::core::RuntimeBootInfo& boot) {
     std::string catalog_text;
     std::string marker_text;
     if (!read_text_file(cache_path + "/.catalog", catalog_text) ||
         !read_text_file(cache_path + "/.import-complete", marker_text)) {
+        boot.state = ykw2::core::RuntimeBootState::ImportRequired;
         return 1;
     }
     const auto catalog = ykw2::core::parse_resource_catalog(catalog_text);
     if (!catalog) {
+        boot.state = ykw2::core::RuntimeBootState::ImportIncomplete;
         return 2;
     }
     std::uint64_t files = 0;
@@ -237,11 +241,63 @@ int check_import(const std::string& cache_path) {
     if (!marker_value(marker_text, "files", files) ||
         !marker_value(marker_text, "bytes", bytes) ||
         !marker_value(marker_text, "fingerprint", fingerprint)) {
+        boot.state = ykw2::core::RuntimeBootState::ImportIncomplete;
         return 2;
     }
-    const auto boot = ykw2::core::evaluate_runtime_boot(
+    boot = ykw2::core::evaluate_runtime_boot(
         *catalog.value, true, files, bytes, fingerprint);
     return boot.state == ykw2::core::RuntimeBootState::Ready ? 0 : 2;
+}
+
+int check_import(const std::string& cache_path) {
+    ykw2::core::RuntimeBootInfo boot;
+    return load_runtime_boot(cache_path, boot);
+}
+
+std::mutex runtime_mutex;
+ykw2::core::RuntimeScene runtime_scene;
+bool runtime_started = false;
+
+std::string start_runtime(const std::string& cache_path) {
+    ykw2::core::RuntimeBootInfo boot;
+    load_runtime_boot(cache_path, boot);
+    runtime_scene.start(boot);
+    runtime_started = true;
+    return ykw2::core::serialize_runtime_response(
+        {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
+}
+
+std::string handle_runtime_input(jint input) {
+    if (!runtime_started) {
+        ykw2::core::RuntimeBootInfo boot;
+        boot.state = ykw2::core::RuntimeBootState::ImportRequired;
+        runtime_scene.start(boot);
+        runtime_started = true;
+    }
+    ykw2::core::RuntimeInput runtime_input;
+    switch (input) {
+        case 0:
+            runtime_input = ykw2::core::RuntimeInput::MoveNext;
+            break;
+        case 1:
+            runtime_input = ykw2::core::RuntimeInput::MovePrevious;
+            break;
+        case 2:
+            runtime_input = ykw2::core::RuntimeInput::Confirm;
+            break;
+        case 3:
+            runtime_input = ykw2::core::RuntimeInput::Back;
+            break;
+        default:
+            return ykw2::core::serialize_runtime_response(
+                {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
+    }
+    const auto transition = runtime_scene.handle(runtime_input);
+    return ykw2::core::serialize_runtime_response(transition, runtime_scene.snapshot());
+}
+
+jstring to_java_string(JNIEnv* environment, const std::string& value) {
+    return environment->NewStringUTF(value.c_str());
 }
 
 int validate(int file_descriptor, std::uint64_t image_size,
@@ -284,6 +340,29 @@ Java_com_ykw2_port_RomImportBridge_nativeCheckImport(
     const std::string cache_path(cache_chars);
     environment->ReleaseStringUTFChars(cache_directory, cache_chars);
     return check_import(cache_path);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeStartRuntime(
+    JNIEnv* environment, jobject, jstring cache_directory) {
+    if (cache_directory == nullptr) {
+        return to_java_string(environment, "command=none\nhandled=0\nscreen=import\nselected=0\nstatus=import.required\n");
+    }
+    const auto* cache_chars = environment->GetStringUTFChars(cache_directory, nullptr);
+    if (cache_chars == nullptr) {
+        return to_java_string(environment, "command=none\nhandled=0\nscreen=import\nselected=0\nstatus=import.required\n");
+    }
+    const std::string cache_path(cache_chars);
+    environment->ReleaseStringUTFChars(cache_directory, cache_chars);
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    return to_java_string(environment, start_runtime(cache_path));
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeRuntimeInput(
+    JNIEnv* environment, jobject, jint input) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    return to_java_string(environment, handle_runtime_input(input));
 }
 
 extern "C" JNIEXPORT jint JNICALL

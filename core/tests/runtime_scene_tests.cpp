@@ -36,6 +36,10 @@ void test_title_menu_navigation() {
     assert(snapshot.selected_index == 0);
     assert(scene.handle(ykw2::core::RuntimeInput::Confirm).command ==
            ykw2::core::RuntimeCommand::StartNewGame);
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find("screen=title_menu\n") == 0);
+    assert(ykw2::core::serialize_runtime_response(
+               {true, ykw2::core::RuntimeCommand::StartNewGame}, snapshot)
+               .find("command=start_new_game\n") == 0);
 
     scene.handle(ykw2::core::RuntimeInput::MoveNext);
     snapshot = scene.snapshot();

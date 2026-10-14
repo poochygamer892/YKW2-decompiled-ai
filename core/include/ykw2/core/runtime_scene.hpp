@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "ykw2/core/runtime_bootstrap.hpp"
@@ -66,5 +67,10 @@ private:
     std::size_t selected_index_ = 0;
     std::vector<RuntimeMenuItem> items_;
 };
+
+std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot);
+std::string serialize_runtime_response(const RuntimeTransition& transition,
+                                       const RuntimeSnapshot& snapshot);
+std::string runtime_command_name(RuntimeCommand command);
 
 }  // namespace ykw2::core

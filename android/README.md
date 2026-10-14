@@ -21,4 +21,9 @@ parcial no se considera arrancable. El importador actual requiere una imagen
 descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
 mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
+`RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
+del núcleo mediante JNI y envía navegación/confirmación al mismo estado C++.
+Las acciones de nueva partida y opciones aún son puntos de extensión, no una
+implementación de juego.
+
 No incluyas APKs, AABs, dumps ni recursos propietarios en Git.

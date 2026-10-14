@@ -91,4 +91,46 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     return result;
 }
 
+std::string runtime_command_name(RuntimeCommand command) {
+    switch (command) {
+        case RuntimeCommand::RequestAuthorizedImport:
+            return "request_authorized_import";
+        case RuntimeCommand::StartNewGame:
+            return "start_new_game";
+        case RuntimeCommand::ContinueGame:
+            return "continue_game";
+        case RuntimeCommand::OpenSettings:
+            return "open_settings";
+        case RuntimeCommand::None:
+            return "none";
+    }
+    return "none";
+}
+
+namespace {
+
+const char* screen_name(RuntimeScreen screen) {
+    return screen == RuntimeScreen::TitleMenu ? "title_menu" : "import";
+}
+
+}  // namespace
+
+std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
+    std::string result = "screen=";
+    result += screen_name(snapshot.screen);
+    result += "\nselected=" + std::to_string(snapshot.selected_index) + "\nstatus=" +
+              snapshot.status_key + "\n";
+    for (const auto& item : snapshot.items) {
+        result += "item=" + item.id + "|" + item.label_key + "|" +
+                  (item.enabled ? "1" : "0") + "\n";
+    }
+    return result;
+}
+
+std::string serialize_runtime_response(const RuntimeTransition& transition,
+                                       const RuntimeSnapshot& snapshot) {
+    return "command=" + runtime_command_name(transition.command) + "\nhandled=" +
+           (transition.handled ? "1\n" : "0\n") + serialize_runtime_snapshot(snapshot);
+}
+
 }  // namespace ykw2::core
