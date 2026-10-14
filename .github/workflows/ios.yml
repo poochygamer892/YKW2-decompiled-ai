@@ -95,17 +95,21 @@ jobs:
         if: ${{ steps.signing.outcome != 'success' }}
         run: |
           set -euo pipefail
-          xcodebuild \
-            -project ios/YKW2Port.xcodeproj \
-            -scheme YKW2Port \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/YKW2Port.xcarchive" \
-            archive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$RUNNER_TEMP/archive.log"
+          if ! xcodebuild \
+              -project ios/YKW2Port.xcodeproj \
+              -scheme YKW2Port \
+              -configuration Release \
+              -sdk iphoneos \
+              -destination 'generic/platform=iOS' \
+              -archivePath "$RUNNER_TEMP/YKW2Port.xcarchive" \
+              archive \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$RUNNER_TEMP/archive.log"; then
+            SUMMARY="$(tail -80 "$RUNNER_TEMP/archive.log" | tr '\r\n' ' ' | sed 's/%/%25/g')"
+            echo "::error title=xcodebuild failed::$SUMMARY"
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/unsigned/Payload"
           cp -R "$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app" "$RUNNER_TEMP/unsigned/Payload/"
           (cd "$RUNNER_TEMP/unsigned" && zip -qry "$GITHUB_WORKSPACE/YKW2Port-unsigned.ipa" Payload)
