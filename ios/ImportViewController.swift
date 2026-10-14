@@ -82,9 +82,12 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             statusLabel.text = "Confirma primero que tienes derecho a usar la copia."
             return
         }
+        let romType = UTType(filenameExtension: "3ds") ?? .data
         let picker = UIDocumentPickerViewController(
-            forOpeningContentTypes: [UTType.data],
-            asCopy: false
+            // Some Files providers do not map .3ds to public.data. Including
+            // public.item keeps the picker able to select the user's dump.
+            forOpeningContentTypes: [romType, .data, .item],
+            asCopy: true
         )
         picker.delegate = self
         picker.allowsMultipleSelection = false
@@ -96,15 +99,12 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             statusLabel.text = "No se seleccionó ningún archivo."
             return
         }
-        guard url.startAccessingSecurityScopedResource() else {
-            statusLabel.text = "No se pudo obtener acceso temporal al archivo."
-            return
-        }
+        let hasSecurityScope = url.startAccessingSecurityScopedResource()
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
             let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
             guard size >= 0x200 else {
-                url.stopAccessingSecurityScopedResource()
+                if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
                 statusLabel.text = "La imagen es demasiado pequeña."
                 return
             }
@@ -113,7 +113,7 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             let header = try handle.read(upToCount: 0x200) ?? Data()
             guard header.count == 0x200,
                   header.subdata(in: 0x100..<0x104) == Data("NCSD".utf8) else {
-                url.stopAccessingSecurityScopedResource()
+                if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
                 statusLabel.text = "La imagen no es un dump NCSD/3DS válido."
                 return
             }
@@ -136,7 +136,7 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                     importError = error
                 }
                 DispatchQueue.main.async {
-                    url.stopAccessingSecurityScopedResource()
+                    if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
                     if success {
                         self.runtimeButton.isHidden = false
                         self.statusLabel.text = "Importación completada. Recursos guardados en el caché privado."
@@ -146,7 +146,7 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                 }
             }
         } catch {
-            url.stopAccessingSecurityScopedResource()
+            if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
             statusLabel.text = "No se pudo leer la imagen: \(error.localizedDescription)"
         }
     }
