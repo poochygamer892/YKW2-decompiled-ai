@@ -16,13 +16,19 @@ Prioridades:
 - `ykw2/core/byte_view.hpp`: lectura little-endian acotada y no propietaria.
 - `ykw2/core/formats.hpp`: metadatos de Level-5 y parsers de cabeceras
   `ARC0`, `XPCK`, `XQ32` e `IMGC`.
+- `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
+  importación que exige confirmación local de derechos.
+- `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y
+  escritura por streaming mediante `ResourceSink`.
 - `ykw2/core/resource_source.hpp`: contrato de lectura aleatoria para que
   Android/iOS suministren bytes desde sus propios bundles o archivos.
 - `tests/formats_tests.cpp`: fixtures sintéticos; no necesita ROM ni assets.
 
 Los parsers no descomprimen ni interpretan payloads. Devuelven offsets y
 regiones validadas para que la siguiente capa implemente los decodificadores
-Level-5 y los lectores de tablas sin acoplarse a Android o iOS.
+Level-5 y los lectores de tablas sin acoplarse a Android o iOS. El extractor
+RomFS ya tiene una prueba sintética de recorrido y escritura; no implementa
+descifrado ni extrae ExeFS.
 
 ## Compilación local
 

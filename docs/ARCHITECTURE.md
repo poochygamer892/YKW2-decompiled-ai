@@ -24,6 +24,11 @@ Cada etapa debe validar límites antes de leer y devolver errores deterministas.
 Los decodificadores no deben escribir en el repositorio ni asumir que el
 recurso completo está en memoria.
 
+La importación inicial está descrita en
+[`docs/IMPORT_FLOW.md`](IMPORT_FLOW.md). El usuario selecciona su documento en
+la plataforma, el núcleo valida el NCSD y el extractor futuro escribe el
+catálogo en el almacenamiento privado de la app.
+
 ### Adaptadores
 
 Cargadores de recursos, persistencia, entrada, audio, gráficos y reloj. Cada

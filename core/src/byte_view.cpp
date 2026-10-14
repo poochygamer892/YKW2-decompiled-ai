@@ -45,6 +45,17 @@ std::optional<std::uint32_t> ByteView::u32_le(std::size_t offset) const {
            (static_cast<std::uint32_t>(data_[offset + 3]) << 24);
 }
 
+std::optional<std::uint64_t> ByteView::u64_le(std::size_t offset) const {
+    if (!contains(offset, 8)) {
+        return std::nullopt;
+    }
+    std::uint64_t value = 0;
+    for (std::size_t index = 0; index < 8; ++index) {
+        value |= static_cast<std::uint64_t>(data_[offset + index]) << (index * 8);
+    }
+    return value;
+}
+
 std::optional<std::int16_t> ByteView::i16_le(std::size_t offset) const {
     const auto value = u16_le(offset);
     if (!value) {

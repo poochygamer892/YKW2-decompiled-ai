@@ -26,6 +26,7 @@ public:
     std::optional<std::uint8_t> u8(std::size_t offset) const;
     std::optional<std::uint16_t> u16_le(std::size_t offset) const;
     std::optional<std::uint32_t> u32_le(std::size_t offset) const;
+    std::optional<std::uint64_t> u64_le(std::size_t offset) const;
     std::optional<std::int16_t> i16_le(std::size_t offset) const;
 
 private:
