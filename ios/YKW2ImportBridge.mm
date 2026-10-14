@@ -18,6 +18,7 @@
 #include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
+#include "ykw2/core/runtime_save.hpp"
 #include "ykw2/core/runtime_scene.hpp"
 #include "ykw2/core/resource_store.hpp"
 
@@ -80,6 +81,37 @@ bool runtimeStarted = false;
 
 NSString *runtimeString(const std::string& value) {
     return [NSString stringWithUTF8String:value.c_str()] ?: @"";
+}
+
+NSURL *runtimeCacheURL = nil;
+
+bool restoreRuntimeSave(NSURL *cacheURL) {
+    NSString *path = [cacheURL.path stringByAppendingPathComponent:@"runtime.save"];
+    NSData *data = [NSData dataWithContentsOfFile:path];
+    if (data == nil || data.length == 0) {
+        return false;
+    }
+    std::vector<std::uint8_t> bytes(data.length);
+    std::memcpy(bytes.data(), data.bytes, data.length);
+    const auto state = ykw2::core::parse_runtime_save(bytes);
+    return state && runtimeScene.restore_state(*state);
+}
+
+void persistRuntimeSave() {
+    if (runtimeCacheURL == nil) {
+        return;
+    }
+    const auto state = runtimeScene.save_state();
+    if (!state) {
+        return;
+    }
+    const auto bytes = ykw2::core::serialize_runtime_save(*state);
+    if (bytes.empty()) {
+        return;
+    }
+    NSData *data = [NSData dataWithBytes:bytes.data() length:bytes.size()];
+    NSString *path = [runtimeCacheURL.path stringByAppendingPathComponent:@"runtime.save"];
+    [data writeToFile:path options:NSDataWritingAtomic error:nil];
 }
 
 class CacheResourceStore final : public ykw2::core::ResourceStore {
@@ -294,6 +326,7 @@ private:
 
 + (NSString *)startRuntimeAtURL:(NSURL *)cacheURL {
     std::lock_guard<std::mutex> lock(runtimeMutex);
+    runtimeCacheURL = cacheURL;
     ykw2::core::ResourceCatalog catalog;
     const auto boot = loadRuntimeBoot(cacheURL, &catalog);
     if (boot.state == ykw2::core::RuntimeBootState::Ready) {
@@ -301,6 +334,7 @@ private:
         const auto content = ykw2::core::load_initial_content(store);
         if (content) {
             runtimeScene.start(boot, *content.value);
+            restoreRuntimeSave(cacheURL);
         } else {
             runtimeScene.start(boot, false, 0);
         }
@@ -334,13 +368,40 @@ private:
         case 3:
             runtimeInput = ykw2::core::RuntimeInput::Back;
             break;
+        case 4:
+            runtimeInput = ykw2::core::RuntimeInput::MoveUp;
+            break;
+        case 5:
+            runtimeInput = ykw2::core::RuntimeInput::MoveDown;
+            break;
+        case 6:
+            runtimeInput = ykw2::core::RuntimeInput::MoveLeft;
+            break;
+        case 7:
+            runtimeInput = ykw2::core::RuntimeInput::MoveRight;
+            break;
         default:
             return runtimeString(ykw2::core::serialize_runtime_response(
                 {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
     }
     const auto transition = runtimeScene.handle(runtimeInput);
+    persistRuntimeSave();
     return runtimeString(ykw2::core::serialize_runtime_response(
         transition, runtimeScene.snapshot()));
+}
+
++ (NSString *)advanceRuntime:(NSTimeInterval)deltaSeconds {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (!runtimeStarted) {
+        ykw2::core::RuntimeBootInfo boot;
+        boot.state = ykw2::core::RuntimeBootState::ImportRequired;
+        runtimeScene.start(boot);
+        runtimeStarted = true;
+    }
+    runtimeScene.advance(static_cast<double>(deltaSeconds));
+    persistRuntimeSave();
+    return runtimeString(ykw2::core::serialize_runtime_response(
+        {true, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
 }
 
 + (NSInteger)runtimeBackgroundWidth {
@@ -409,6 +470,8 @@ private:
         [cacheURL.path stringByAppendingPathComponent:@".import-complete"] error:nil];
     [[NSFileManager defaultManager] removeItemAtPath:
         [cacheURL.path stringByAppendingPathComponent:@".catalog"] error:nil];
+    [[NSFileManager defaultManager] removeItemAtPath:
+        [cacheURL.path stringByAppendingPathComponent:@"runtime.save"] error:nil];
     FileSource source(handle, imageSize);
     DirectorySink sink(cacheURL);
     const auto extraction = ykw2::core::extract_application_romfs(source, *plan.value, sink);

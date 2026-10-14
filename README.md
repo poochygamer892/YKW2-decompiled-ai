@@ -2,7 +2,7 @@
 
 Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2** y construir, cuando sea legalmente posible, clientes nativos para Android e iOS tomando como referencia técnica la versión móvil de **Yo-kai Watch 1**.
 
-> Estado: scaffold inicial. El repositorio no contiene ROMs, dumps, assets propietarios ni código extraído del juego.
+> Estado: fases de importación, catálogo y runtime inicial implementadas. El repositorio no contiene ROMs, dumps, assets propietarios ni código extraído del juego.
 
 ## Objetivos
 
@@ -29,9 +29,22 @@ Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2**
 4. Documenta cada hallazgo con evidencia, confianza y una prueba reproducible.
 5. Implementa primero formatos y comportamiento; deja la integración de plataforma para después.
 
-## Requisitos previstos
+## Estado actual
 
-El scaffold no fija todavía un lenguaje para el núcleo. La elección entre C++, Rust u otra opción debe hacerse después del inventario inicial, considerando depuración, integración con Kotlin/Android y Swift/iOS, y soporte de pruebas.
+- El núcleo C++17 valida NCSD/NCCH, extrae la RomFS autorizada a un caché privado,
+  carga `yw2_a.fa`, inspecciona ARC0/XPCK/IMGC y selecciona el primer mapa,
+  personaje y fondo localizado.
+- `RuntimeScene` ya tiene menú inicial, entrada de mundo, movimiento, reloj de
+  simulación y guardado binario versionado con restauración validada contra el
+  catálogo importado.
+- Android e iOS tienen adaptadores nativos, ciclo de actualización y workflows
+  reproducibles de compilación. La fase pendiente es ampliar el renderizador,
+  audio, combate, eventos y el resto de sistemas del juego.
+
+Para Android se necesita JDK 21, Android SDK 35, CMake 3.22.1, NDK 27.2 y
+Gradle 8.11.1; el workflow `android.yml` instala esos componentes en GitHub
+Actions. El workflow de iOS usa macOS/Xcode y deja un IPA unsigned si no se
+configuran secretos de firma.
 
 ## Uso responsable
 

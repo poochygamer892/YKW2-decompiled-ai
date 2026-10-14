@@ -7,6 +7,7 @@ final class RuntimeViewController: UIViewController {
     private let selectedLabel = UILabel()
     private let commandLabel = UILabel()
     private let backgroundImage = UIImageView()
+    private var displayLink: CADisplayLink?
 
     init(cacheURL: URL) {
         self.cacheURL = cacheURL
@@ -39,8 +40,23 @@ final class RuntimeViewController: UIViewController {
         let confirm = UIButton(type: .system)
         confirm.setTitle("Confirmar", for: .normal)
         confirm.addTarget(self, action: #selector(confirmSelection), for: .touchUpInside)
+        let up = UIButton(type: .system)
+        up.setTitle("Arriba", for: .normal)
+        up.addTarget(self, action: #selector(moveUp), for: .touchUpInside)
+        let down = UIButton(type: .system)
+        down.setTitle("Abajo", for: .normal)
+        down.addTarget(self, action: #selector(moveDown), for: .touchUpInside)
+        let left = UIButton(type: .system)
+        left.setTitle("Izquierda", for: .normal)
+        left.addTarget(self, action: #selector(moveLeft), for: .touchUpInside)
+        let right = UIButton(type: .system)
+        right.setTitle("Derecha", for: .normal)
+        right.addTarget(self, action: #selector(moveRight), for: .touchUpInside)
+        let back = UIButton(type: .system)
+        back.setTitle("Volver", for: .normal)
+        back.addTarget(self, action: #selector(moveBack), for: .touchUpInside)
 
-        let stack = UIStackView(arrangedSubviews: [statusLabel, backgroundImage, selectedLabel, previous, next, confirm, commandLabel])
+        let stack = UIStackView(arrangedSubviews: [statusLabel, backgroundImage, selectedLabel, previous, next, up, down, left, right, confirm, back, commandLabel])
         stack.axis = .vertical
         stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -52,6 +68,23 @@ final class RuntimeViewController: UIViewController {
         ])
         render(YKW2ImportBridge.startRuntime(at: cacheURL))
         renderBackground()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        displayLink?.invalidate()
+        displayLink = CADisplayLink(target: self, selector: #selector(advanceFrame(_:)))
+        displayLink?.add(to: .main, forMode: .common)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        displayLink?.invalidate()
+        displayLink = nil
+        super.viewWillDisappear(animated)
+    }
+
+    @objc private func advanceFrame(_ displayLink: CADisplayLink) {
+        render(YKW2ImportBridge.advanceRuntime(1.0 / 60.0))
     }
 
     @objc private func movePrevious() {
@@ -66,22 +99,36 @@ final class RuntimeViewController: UIViewController {
         render(YKW2ImportBridge.handleRuntimeInput(2))
     }
 
+    @objc private func moveUp() { render(YKW2ImportBridge.handleRuntimeInput(4)) }
+    @objc private func moveDown() { render(YKW2ImportBridge.handleRuntimeInput(5)) }
+    @objc private func moveLeft() { render(YKW2ImportBridge.handleRuntimeInput(6)) }
+    @objc private func moveRight() { render(YKW2ImportBridge.handleRuntimeInput(7)) }
+    @objc private func moveBack() { render(YKW2ImportBridge.handleRuntimeInput(3)) }
+
     private func render(_ response: String) {
         let lines = response.split(separator: "\n", omittingEmptySubsequences: true)
         var selected = 0
         var status = "runtime.title_menu"
         var command = "none"
+        var screen = "title_menu"
         var items: [[String]] = []
         var sceneResourceCount = 0
+        var worldMap = "mapa pendiente"
+        var playerX = "0"
+        var playerY = "0"
         for line in lines {
             let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
             guard parts.count == 2 else { continue }
             switch parts[0] {
+            case "screen": screen = parts[1]
             case "selected": selected = Int(parts[1]) ?? 0
             case "status": status = parts[1]
             case "command": command = parts[1]
             case "item": items.append(parts[1].split(separator: "|").map(String.init))
             case "scene_resource": sceneResourceCount += 1
+            case "world_map": worldMap = parts[1]
+            case "player_x": playerX = parts[1]
+            case "player_y": playerY = parts[1]
             default: break
             }
         }
@@ -93,8 +140,11 @@ final class RuntimeViewController: UIViewController {
             selectedLabel.text = statusLabel(for: status)
         }
         commandLabel.text = command == "start_new_game"
-            ? "Nueva partida: \(sceneResourceCount) recursos base listos para el renderer."
-            : command == "open_settings" ? "Las opciones se conectarán en la siguiente fase." : ""
+            ? "Nueva partida iniciada."
+            : command == "open_settings" ? "Las opciones se conectarán en la siguiente fase."
+            : screen == "world"
+                ? "Mapa: \(worldMap)\nJugador: (\(playerX), \(playerY))\n\(sceneResourceCount) recursos de escena cargados."
+                : ""
     }
 
     private func renderBackground() {
@@ -135,6 +185,7 @@ final class RuntimeViewController: UIViewController {
     private func statusLabel(for key: String) -> String {
         switch key {
         case "runtime.title_menu": return "Contenido inicial validado"
+        case "runtime.world": return "Explorando Yo-kai Watch 2"
         case "runtime.content_missing":
             return "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
         case "import.required": return "Selecciona una copia autorizada para importar."

@@ -5,6 +5,7 @@
 #include <charconv>
 #include <cerrno>
 #include <cstdint>
+#include <cstdio>
 #include <fcntl.h>
 #include <fstream>
 #include <iterator>
@@ -22,6 +23,7 @@
 #include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
+#include "ykw2/core/runtime_save.hpp"
 #include "ykw2/core/runtime_scene.hpp"
 #include "ykw2/core/resource_store.hpp"
 
@@ -204,6 +206,52 @@ bool read_text_file(const std::string& path, std::string& contents) {
     return input.good() || input.eof();
 }
 
+bool read_binary_file(const std::string& path, std::vector<std::uint8_t>& contents) {
+    std::ifstream input(path, std::ios::binary | std::ios::ate);
+    if (!input) {
+        return false;
+    }
+    const auto end = input.tellg();
+    constexpr std::streamoff kMaximumSaveBytes = 16 * 1024;
+    if (end < 0 || end > kMaximumSaveBytes) {
+        return false;
+    }
+    contents.resize(static_cast<std::size_t>(end));
+    input.seekg(0, std::ios::beg);
+    if (!contents.empty()) {
+        input.read(reinterpret_cast<char*>(contents.data()),
+                   static_cast<std::streamsize>(contents.size()));
+    }
+    return input.good() || input.eof();
+}
+
+bool write_binary_file_atomic(const std::string& path,
+                              const std::vector<std::uint8_t>& contents) {
+    const auto temporary_path = path + ".tmp";
+    const auto descriptor = open(temporary_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (descriptor < 0) {
+        return false;
+    }
+    std::size_t written = 0;
+    while (written < contents.size()) {
+        const auto result = ::write(descriptor, contents.data() + written, contents.size() - written);
+        if (result < 0 && errno == EINTR) {
+            continue;
+        }
+        if (result <= 0) {
+            close(descriptor);
+            unlink(temporary_path.c_str());
+            return false;
+        }
+        written += static_cast<std::size_t>(result);
+    }
+    if (close(descriptor) != 0 || rename(temporary_path.c_str(), path.c_str()) != 0) {
+        unlink(temporary_path.c_str());
+        return false;
+    }
+    return true;
+}
+
 bool marker_value(std::string_view marker, std::string_view key, std::uint64_t& value) {
     std::size_t cursor = 0;
     while (cursor <= marker.size()) {
@@ -305,8 +353,35 @@ int check_import(const std::string& cache_path) {
 std::mutex runtime_mutex;
 ykw2::core::RuntimeScene runtime_scene;
 bool runtime_started = false;
+std::string runtime_cache_path;
+
+void restore_runtime_save(const std::string& cache_path) {
+    std::vector<std::uint8_t> bytes;
+    if (!read_binary_file(cache_path + "/runtime.save", bytes)) {
+        return;
+    }
+    const auto state = ykw2::core::parse_runtime_save(bytes);
+    if (state) {
+        runtime_scene.restore_state(*state);
+    }
+}
+
+void persist_runtime_save() {
+    if (runtime_cache_path.empty()) {
+        return;
+    }
+    const auto state = runtime_scene.save_state();
+    if (!state) {
+        return;
+    }
+    const auto bytes = ykw2::core::serialize_runtime_save(*state);
+    if (!bytes.empty()) {
+        write_binary_file_atomic(runtime_cache_path + "/runtime.save", bytes);
+    }
+}
 
 std::string start_runtime(const std::string& cache_path) {
+    runtime_cache_path = cache_path;
     ykw2::core::RuntimeBootInfo boot;
     ykw2::core::ResourceCatalog catalog;
     const auto boot_state = load_runtime_boot(cache_path, boot, &catalog);
@@ -315,6 +390,7 @@ std::string start_runtime(const std::string& cache_path) {
         const auto content = ykw2::core::load_initial_content(store);
         if (content) {
             runtime_scene.start(boot, *content.value);
+            restore_runtime_save(cache_path);
         } else {
             runtime_scene.start(boot, false, 0);
         }
@@ -347,12 +423,38 @@ std::string handle_runtime_input(jint input) {
         case 3:
             runtime_input = ykw2::core::RuntimeInput::Back;
             break;
+        case 4:
+            runtime_input = ykw2::core::RuntimeInput::MoveUp;
+            break;
+        case 5:
+            runtime_input = ykw2::core::RuntimeInput::MoveDown;
+            break;
+        case 6:
+            runtime_input = ykw2::core::RuntimeInput::MoveLeft;
+            break;
+        case 7:
+            runtime_input = ykw2::core::RuntimeInput::MoveRight;
+            break;
         default:
             return ykw2::core::serialize_runtime_response(
                 {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
     }
     const auto transition = runtime_scene.handle(runtime_input);
+    persist_runtime_save();
     return ykw2::core::serialize_runtime_response(transition, runtime_scene.snapshot());
+}
+
+std::string advance_runtime(double delta_seconds) {
+    if (!runtime_started) {
+        ykw2::core::RuntimeBootInfo boot;
+        boot.state = ykw2::core::RuntimeBootState::ImportRequired;
+        runtime_scene.start(boot);
+        runtime_started = true;
+    }
+    runtime_scene.advance(delta_seconds);
+    persist_runtime_save();
+    return ykw2::core::serialize_runtime_response(
+        {true, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
 }
 
 jstring to_java_string(JNIEnv* environment, const std::string& value) {
@@ -424,6 +526,13 @@ Java_com_ykw2_port_RomImportBridge_nativeRuntimeInput(
     return to_java_string(environment, handle_runtime_input(input));
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeRuntimeAdvance(
+    JNIEnv* environment, jobject, jdouble delta_seconds) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    return to_java_string(environment, advance_runtime(static_cast<double>(delta_seconds)));
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_ykw2_port_RomImportBridge_nativeRuntimeBackgroundWidth(
     JNIEnv*, jobject) {
@@ -476,6 +585,7 @@ Java_com_ykw2_port_RomImportBridge_nativeImportRom(
     }
     unlink((cache_path + "/.import-complete").c_str());
     unlink((cache_path + "/.catalog").c_str());
+    unlink((cache_path + "/runtime.save").c_str());
 
     std::array<std::uint8_t, 0x200> header{};
     const auto validation = validate(file_descriptor, static_cast<std::uint64_t>(image_size), header);

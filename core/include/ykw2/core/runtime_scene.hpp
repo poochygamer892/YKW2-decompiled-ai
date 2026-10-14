@@ -7,17 +7,23 @@
 
 #include "ykw2/core/initial_content.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
+#include "ykw2/core/runtime_save.hpp"
 
 namespace ykw2::core {
 
 enum class RuntimeScreen {
     Import,
     TitleMenu,
+    World,
 };
 
 enum class RuntimeInput {
     MoveNext,
     MovePrevious,
+    MoveUp,
+    MoveDown,
+    MoveLeft,
+    MoveRight,
     Confirm,
     Back,
 };
@@ -37,6 +43,17 @@ struct RuntimeMenuItem {
     bool enabled = true;
 };
 
+struct RuntimeWorldSnapshot {
+    bool active = false;
+    std::string map_resource;
+    float player_x = 0.0f;
+    float player_y = 0.0f;
+    float camera_x = 0.0f;
+    float camera_y = 0.0f;
+    double simulation_seconds = 0.0;
+    std::uint64_t frame = 0;
+};
+
 struct RuntimeSnapshot {
     RuntimeScreen screen = RuntimeScreen::Import;
     std::size_t selected_index = 0;
@@ -49,6 +66,7 @@ struct RuntimeSnapshot {
     std::uint16_t background_height = 0;
     std::uint8_t background_format = 0;
     std::vector<std::uint8_t> background_rgba;
+    RuntimeWorldSnapshot world;
 };
 
 struct RuntimeTransition {
@@ -67,12 +85,16 @@ public:
                std::uint64_t initial_content_files);
     void start(const RuntimeBootInfo& boot, const InitialContentInfo& content);
     RuntimeTransition handle(RuntimeInput input);
+    void advance(double delta_seconds);
+    std::optional<RuntimeSaveState> save_state() const;
+    bool restore_state(const RuntimeSaveState& state);
     RuntimeSnapshot snapshot() const;
     const std::vector<std::uint8_t>& background_rgba() const { return background_rgba_; }
     std::uint16_t background_width() const { return background_width_; }
     std::uint16_t background_height() const { return background_height_; }
 
 private:
+    void enter_world();
     void select_next(int direction);
     bool selected_item_enabled() const;
 
@@ -84,6 +106,7 @@ private:
     std::uint16_t background_height_ = 0;
     std::uint8_t background_format_ = 0;
     std::vector<std::uint8_t> background_rgba_;
+    RuntimeWorldSnapshot world_;
     RuntimeScreen screen_ = RuntimeScreen::Import;
     std::size_t selected_index_ = 0;
     std::vector<RuntimeMenuItem> items_;

@@ -55,8 +55,10 @@ Aplicación nativa con integración Swift/iOS. El cliente debe reutilizar las mi
 - requisitos mínimos de Android e iOS;
 - licencias y procedencia de cada dependencia.
 
-La ABI pública entre C++ y Kotlin/Swift aún está pendiente. `RuntimeScene` es
-la frontera lógica inicial: las plataformas reciben un snapshot y envían
-`RuntimeInput`; la pantalla no contiene lógica de formatos. No se debe fijar la
-semántica de IMGC o los tipos numéricos de XPCK basándose únicamente en nombres
-de archivos: deben apoyarse en pruebas diferenciales y evidencia documentada.
+`RuntimeScene` es la frontera lógica actual: las plataformas reciben un
+snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación y
+`runtime_save` persiste sólo el estado de la escena. Android usa JNI y un
+`Handler`; iOS usa Objective-C++ y `CADisplayLink`. La pantalla no contiene
+lógica de formatos. El renderizado de mapas, audio, combate, eventos y la
+traducción completa de recursos siguen siendo trabajo posterior; no se deben
+confundir estos cimientos con un port jugable completo.

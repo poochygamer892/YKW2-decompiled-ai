@@ -18,6 +18,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     background_height_ = 0;
     background_format_ = 0;
     background_rgba_.clear();
+    world_ = {};
     selected_index_ = 0;
     items_.clear();
     if (boot.state != RuntimeBootState::Ready) {
@@ -47,6 +48,66 @@ bool RuntimeScene::selected_item_enabled() const {
            items_[selected_index_].enabled;
 }
 
+void RuntimeScene::enter_world() {
+    screen_ = RuntimeScreen::World;
+    selected_index_ = 0;
+    items_.clear();
+    world_ = {};
+    world_.active = true;
+    for (const auto& resource : scene_resources_) {
+        if (resource.role == InitialSceneResourceRole::Map) {
+            world_.map_resource = resource.path;
+            break;
+        }
+    }
+}
+
+void RuntimeScene::advance(double delta_seconds) {
+    if (screen_ != RuntimeScreen::World || !world_.active || delta_seconds <= 0.0) {
+        return;
+    }
+    constexpr double kMaximumDeltaSeconds = 0.25;
+    const auto clamped = std::min(delta_seconds, kMaximumDeltaSeconds);
+    world_.simulation_seconds += clamped;
+    world_.camera_x = world_.player_x;
+    world_.camera_y = world_.player_y;
+    ++world_.frame;
+}
+
+std::optional<RuntimeSaveState> RuntimeScene::save_state() const {
+    if (screen_ != RuntimeScreen::World || !world_.active || world_.map_resource.empty()) {
+        return std::nullopt;
+    }
+    return RuntimeSaveState{true, world_.map_resource, world_.player_x, world_.player_y,
+                            world_.simulation_seconds, world_.frame};
+}
+
+bool RuntimeScene::restore_state(const RuntimeSaveState& state) {
+    if (!initial_content_ready_ || !state.active || state.map_resource.empty()) {
+        return false;
+    }
+    const auto resource = std::find_if(
+        scene_resources_.begin(), scene_resources_.end(), [&state](const auto& candidate) {
+            return candidate.role == InitialSceneResourceRole::Map &&
+                   candidate.path == state.map_resource;
+        });
+    if (resource == scene_resources_.end()) {
+        return false;
+    }
+    screen_ = RuntimeScreen::World;
+    selected_index_ = 0;
+    items_.clear();
+    world_.active = true;
+    world_.map_resource = state.map_resource;
+    world_.player_x = state.player_x;
+    world_.player_y = state.player_y;
+    world_.camera_x = state.player_x;
+    world_.camera_y = state.player_y;
+    world_.simulation_seconds = state.simulation_seconds;
+    world_.frame = state.frame;
+    return true;
+}
+
 void RuntimeScene::select_next(int direction) {
     if (items_.empty()) {
         return;
@@ -72,11 +133,51 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
         return {false, RuntimeCommand::None};
     }
 
+    if (screen_ == RuntimeScreen::World) {
+        constexpr float kStep = 1.0f;
+        switch (input) {
+            case RuntimeInput::MoveNext:
+            case RuntimeInput::MoveRight:
+                world_.player_x += kStep;
+                advance(1.0 / 60.0);
+                return {true, RuntimeCommand::None};
+            case RuntimeInput::MovePrevious:
+            case RuntimeInput::MoveLeft:
+                world_.player_x -= kStep;
+                advance(1.0 / 60.0);
+                return {true, RuntimeCommand::None};
+            case RuntimeInput::MoveUp:
+                world_.player_y -= kStep;
+                advance(1.0 / 60.0);
+                return {true, RuntimeCommand::None};
+            case RuntimeInput::MoveDown:
+                world_.player_y += kStep;
+                advance(1.0 / 60.0);
+                return {true, RuntimeCommand::None};
+            case RuntimeInput::Back:
+                screen_ = RuntimeScreen::TitleMenu;
+                world_.active = false;
+                items_ = {
+                    {"new_game", "menu.new_game", initial_content_ready_},
+                    {"continue", "menu.continue", false},
+                    {"settings", "menu.settings", true},
+                };
+                selected_index_ = 0;
+                return {true, RuntimeCommand::None};
+            case RuntimeInput::Confirm:
+                return {false, RuntimeCommand::None};
+        }
+    }
+
     switch (input) {
         case RuntimeInput::MoveNext:
+        case RuntimeInput::MoveDown:
+        case RuntimeInput::MoveRight:
             select_next(1);
             return {true, RuntimeCommand::None};
         case RuntimeInput::MovePrevious:
+        case RuntimeInput::MoveUp:
+        case RuntimeInput::MoveLeft:
             select_next(-1);
             return {true, RuntimeCommand::None};
         case RuntimeInput::Confirm:
@@ -85,6 +186,7 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
             }
             switch (selected_index_) {
                 case 0:
+                    enter_world();
                     return {true, RuntimeCommand::StartNewGame};
                 case 2:
                     return {true, RuntimeCommand::OpenSettings};
@@ -109,10 +211,13 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.background_height = background_height_;
     result.background_format = background_format_;
     result.background_rgba = background_rgba_;
+    result.world = world_;
     if (screen_ == RuntimeScreen::Import) {
         result.status_key = boot_.state == RuntimeBootState::ImportIncomplete
                                 ? "import.incomplete"
                                 : "import.required";
+    } else if (screen_ == RuntimeScreen::World) {
+        result.status_key = "runtime.world";
     } else if (!initial_content_ready_) {
         result.status_key = "runtime.content_missing";
     } else {
@@ -140,7 +245,15 @@ std::string runtime_command_name(RuntimeCommand command) {
 namespace {
 
 const char* screen_name(RuntimeScreen screen) {
-    return screen == RuntimeScreen::TitleMenu ? "title_menu" : "import";
+    switch (screen) {
+        case RuntimeScreen::Import:
+            return "import";
+        case RuntimeScreen::TitleMenu:
+            return "title_menu";
+        case RuntimeScreen::World:
+            return "world";
+    }
+    return "import";
 }
 
 }  // namespace
@@ -152,6 +265,14 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
               snapshot.status_key + "\n";
     result += "content_ready=" + std::string(snapshot.initial_content_ready ? "1\n" : "0\n");
     result += "content_files=" + std::to_string(snapshot.initial_content_files) + "\n";
+    result += "world_active=" + std::string(snapshot.world.active ? "1\n" : "0\n");
+    result += "world_map=" + snapshot.world.map_resource + "\n";
+    result += "player_x=" + std::to_string(snapshot.world.player_x) + "\n";
+    result += "player_y=" + std::to_string(snapshot.world.player_y) + "\n";
+    result += "camera_x=" + std::to_string(snapshot.world.camera_x) + "\n";
+    result += "camera_y=" + std::to_string(snapshot.world.camera_y) + "\n";
+    result += "simulation_seconds=" + std::to_string(snapshot.world.simulation_seconds) + "\n";
+    result += "frame=" + std::to_string(snapshot.world.frame) + "\n";
     for (const auto& resource : snapshot.scene_resources) {
         result += "scene_resource=" +
                   std::string(initial_scene_resource_role_name(resource.role)) + "|" +

@@ -62,7 +62,24 @@ bool is_character_resource(std::string_view path) {
 }
 
 bool is_background_resource(std::string_view path) {
-    return starts_with(path, "data/map/bg/") && ends_with(path, ".xi");
+    return (starts_with(path, "data/map/bg/") || starts_with(path, "data/menu/img/")) &&
+           ends_with(path, ".xi");
+}
+
+const Arc0File* first_background_match(const Arc0Archive& archive) {
+    // The 3DS dump uses a localized menu image for the first native screen;
+    // keep a deterministic map-background fallback for older/sample archives.
+    if (const auto* preferred = archive.find("data/menu/img/esus/transfer_image00.xi");
+        preferred != nullptr) {
+        return preferred;
+    }
+    if (const auto* map_background = first_path_match(archive, [](std::string_view path) {
+            return starts_with(path, "data/map/bg/") && ends_with(path, ".xi");
+        });
+        map_background != nullptr) {
+        return map_background;
+    }
+    return first_path_match(archive, is_background_resource);
 }
 
 template <typename T>
@@ -163,7 +180,9 @@ std::vector<InitialSceneResource> select_initial_scene_resources(
 
     std::vector<InitialSceneResource> resources;
     for (const auto& candidate : candidates) {
-        const auto* file = first_path_match(archive, candidate.matches);
+        const auto* file = candidate.role == InitialSceneResourceRole::Background
+                               ? first_background_match(archive)
+                               : first_path_match(archive, candidate.matches);
         if (file != nullptr) {
             resources.push_back({candidate.role, file->path, file->offset, file->size});
         }

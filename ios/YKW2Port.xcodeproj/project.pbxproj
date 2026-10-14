@@ -22,6 +22,7 @@
 		310011 /* runtime_bootstrap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210011 /* runtime_bootstrap.cpp */; };
 		310012 /* runtime_scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210012 /* runtime_scene.cpp */; };
 		310013 /* xpck_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210013 /* xpck_reader.cpp */; };
+		310014 /* runtime_save.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210014 /* runtime_save.cpp */; };
 		320001 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220001 /* Foundation.framework */; };
 		320002 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220002 /* UIKit.framework */; };
 		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
@@ -48,6 +49,7 @@
 		210011 /* runtime_bootstrap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_bootstrap.cpp; sourceTree = "<group>"; };
 		210012 /* runtime_scene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_scene.cpp; sourceTree = "<group>"; };
 		210013 /* xpck_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = xpck_reader.cpp; sourceTree = "<group>"; };
+		210014 /* runtime_save.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_save.cpp; sourceTree = "<group>"; };
 		220001 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
@@ -118,6 +120,7 @@
 				210011 /* runtime_bootstrap.cpp */,
 				210012 /* runtime_scene.cpp */,
 				210013 /* xpck_reader.cpp */,
+				210014 /* runtime_save.cpp */,
 			);
 			name = core;
 			path = ../core/src;
@@ -203,6 +206,7 @@
 				310011 /* runtime_bootstrap.cpp in Sources */,
 				310012 /* runtime_scene.cpp in Sources */,
 				310013 /* xpck_reader.cpp in Sources */,
+				310014 /* runtime_save.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

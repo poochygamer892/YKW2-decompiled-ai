@@ -34,12 +34,7 @@ void test_title_menu_navigation() {
     assert(snapshot.screen == ykw2::core::RuntimeScreen::TitleMenu);
     assert(snapshot.items.size() == 3);
     assert(snapshot.selected_index == 0);
-    assert(scene.handle(ykw2::core::RuntimeInput::Confirm).command ==
-           ykw2::core::RuntimeCommand::StartNewGame);
     assert(ykw2::core::serialize_runtime_snapshot(snapshot).find("screen=title_menu\n") == 0);
-    assert(ykw2::core::serialize_runtime_response(
-               {true, ykw2::core::RuntimeCommand::StartNewGame}, snapshot)
-               .find("command=start_new_game\n") == 0);
 
     scene.handle(ykw2::core::RuntimeInput::MoveNext);
     snapshot = scene.snapshot();
@@ -50,6 +45,11 @@ void test_title_menu_navigation() {
 
     scene.handle(ykw2::core::RuntimeInput::MoveNext);
     assert(scene.snapshot().selected_index == 0);
+    assert(scene.handle(ykw2::core::RuntimeInput::Confirm).command ==
+           ykw2::core::RuntimeCommand::StartNewGame);
+    assert(ykw2::core::serialize_runtime_response(
+               {true, ykw2::core::RuntimeCommand::StartNewGame}, snapshot)
+               .find("command=start_new_game\n") == 0);
 }
 
 void test_title_menu_waits_for_initial_content() {
@@ -82,6 +82,65 @@ void test_title_menu_exposes_scene_resource_plan() {
            std::string::npos);
 }
 
+void test_new_game_enters_world_and_moves_player() {
+    ykw2::core::InitialContentInfo content;
+    content.archive_files = 3;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 12});
+
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    const auto transition = scene.handle(ykw2::core::RuntimeInput::Confirm);
+    assert(transition.command == ykw2::core::RuntimeCommand::StartNewGame);
+    auto snapshot = scene.snapshot();
+    assert(snapshot.screen == ykw2::core::RuntimeScreen::World);
+    assert(snapshot.status_key == "runtime.world");
+    assert(snapshot.world.active);
+    assert(snapshot.world.map_resource == "data/map/e100g002/e100g002.xc");
+
+    scene.handle(ykw2::core::RuntimeInput::MoveRight);
+    scene.handle(ykw2::core::RuntimeInput::MoveDown);
+    snapshot = scene.snapshot();
+    assert(snapshot.world.player_x == 1.0f);
+    assert(snapshot.world.player_y == 1.0f);
+    assert(snapshot.world.frame == 2);
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find("screen=world\n") == 0);
+
+    scene.handle(ykw2::core::RuntimeInput::Back);
+    assert(scene.snapshot().screen == ykw2::core::RuntimeScreen::TitleMenu);
+}
+
+void test_world_state_can_be_saved_and_restored() {
+    ykw2::core::InitialContentInfo content;
+    content.archive_files = 3;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 12});
+
+    ykw2::core::RuntimeScene source;
+    source.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    source.handle(ykw2::core::RuntimeInput::Confirm);
+    source.handle(ykw2::core::RuntimeInput::MoveRight);
+    const auto saved = source.save_state();
+    assert(saved.has_value());
+    assert(saved->player_x == 1.0f);
+
+    const auto bytes = ykw2::core::serialize_runtime_save(*saved);
+    const auto parsed = ykw2::core::parse_runtime_save(bytes);
+    assert(parsed.has_value());
+
+    ykw2::core::RuntimeScene restored;
+    restored.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    assert(restored.restore_state(*parsed));
+    const auto snapshot = restored.snapshot();
+    assert(snapshot.screen == ykw2::core::RuntimeScreen::World);
+    assert(snapshot.world.player_x == 1.0f);
+    assert(snapshot.world.frame == 1);
+}
+
 }  // namespace
 
 int main() {
@@ -90,5 +149,7 @@ int main() {
     test_title_menu_navigation();
     test_title_menu_waits_for_initial_content();
     test_title_menu_exposes_scene_resource_plan();
+    test_new_game_enters_world_and_moves_player();
+    test_world_state_can_be_saved_and_restored();
     return 0;
 }
