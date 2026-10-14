@@ -103,8 +103,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/YKW2Port.xcarchive" \
             archive \
+            CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$RUNNER_TEMP/archive.log"
           mkdir -p "$RUNNER_TEMP/unsigned/Payload"
           cp -R "$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app" "$RUNNER_TEMP/unsigned/Payload/"
           (cd "$RUNNER_TEMP/unsigned" && zip -qry "$GITHUB_WORKSPACE/YKW2Port-unsigned.ipa" Payload)
@@ -125,5 +126,6 @@ jobs:
           path: |
             ${{ runner.temp }}/YKW2Port.xcarchive/**
             ${{ runner.temp }}/DerivedData/Logs/**
+            ${{ runner.temp }}/archive.log
           if-no-files-found: ignore
           retention-days: 7
