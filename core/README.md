@@ -16,12 +16,17 @@ Prioridades:
 - `ykw2/core/byte_view.hpp`: lectura little-endian acotada y no propietaria.
 - `ykw2/core/formats.hpp`: metadatos de Level-5 y parsers de cabeceras
   `ARC0`, `XPCK`, `XQ32` e `IMGC`.
+- `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
+  `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
+  un backend portable.
 - `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
   importación que exige confirmación local de derechos.
 - `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y
   escritura por streaming mediante `ResourceSink`.
 - `ykw2/core/resource_source.hpp`: contrato de lectura aleatoria para que
   Android/iOS suministren bytes desde sus propios bundles o archivos.
+- `ykw2/core/resource_store.hpp`: frontera del runtime para resolver rutas del
+  catálogo y comprobar firmas antes de servir lecturas acotadas.
 - `tests/formats_tests.cpp`: fixtures sintéticos; no necesita ROM ni assets.
 
 Los parsers no descomprimen ni interpretan payloads. Devuelven offsets y
@@ -45,3 +50,8 @@ c++ -std=c++17 -Wall -Wextra -Wpedantic \
 
 También hay un `CMakeLists.txt` preparado para `YKW2_BUILD_TESTS=ON` cuando
 el entorno de Android/iOS aporte CMake.
+
+El decodificador Level-5 no incorpora todavía una dependencia de Zlib: los
+streams `none`, `LZ10`, `Huffman4/8` y `RLE` quedan disponibles en el núcleo,
+que devuelve `level5_zlib_backend_unavailable` para el método 5. Los índices
+observados de YKW2 usan los cuatro primeros métodos en sus tablas documentadas.

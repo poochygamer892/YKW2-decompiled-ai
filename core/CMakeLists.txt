@@ -6,7 +6,9 @@ add_library(ykw2_core STATIC
     src/byte_view.cpp
     src/formats.cpp
     src/import_contract.cpp
+    src/level5_decode.cpp
     src/resource_catalog.cpp
+    src/resource_store.cpp
     src/romfs_extract.cpp
     src/runtime_bootstrap.cpp
 )
@@ -28,6 +30,10 @@ if (YKW2_BUILD_TESTS)
     target_link_libraries(ykw2_core_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_core_tests COMMAND ykw2_core_tests)
 
+    add_executable(ykw2_level5_tests tests/level5_tests.cpp)
+    target_link_libraries(ykw2_level5_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_level5_tests COMMAND ykw2_level5_tests)
+
     add_executable(ykw2_import_tests tests/import_tests.cpp)
     target_link_libraries(ykw2_import_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_import_tests COMMAND ykw2_import_tests)
@@ -39,4 +45,8 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_catalog_tests tests/catalog_tests.cpp)
     target_link_libraries(ykw2_catalog_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_catalog_tests COMMAND ykw2_catalog_tests)
+
+    add_executable(ykw2_store_tests tests/store_tests.cpp)
+    target_link_libraries(ykw2_store_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_store_tests COMMAND ykw2_store_tests)
 endif()

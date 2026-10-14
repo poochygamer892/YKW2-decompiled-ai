@@ -11,13 +11,15 @@ Yo-kai Watch 2 autorizados por el usuario.
 
 Lógica de formatos, estado del juego, reglas, simulación y pruebas. No depende
 de APIs de Android o iOS. La entrada de recursos se hace mediante
-`core/include/ykw2/core/resource_source.hpp`, y la validación de cabeceras
-mediante `core/include/ykw2/core/formats.hpp`.
+`core/include/ykw2/core/resource_source.hpp`; la resolución desde el catálogo,
+mediante `core/include/ykw2/core/resource_store.hpp`; y la validación de
+cabeceras, mediante `core/include/ykw2/core/formats.hpp`.
 
 El flujo previsto para un recurso es:
 
 ```text
-ResourceSource -> ByteView -> parser de cabecera -> decoder Level-5 -> lector de recurso
+ResourceStore -> catálogo -> firma -> ResourceSource/archivo -> ByteView ->
+parser de cabecera -> decoder Level-5 -> lector de recurso
 ```
 
 Cada etapa debe validar límites antes de leer y devolver errores deterministas.
