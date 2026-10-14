@@ -36,4 +36,10 @@ ParseResult<Arc0Archive> read_arc0_archive(
     const ResourceStore& store, std::string_view path,
     Arc0ReadOptions options = {});
 
+// Reads a bounded range from one file inside an ARC0 archive. The caller
+// supplies the parsed file record; no nested payload is copied implicitly.
+bool read_arc0_file_range(const ResourceStore& store, std::string_view archive_path,
+                          const Arc0File& file, std::uint64_t offset,
+                          std::uint8_t* destination, std::size_t length);
+
 }  // namespace ykw2::core

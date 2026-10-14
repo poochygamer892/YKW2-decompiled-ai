@@ -21,7 +21,8 @@ Prioridades:
   un backend portable.
 - `ykw2/core/arc0_reader.hpp` y `ykw2/core/xpck_reader.hpp`: lectores de
   índices que usan `ResourceStore`, descomprimen sus tablas y validan offsets
-  de archivos anidados sin copiar el archivo completo.
+  de archivos anidados sin copiar el archivo completo; ARC0 también ofrece
+  lectura por rango de un recurso anidado para el renderer.
 - `ykw2/core/runtime_scene.hpp`: primera escena portable; expone estado de
   importación, menú inicial y comandos para que cada plataforma dibuje su UI.
 - `ykw2/core/initial_content.hpp`: localiza y valida el índice ARC0 del

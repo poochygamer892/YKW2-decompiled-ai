@@ -104,6 +104,15 @@ void test_arc0_reader() {
     assert(result.value->files[0].path == "dir/hi");
     assert(result.value->files[0].offset == 0x90);
     assert(result.value->files[0].size == 5);
+
+    std::array<std::uint8_t, 5> payload{};
+    assert(ykw2::core::read_arc0_file_range(
+        store, "archive.fa", result.value->files[0], 0, payload.data(), payload.size()));
+    assert(std::equal(payload.begin(), payload.end(), std::array<std::uint8_t, 5>{
+                                                       'w', 'o', 'r', 'l', 'd'}
+                                                       .begin()));
+    assert(!ykw2::core::read_arc0_file_range(
+        store, "archive.fa", result.value->files[0], 4, payload.data(), payload.size()));
 }
 
 void test_xpck_reader() {

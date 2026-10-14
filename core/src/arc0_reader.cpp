@@ -74,6 +74,18 @@ const Arc0File* Arc0Archive::find(std::string_view path) const {
     return found == files.end() ? nullptr : &*found;
 }
 
+bool read_arc0_file_range(const ResourceStore& store, std::string_view archive_path,
+                          const Arc0File& file, std::uint64_t offset,
+                          std::uint8_t* destination, std::size_t length) {
+    if (offset > file.size || length > static_cast<std::uint64_t>(file.size) - offset) {
+        return false;
+    }
+    if (file.offset > std::numeric_limits<std::uint64_t>::max() - offset) {
+        return false;
+    }
+    return store.read_exact(archive_path, file.offset + offset, destination, length);
+}
+
 ParseResult<Arc0Archive> read_arc0_archive(
     const ResourceStore& store, std::string_view path, Arc0ReadOptions options) {
     const auto catalog_entry = store.catalog().find(path);
