@@ -19,6 +19,9 @@ Prioridades:
 - `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
   `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
   un backend portable.
+- `ykw2/core/arc0_reader.hpp` y `ykw2/core/xpck_reader.hpp`: lectores de
+  índices que usan `ResourceStore`, descomprimen sus tablas y validan offsets
+  de archivos anidados sin copiar el archivo completo.
 - `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
   importación que exige confirmación local de derechos.
 - `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y
@@ -49,7 +52,9 @@ c++ -std=c++17 -Wall -Wextra -Wpedantic \
 ```
 
 También hay un `CMakeLists.txt` preparado para `YKW2_BUILD_TESTS=ON` cuando
-el entorno de Android/iOS aporte CMake.
+el entorno de Android/iOS aporte CMake. Los lectores ARC0/XPCK operan sobre
+rangos del `ResourceStore`, así que no necesitan mapear en memoria el `.fa` o
+el contenedor anidado completo.
 
 El decodificador Level-5 no incorpora todavía una dependencia de Zlib: los
 streams `none`, `LZ10`, `Huffman4/8` y `RLE` quedan disponibles en el núcleo,

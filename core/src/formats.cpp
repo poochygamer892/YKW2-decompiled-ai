@@ -58,7 +58,10 @@ ParseResult<Level5Header> parse_level5_header(ByteView bytes) {
     return ParseResult<Level5Header>::success(header);
 }
 
-ParseResult<Arc0Header> parse_arc0_header(ByteView bytes) {
+namespace {
+
+ParseResult<Arc0Header> parse_arc0_header_impl(ByteView bytes,
+                                               std::uint64_t archive_size) {
     if (!bytes.starts_with("ARC0")) {
         return failure<Arc0Header>("invalid_arc0_magic", 0);
     }
@@ -102,18 +105,34 @@ ParseResult<Arc0Header> parse_arc0_header(ByteView bytes) {
         header.name_offset,
         header.data_offset,
     };
+    if (header.directory_entries_count < 0 || header.directory_hash_count < 0) {
+        return failure<Arc0Header>("negative_arc0_count", 0x18);
+    }
     if (!std::is_sorted(offsets.begin(), offsets.end())) {
         return failure<Arc0Header>("non_monotonic_arc0_offsets", 0x04);
     }
     for (const auto offset : offsets) {
-        if (offset < 0x48 || static_cast<std::uint64_t>(offset) > bytes.size()) {
+        if (offset < 0x48 || static_cast<std::uint64_t>(offset) > archive_size) {
             return failure<Arc0Header>("arc0_offset_out_of_bounds", offset);
         }
     }
     return ParseResult<Arc0Header>::success(header);
 }
 
-ParseResult<XpckHeader> parse_xpck_header(ByteView bytes) {
+}  // namespace
+
+ParseResult<Arc0Header> parse_arc0_header(ByteView bytes) {
+    return parse_arc0_header_impl(bytes, bytes.size());
+}
+
+ParseResult<Arc0Header> parse_arc0_header(ByteView header, std::uint64_t archive_size) {
+    return parse_arc0_header_impl(header, archive_size);
+}
+
+namespace {
+
+ParseResult<XpckHeader> parse_xpck_header_impl(ByteView bytes,
+                                               std::uint64_t archive_size) {
     if (!bytes.starts_with("XPCK")) {
         return failure<XpckHeader>("invalid_xpck_magic", 0);
     }
@@ -149,13 +168,28 @@ ParseResult<XpckHeader> parse_xpck_header(ByteView bytes) {
     const auto info_end = static_cast<std::uint64_t>(header.info_offset) + header.info_size;
     const auto name_end = static_cast<std::uint64_t>(header.name_offset) + header.name_size;
     const auto data_end = static_cast<std::uint64_t>(header.data_offset) + header.data_size;
-    if (info_end > bytes.size() || name_end > bytes.size() || data_end > bytes.size() + 4u) {
+    const auto archive_size_with_padding =
+        archive_size > std::numeric_limits<std::uint64_t>::max() - 4u
+            ? std::numeric_limits<std::uint64_t>::max()
+            : archive_size + 4u;
+    if (info_end > archive_size || name_end > archive_size ||
+        data_end > archive_size_with_padding) {
         return failure<XpckHeader>("xpck_region_out_of_bounds", 0x06);
     }
     if (static_cast<std::uint64_t>(header.entry_count) * 12u > header.info_size) {
         return failure<XpckHeader>("xpck_info_table_too_small", 0x04);
     }
     return ParseResult<XpckHeader>::success(header);
+}
+
+}  // namespace
+
+ParseResult<XpckHeader> parse_xpck_header(ByteView bytes) {
+    return parse_xpck_header_impl(bytes, bytes.size());
+}
+
+ParseResult<XpckHeader> parse_xpck_header(ByteView header, std::uint64_t archive_size) {
+    return parse_xpck_header_impl(header, archive_size);
 }
 
 ParseResult<XpckEntry> parse_xpck_entry(ByteView bytes, std::size_t index) {

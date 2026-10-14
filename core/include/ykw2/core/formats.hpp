@@ -44,6 +44,7 @@ struct Arc0Header {
 };
 
 ParseResult<Arc0Header> parse_arc0_header(ByteView bytes);
+ParseResult<Arc0Header> parse_arc0_header(ByteView header, std::uint64_t archive_size);
 
 struct XpckHeader {
     std::uint16_t file_count_and_type = 0;
@@ -65,6 +66,7 @@ struct XpckEntry {
 };
 
 ParseResult<XpckHeader> parse_xpck_header(ByteView bytes);
+ParseResult<XpckHeader> parse_xpck_header(ByteView header, std::uint64_t archive_size);
 ParseResult<XpckEntry> parse_xpck_entry(ByteView bytes, std::size_t index);
 
 struct Xq32TableRegion {

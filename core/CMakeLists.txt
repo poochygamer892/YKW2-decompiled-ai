@@ -7,10 +7,12 @@ add_library(ykw2_core STATIC
     src/formats.cpp
     src/import_contract.cpp
     src/level5_decode.cpp
+    src/arc0_reader.cpp
     src/resource_catalog.cpp
     src/resource_store.cpp
     src/romfs_extract.cpp
     src/runtime_bootstrap.cpp
+    src/xpck_reader.cpp
 )
 
 target_compile_features(ykw2_core PUBLIC cxx_std_17)
@@ -33,6 +35,10 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_level5_tests tests/level5_tests.cpp)
     target_link_libraries(ykw2_level5_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_level5_tests COMMAND ykw2_level5_tests)
+
+    add_executable(ykw2_archive_tests tests/archive_tests.cpp)
+    target_link_libraries(ykw2_archive_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_archive_tests COMMAND ykw2_archive_tests)
 
     add_executable(ykw2_import_tests tests/import_tests.cpp)
     target_link_libraries(ykw2_import_tests PRIVATE ykw2_core)
