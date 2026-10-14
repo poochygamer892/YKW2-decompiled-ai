@@ -126,12 +126,14 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                 create: true
             ).appendingPathComponent("ykw2-cache", isDirectory: true)
             DispatchQueue.global(qos: .userInitiated).async {
-                var importError: NSError?
-                let success = YKW2ImportBridge.importDocument(
-                    at: url,
-                    cacheURL: cacheURL,
-                    error: &importError
-                )
+                var importError: Error?
+                let success: Bool
+                do {
+                    success = try YKW2ImportBridge.importDocument(at: url, cacheURL: cacheURL)
+                } catch {
+                    success = false
+                    importError = error
+                }
                 DispatchQueue.main.async {
                     url.stopAccessingSecurityScopedResource()
                     if success {
