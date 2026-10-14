@@ -69,7 +69,8 @@ void test_title_menu_exposes_scene_resource_plan() {
     content.archive_files = 3;
     content.scene_resources.push_back({
         ykw2::core::InitialSceneResourceRole::Map,
-        "data/map/e100g002/e100g002.xc", 100, 30});
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 12});
 
     ykw2::core::RuntimeScene scene;
     scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
@@ -77,7 +78,7 @@ void test_title_menu_exposes_scene_resource_plan() {
     assert(snapshot.scene_resources.size() == 1);
     assert(snapshot.scene_resources[0].path == "data/map/e100g002/e100g002.xc");
     assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
-               "scene_resource=map|data/map/e100g002/e100g002.xc|30|100\n") !=
+               "scene_resource=map|data/map/e100g002/e100g002.xc|30|100|2|12\n") !=
            std::string::npos);
 }
 

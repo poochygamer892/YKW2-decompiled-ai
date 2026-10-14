@@ -144,7 +144,9 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
         result += "scene_resource=" +
                   std::string(initial_scene_resource_role_name(resource.role)) + "|" +
                   resource.path + "|" + std::to_string(resource.size) + "|" +
-                  std::to_string(resource.offset) + "\n";
+                  std::to_string(resource.offset) + "|" +
+                  std::to_string(static_cast<unsigned int>(resource.kind)) + "|" +
+                  std::to_string(resource.child_count) + "\n";
     }
     for (const auto& item : snapshot.items) {
         result += "item=" + item.id + "|" + item.label_key + "|" +

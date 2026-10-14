@@ -86,10 +86,25 @@ void test_probe_rejects_missing_or_changed_resources() {
     assert(changed.error->code == "resource_signature_mismatch");
 }
 
+void test_resource_window_store_is_bounded() {
+    MemoryStore store({{"data/main.xc", {'X', 'P', 'C', 'K', 'a', 'b', 'c'}}});
+    const auto window = ykw2::core::ResourceWindowStore::create(
+        store, "data/main.xc", 1, 4);
+    assert(window);
+    assert(window.value->virtual_path() == "window");
+    assert(window.value->catalog().find("window")->kind ==
+           ykw2::core::ResourceKind::Unknown);
+    std::array<std::uint8_t, 4> bytes{};
+    assert(window.value->read_exact("window", 0, bytes.data(), bytes.size()));
+    assert(bytes[0] == 'P' && bytes[3] == 'a');
+    assert(!window.value->read_exact("window", 1, bytes.data(), bytes.size()));
+}
+
 }  // namespace
 
 int main() {
     test_probe_and_bounded_reads();
     test_probe_rejects_missing_or_changed_resources();
+    test_resource_window_store_is_bounded();
     return 0;
 }

@@ -1,11 +1,13 @@
 #include "ykw2/core/initial_content.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <string>
 #include <utility>
 
 #include "ykw2/core/arc0_reader.hpp"
+#include "ykw2/core/xpck_reader.hpp"
 
 namespace ykw2::core {
 namespace {
@@ -60,6 +62,48 @@ bool is_character_resource(std::string_view path) {
 
 bool is_background_resource(std::string_view path) {
     return starts_with(path, "data/map/bg/") && ends_with(path, ".xi");
+}
+
+template <typename T>
+ParseResult<T> inspect_failure(std::string_view code, std::size_t offset = 0) {
+    return ParseResult<T>::failure(code, offset);
+}
+
+ParseResult<InitialSceneResource> inspect_scene_resource(
+    const ResourceStore& store, std::string_view archive_path,
+    const Arc0File& file, InitialSceneResource resource) {
+    const auto window = ResourceWindowStore::create(
+        store, archive_path, file.offset, file.size);
+    if (!window) {
+        return inspect_failure<InitialSceneResource>(
+            window.error->code, window.error->offset);
+    }
+
+    if (resource.role == InitialSceneResourceRole::Map ||
+        resource.role == InitialSceneResourceRole::Character) {
+        const auto parsed = read_xpck_archive(*window.value, window.value->virtual_path());
+        if (!parsed) {
+            return inspect_failure<InitialSceneResource>(
+                parsed.error->code, parsed.error->offset);
+        }
+        resource.kind = ResourceKind::Xpck;
+        resource.child_count = parsed.value->files.size();
+        return ParseResult<InitialSceneResource>::success(std::move(resource));
+    }
+
+    std::array<std::uint8_t, 0x40> header{};
+    if (!window.value->read_exact(window.value->virtual_path(), 0,
+                                  header.data(), header.size())) {
+        return inspect_failure<InitialSceneResource>(
+            "initial_scene_resource_header_read_failed");
+    }
+    const auto parsed = parse_imgc_header(ByteView(header.data(), header.size()));
+    if (!parsed) {
+        return inspect_failure<InitialSceneResource>(
+            parsed.error->code, parsed.error->offset);
+    }
+    resource.kind = ResourceKind::Imgc;
+    return ParseResult<InitialSceneResource>::success(std::move(resource));
 }
 
 std::string_view basename(std::string_view path) {
@@ -139,6 +183,19 @@ ParseResult<InitialContentInfo> load_initial_content(
     result.first_file_path = first_file.path;
     result.first_file_size = first_file.size;
     result.scene_resources = select_initial_scene_resources(*archive.value);
+    for (auto& resource : result.scene_resources) {
+        const auto* file = archive.value->find(resource.path);
+        if (file == nullptr) {
+            return failure<InitialContentInfo>("initial_scene_resource_not_found");
+        }
+        const auto inspected = inspect_scene_resource(
+            store, result.archive_path, *file, std::move(resource));
+        if (!inspected) {
+            return failure<InitialContentInfo>(
+                inspected.error->code, inspected.error->offset);
+        }
+        resource = std::move(*inspected.value);
+    }
     return ParseResult<InitialContentInfo>::success(std::move(result));
 }
 

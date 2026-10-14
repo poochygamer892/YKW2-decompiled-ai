@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <utility>
 
 namespace ykw2::core {
@@ -13,6 +14,64 @@ ParseResult<T> failure(std::string_view code, std::size_t offset) {
 }
 
 }  // namespace
+
+ResourceWindowStore::ResourceWindowStore(
+    const ResourceStore& source, std::string source_path,
+    std::uint64_t source_offset, std::uint64_t window_size,
+    std::string virtual_path, ResourceCatalog catalog)
+    : source_(&source),
+      source_path_(std::move(source_path)),
+      source_offset_(source_offset),
+      window_size_(window_size),
+      virtual_path_(std::move(virtual_path)),
+      catalog_(std::move(catalog)) {}
+
+ParseResult<ResourceWindowStore> ResourceWindowStore::create(
+    const ResourceStore& source, std::string_view source_path,
+    std::uint64_t source_offset, std::uint64_t window_size,
+    std::string virtual_path) {
+    if (virtual_path.empty()) {
+        return ParseResult<ResourceWindowStore>::failure(
+            "resource_window_empty_path", 0);
+    }
+    const auto* source_entry = source.catalog().find(source_path);
+    if (source_entry == nullptr || source_offset > source_entry->size ||
+        window_size > source_entry->size - source_offset) {
+        return ParseResult<ResourceWindowStore>::failure(
+            "resource_window_out_of_bounds", 0);
+    }
+
+    std::array<std::uint8_t, 4> signature{};
+    const auto signature_size = static_cast<std::size_t>(
+        std::min<std::uint64_t>(signature.size(), window_size));
+    if (signature_size != 0 && !source.read_exact(
+                                  source_path, source_offset, signature.data(), signature_size)) {
+        return ParseResult<ResourceWindowStore>::failure(
+            "resource_window_signature_read_failed", 0);
+    }
+    std::vector<CatalogInput> inputs;
+    inputs.push_back({virtual_path, window_size, signature});
+    const auto catalog = build_resource_catalog(std::move(inputs));
+    if (!catalog) {
+        return ParseResult<ResourceWindowStore>::failure(
+            catalog.error->code, catalog.error->offset);
+    }
+    ResourceCatalog catalog_value = *catalog.value;
+    return ParseResult<ResourceWindowStore>::success(ResourceWindowStore(
+        source, std::string(source_path), source_offset, window_size,
+        std::move(virtual_path), std::move(catalog_value)));
+}
+
+bool ResourceWindowStore::read(std::string_view path, std::uint64_t offset,
+                               std::uint8_t* destination, std::size_t length) const {
+    if (path != virtual_path_ || offset > window_size_ ||
+        length > window_size_ - offset ||
+        source_offset_ > std::numeric_limits<std::uint64_t>::max() - offset) {
+        return false;
+    }
+    return source_->read_exact(source_path_, source_offset_ + offset,
+                               destination, length);
+}
 
 bool ResourceStore::read_exact(std::string_view path, std::uint64_t offset,
                                std::uint8_t* destination, std::size_t length) const {

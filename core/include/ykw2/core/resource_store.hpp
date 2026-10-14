@@ -24,6 +24,34 @@ public:
                     std::uint8_t* destination, std::size_t length) const;
 };
 
+// Presents a bounded byte range as a one-file ResourceStore. This lets the
+// existing XPCK/IMGC readers consume files nested in ARC0 without a temporary
+// extraction or a second full-size buffer.
+class ResourceWindowStore final : public ResourceStore {
+public:
+    static ParseResult<ResourceWindowStore> create(
+        const ResourceStore& source, std::string_view source_path,
+        std::uint64_t source_offset, std::uint64_t window_size,
+        std::string virtual_path = "window");
+
+    const ResourceCatalog& catalog() const override { return catalog_; }
+    bool read(std::string_view path, std::uint64_t offset,
+              std::uint8_t* destination, std::size_t length) const override;
+    std::string_view virtual_path() const { return virtual_path_; }
+
+private:
+    ResourceWindowStore(const ResourceStore& source, std::string source_path,
+                        std::uint64_t source_offset, std::uint64_t window_size,
+                        std::string virtual_path, ResourceCatalog catalog);
+
+    const ResourceStore* source_;
+    std::string source_path_;
+    std::uint64_t source_offset_;
+    std::uint64_t window_size_;
+    std::string virtual_path_;
+    ResourceCatalog catalog_;
+};
+
 struct ResourceProbe {
     std::string path;
     std::uint64_t size = 0;

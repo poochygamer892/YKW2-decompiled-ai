@@ -113,6 +113,28 @@ void test_arc0_reader() {
                                                        .begin()));
     assert(!ykw2::core::read_arc0_file_range(
         store, "archive.fa", result.value->files[0], 4, payload.data(), payload.size()));
+
+    std::vector<std::uint8_t> xpck(0x80, 0);
+    xpck[0] = 'X'; xpck[1] = 'P'; xpck[2] = 'C'; xpck[3] = 'K';
+    put16(xpck, 0x04, 0x1001);
+    put16(xpck, 0x06, 5);
+    put16(xpck, 0x08, 8);
+    put16(xpck, 0x0a, 12);
+    put16(xpck, 0x0c, 3);
+    put16(xpck, 0x0e, 5);
+    put32(xpck, 0x10, 4);
+    put32(xpck, 0x20, (5u << 3));
+    xpck[0x24] = 'x'; xpck[0x25] = 'p'; xpck[0x26] = 'c'; xpck[0x27] = 'k';
+    xpck[0x28] = 0;
+    MemoryStore nested_store({{"nested.xc", xpck}});
+    const auto window = ykw2::core::ResourceWindowStore::create(
+        nested_store, "nested.xc", 0, xpck.size());
+    assert(window);
+    const auto nested = ykw2::core::read_xpck_archive(
+        *window.value, window.value->virtual_path());
+    assert(nested);
+    assert(nested.value->files.size() == 1);
+    assert(nested.value->files[0].name == "xpck");
 }
 
 void test_xpck_reader() {

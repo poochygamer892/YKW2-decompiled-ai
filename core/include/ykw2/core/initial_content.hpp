@@ -21,6 +21,8 @@ struct InitialSceneResource {
     std::string path;
     std::uint64_t offset = 0;
     std::uint32_t size = 0;
+    ResourceKind kind = ResourceKind::Unknown;
+    std::uint64_t child_count = 0;
 };
 
 const char* initial_scene_resource_role_name(InitialSceneResourceRole role);

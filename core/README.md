@@ -27,7 +27,8 @@ Prioridades:
   importación, menú inicial y comandos para que cada plataforma dibuje su UI.
 - `ykw2/core/initial_content.hpp`: localiza y valida el índice ARC0 del
   archivo inicial antes de habilitar Nueva partida y selecciona metadatos de
-  mapa, personaje y fondo para la primera escena.
+  mapa, personaje y fondo para la primera escena; durante el arranque valida
+  los índices XPCK de mapa/personaje y la cabecera IMGC del fondo.
 - `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
   importación que exige confirmación local de derechos.
 - `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y
@@ -35,7 +36,8 @@ Prioridades:
 - `ykw2/core/resource_source.hpp`: contrato de lectura aleatoria para que
   Android/iOS suministren bytes desde sus propios bundles o archivos.
 - `ykw2/core/resource_store.hpp`: frontera del runtime para resolver rutas del
-  catálogo y comprobar firmas antes de servir lecturas acotadas.
+  catálogo y comprobar firmas antes de servir lecturas acotadas; también
+  expone ventanas de un recurso ARC0 para reutilizar los lectores XPCK/IMGC.
 - `tests/formats_tests.cpp`: fixtures sintéticos; no necesita ROM ni assets.
 
 Los parsers no descomprimen ni interpretan payloads. Devuelven offsets y
