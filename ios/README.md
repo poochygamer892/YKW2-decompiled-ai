@@ -32,6 +32,11 @@ artefacto sea instalable en un iPhone, añade estos secretos del repositorio:
 publica `YKW2Port-unsigned-validation-ipa`, útil para verificar la compilación
 pero no instalable por iOS debido a la ausencia de firma.
 
+El perfil debe corresponder exactamente al identificador `com.ykw2.port.ios`
+y el certificado debe ser compatible con ese perfil. Cuando esos secretos están
+presentes, Actions importa el `.p12`, instala el perfil, archiva y exporta el
+`.ipa` firmado automáticamente.
+
 Swift/Objective-C++ se reservará para ciclo de vida, entrada, audio,
 renderizado y lectura de archivos; los parsers y reglas permanecen en el
 núcleo C++.

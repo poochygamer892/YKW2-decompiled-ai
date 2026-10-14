@@ -114,6 +114,10 @@ jobs:
             echo "::error title=xcodebuild failed::$SUMMARY"
             exit 1
           fi
+          APP="$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app"
+          /usr/libexec/PlistBuddy -c 'Print:CFBundleExecutable' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print:CFBundleIdentifier' "$APP/Info.plist"
+          test -x "$APP/YKW2Port"
           mkdir -p "$RUNNER_TEMP/unsigned/Payload"
           cp -R "$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app" "$RUNNER_TEMP/unsigned/Payload/"
           (cd "$RUNNER_TEMP/unsigned" && zip -qry "$GITHUB_WORKSPACE/YKW2Port-unsigned.ipa" Payload)
