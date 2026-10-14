@@ -1,0 +1,55 @@
+# Operating systems and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Local-only project material
+.local/
+roms/
+dumps/
+extracted/
+artifacts/
+
+# Common ROM/container formats
+*.3ds
+*.3dsx
+*.cia
+*.nds
+*.gba
+*.gbc
+*.gb
+*.iso
+*.cso
+*.xci
+*.nsp
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+
+# Apple / Xcode / Swift Package Manager
+DerivedData/
+.build/
+Packages/
+*.xcuserstate
+**/xcuserdata/
+*.ipa
+*.dSYM.zip
+
+# Python tooling
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# JavaScript tooling
+node_modules/
+
+# Logs and generated reports
+*.log
+analysis/generated/
