@@ -129,7 +129,8 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                 var importError: Error?
                 let success: Bool
                 do {
-                    success = try YKW2ImportBridge.importDocument(at: url, cacheURL: cacheURL)
+                    try YKW2ImportBridge.importDocument(at: url, cacheURL: cacheURL)
+                    success = true
                 } catch {
                     success = false
                     importError = error
