@@ -48,7 +48,7 @@ Comparación de rutas exactas con `yw2_a.fa`:
 - Las mismas 2.495 aparecen también en el IPA.
 - Los siete índices de idioma no tienen coincidencias exactas con los paquetes móviles de Yo-kai Watch 1, como cabe esperar de recursos localizados y versiones de juego distintas.
 
-La coincidencia de rutas del archivo principal muestra una interfaz de recursos reutilizable entre generaciones, pero no demuestra que los payloads sean binariamente compatibles. El siguiente paso es clasificar esos formatos (`.xc`, `.xi`, `.xq`, `.npcbin`, etc.) y comparar cabeceras/tamaños localmente.
+La coincidencia de rutas del archivo principal muestra una interfaz de recursos reutilizable entre generaciones, pero no demuestra que los payloads sean binariamente compatibles. La clasificación de formatos y la lectura de los índices `XPCK` están documentadas en [`analysis/FORMAT_HEADER_INVENTORY.md`](FORMAT_HEADER_INVENTORY.md).
 
 ## Uso
 
