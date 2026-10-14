@@ -319,7 +319,11 @@ def write_overlay(
                         payload = patch_ios_info_plist(payload)
                     write_classic_entry(
                         destination, central, info.filename, payload, info,
-                        compress=not info.is_dir(),
+                        # PackageManager memory-maps resources.arsc during
+                        # installation; Android APKs keep it uncompressed.
+                        compress=not info.is_dir() and not (
+                            kind == "apk" and info.filename == "resources.arsc"
+                        ),
                     )
                 with arc0.open("rb") as source:
                     for item in selected_files:
