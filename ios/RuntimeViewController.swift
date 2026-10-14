@@ -93,7 +93,7 @@ final class RuntimeViewController: UIViewController {
             selectedLabel.text = statusLabel(for: status)
         }
         commandLabel.text = command == "start_new_game"
-            ? "Nueva partida: (sceneResourceCount) recursos base listos para el renderer."
+            ? "Nueva partida: \(sceneResourceCount) recursos base listos para el renderer."
             : command == "open_settings" ? "Las opciones se conectarán en la siguiente fase." : ""
     }
 

@@ -1,0 +1,294 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		300001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200001 /* AppDelegate.swift */; };
+		300002 /* ImportViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200002 /* ImportViewController.swift */; };
+		300003 /* RuntimeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200003 /* RuntimeViewController.swift */; };
+		300004 /* YKW2ImportBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 200004 /* YKW2ImportBridge.mm */; };
+		310001 /* arc0_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210001 /* arc0_reader.cpp */; };
+		310002 /* byte_view.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210002 /* byte_view.cpp */; };
+		310003 /* formats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210003 /* formats.cpp */; };
+		310004 /* imgc_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210004 /* imgc_reader.cpp */; };
+		310005 /* import_contract.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210005 /* import_contract.cpp */; };
+		310006 /* initial_content.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210006 /* initial_content.cpp */; };
+		310007 /* level5_decode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210007 /* level5_decode.cpp */; };
+		310008 /* resource_catalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210008 /* resource_catalog.cpp */; };
+		310009 /* resource_store.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210009 /* resource_store.cpp */; };
+		310010 /* romfs_extract.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210010 /* romfs_extract.cpp */; };
+		310011 /* runtime_bootstrap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210011 /* runtime_bootstrap.cpp */; };
+		310012 /* runtime_scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210012 /* runtime_scene.cpp */; };
+		310013 /* xpck_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210013 /* xpck_reader.cpp */; };
+		320001 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220001 /* Foundation.framework */; };
+		320002 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220002 /* UIKit.framework */; };
+		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		200001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		200002 /* ImportViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportViewController.swift; sourceTree = "<group>"; };
+		200003 /* RuntimeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeViewController.swift; sourceTree = "<group>"; };
+		200004 /* YKW2ImportBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = YKW2ImportBridge.mm; sourceTree = "<group>"; };
+		200005 /* YKW2ImportBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YKW2ImportBridge.h; sourceTree = "<group>"; };
+		200006 /* YKW2Port-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YKW2Port-Bridging-Header.h; sourceTree = "<group>"; };
+		200007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		210001 /* arc0_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = arc0_reader.cpp; sourceTree = "<group>"; };
+		210002 /* byte_view.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = byte_view.cpp; sourceTree = "<group>"; };
+		210003 /* formats.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = formats.cpp; sourceTree = "<group>"; };
+		210004 /* imgc_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = imgc_reader.cpp; sourceTree = "<group>"; };
+		210005 /* import_contract.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = import_contract.cpp; sourceTree = "<group>"; };
+		210006 /* initial_content.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = initial_content.cpp; sourceTree = "<group>"; };
+		210007 /* level5_decode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = level5_decode.cpp; sourceTree = "<group>"; };
+		210008 /* resource_catalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = resource_catalog.cpp; sourceTree = "<group>"; };
+		210009 /* resource_store.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = resource_store.cpp; sourceTree = "<group>"; };
+		210010 /* romfs_extract.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = romfs_extract.cpp; sourceTree = "<group>"; };
+		210011 /* runtime_bootstrap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_bootstrap.cpp; sourceTree = "<group>"; };
+		210012 /* runtime_scene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_scene.cpp; sourceTree = "<group>"; };
+		210013 /* xpck_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = xpck_reader.cpp; sourceTree = "<group>"; };
+		220001 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		230001 /* YKW2Port.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YKW2Port.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		400001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				320001 /* Foundation.framework in Frameworks */,
+				320002 /* UIKit.framework in Frameworks */,
+				320003 /* UniformTypeIdentifiers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		100002 = {
+			isa = PBXGroup;
+			children = (
+				200001 /* AppDelegate.swift */,
+				200002 /* ImportViewController.swift */,
+				200003 /* RuntimeViewController.swift */,
+				200004 /* YKW2ImportBridge.mm */,
+				200005 /* YKW2ImportBridge.h */,
+				200006 /* YKW2Port-Bridging-Header.h */,
+				200007 /* Info.plist */,
+				100006 /* core sources */,
+				100003 /* Products */,
+				100004 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		100003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				230001 /* YKW2Port.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		100004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				220001 /* Foundation.framework */,
+				220002 /* UIKit.framework */,
+				220003 /* UniformTypeIdentifiers.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		100006 /* core sources */ = {
+			isa = PBXGroup;
+			children = (
+				210001 /* arc0_reader.cpp */,
+				210002 /* byte_view.cpp */,
+				210003 /* formats.cpp */,
+				210004 /* imgc_reader.cpp */,
+				210005 /* import_contract.cpp */,
+				210006 /* initial_content.cpp */,
+				210007 /* level5_decode.cpp */,
+				210008 /* resource_catalog.cpp */,
+				210009 /* resource_store.cpp */,
+				210010 /* romfs_extract.cpp */,
+				210011 /* runtime_bootstrap.cpp */,
+				210012 /* runtime_scene.cpp */,
+				210013 /* xpck_reader.cpp */,
+			);
+			name = core;
+			path = ../core/src;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100001 /* YKW2Port */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 500002 /* Build configuration list for PBXNativeTarget "YKW2Port" */;
+			buildPhases = (
+				400002 /* Sources */,
+				400001 /* Frameworks */,
+				400003 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = YKW2Port;
+			productName = YKW2Port;
+			productReference = 230001 /* YKW2Port.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					100001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 500001 /* Build configuration list for PBXProject "YKW2Port" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 100002;
+			productRefGroup = 100003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100001 /* YKW2Port */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		400003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		400002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				300001 /* AppDelegate.swift in Sources */,
+				300002 /* ImportViewController.swift in Sources */,
+				300003 /* RuntimeViewController.swift in Sources */,
+				300004 /* YKW2ImportBridge.mm in Sources */,
+				310001 /* arc0_reader.cpp in Sources */,
+				310002 /* byte_view.cpp in Sources */,
+				310003 /* formats.cpp in Sources */,
+				310004 /* imgc_reader.cpp in Sources */,
+				310005 /* import_contract.cpp in Sources */,
+				310006 /* initial_content.cpp in Sources */,
+				310007 /* level5_decode.cpp in Sources */,
+				310008 /* resource_catalog.cpp in Sources */,
+				310009 /* resource_store.cpp in Sources */,
+				310010 /* romfs_extract.cpp in Sources */,
+				310011 /* runtime_bootstrap.cpp in Sources */,
+				310012 /* runtime_scene.cpp in Sources */,
+				310013 /* xpck_reader.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		600001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		600002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		600003 /* Target Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = YKW2Port-Bridging-Header.h;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		600004 /* Target Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = YKW2Port-Bridging-Header.h;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		500001 /* Build configuration list for PBXProject "YKW2Port" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				600001 /* Debug */,
+				600002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		500002 /* Build configuration list for PBXNativeTarget "YKW2Port" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				600003 /* Target Debug */,
+				600004 /* Target Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 100000 /* Project object */;
+}
