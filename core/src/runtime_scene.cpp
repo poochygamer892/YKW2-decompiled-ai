@@ -16,6 +16,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     initial_content_files_ = initial_content_ready_ ? initial_content_files : 0;
     scene_resources_.clear();
     runtime_content_ = {};
+    opening_event_program_.reset();
     background_width_ = 0;
     background_height_ = 0;
     background_format_ = 0;
@@ -44,6 +45,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& 
     start(boot, true, content.archive_files);
     scene_resources_ = content.scene_resources;
     runtime_content_ = content.runtime_content;
+    opening_event_program_ = content.opening_event_program;
     background_width_ = content.background_width;
     background_height_ = content.background_height;
     background_format_ = content.background_format;
@@ -318,6 +320,7 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.initial_content_files = initial_content_files_;
     result.scene_resources = scene_resources_;
     result.runtime_content = runtime_content_;
+    result.opening_event_program = opening_event_program_;
     result.background_width = background_width_;
     result.background_height = background_height_;
     result.background_format = background_format_;
@@ -405,6 +408,17 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     }
     result += "dialogue_active=" + std::string(snapshot.dialogue.active ? "1\n" : "0\n");
     result += "event_id=" + snapshot.dialogue.event_id + "\n";
+    if (snapshot.opening_event_program.has_value()) {
+        const auto& program = *snapshot.opening_event_program;
+        result += "event_functions=" + std::to_string(program.header.function_count) + "\n";
+        result += "event_jumps=" + std::to_string(program.header.jump_count) + "\n";
+        result += "event_instructions=" + std::to_string(program.header.instruction_count) + "\n";
+        result += "event_arguments=" + std::to_string(program.header.argument_count) + "\n";
+        result += "event_globals=" + std::to_string(program.header.global_variable_count) + "\n";
+        for (const auto& symbol : program.symbols) {
+            result += "event_symbol=" + symbol + "\n";
+        }
+    }
     result += "speaker=" + snapshot.dialogue.speaker + "\n";
     result += "text_key=" + snapshot.dialogue.text_key + "\n";
     result += "line_index=" + std::to_string(snapshot.dialogue.line_index) + "\n";

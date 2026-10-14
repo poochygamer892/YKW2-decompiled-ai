@@ -73,6 +73,9 @@ void test_title_menu_exposes_scene_resource_plan() {
         "data/map/e100g002/e100g002.xc", 100, 30,
         ykw2::core::ResourceKind::Xpck, 12});
     content.runtime_content.opening_event_path = "seq/event/ev01_0100.xq";
+    content.opening_event_program = ykw2::core::Xq32ProgramInfo{};
+    content.opening_event_program->header.instruction_count = 8;
+    content.opening_event_program->symbols = {"Main", "ev01_0100_010"};
 
     ykw2::core::RuntimeScene scene;
     scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
@@ -92,6 +95,10 @@ void test_new_game_enters_world_and_moves_player() {
         "data/map/e100g002/e100g002.xc", 100, 30,
         ykw2::core::ResourceKind::Xpck, 12});
     content.runtime_content.opening_event_path = "seq/event/ev01_0100.xq";
+    content.opening_event_program = ykw2::core::Xq32ProgramInfo{};
+    content.opening_event_program->header.instruction_count = 8;
+    content.opening_event_program->header.argument_count = 20;
+    content.opening_event_program->symbols = {"Main", "ev01_0100_010"};
 
     ykw2::core::RuntimeScene scene;
     scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
@@ -101,6 +108,8 @@ void test_new_game_enters_world_and_moves_player() {
     assert(snapshot.screen == ykw2::core::RuntimeScreen::Dialogue);
     assert(snapshot.dialogue.active);
     assert(snapshot.dialogue.event_id == "seq/event/ev01_0100.xq");
+    assert(snapshot.opening_event_program.has_value());
+    assert(snapshot.opening_event_program->header.instruction_count == 8);
     scene.handle(ykw2::core::RuntimeInput::Confirm);
     snapshot = scene.snapshot();
     assert(snapshot.screen == ykw2::core::RuntimeScreen::World);

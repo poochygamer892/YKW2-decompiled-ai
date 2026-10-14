@@ -135,7 +135,12 @@ class RuntimeMenuActivity : Activity() {
 
         val eventID = value("event_id")
         val speaker = value("speaker")
-        val dialogueText = eventDescription(eventID)
+        val dialogueText = eventDescription(
+            eventID = eventID,
+            symbol = value("event_symbol"),
+            instructions = value("event_instructions", "0").toIntOrNull() ?: 0,
+            arguments = value("event_arguments", "0").toIntOrNull() ?: 0,
+        )
         val playerX = value("player_x", "0").toFloatOrNull() ?: 0f
         val playerY = value("player_y", "0").toFloatOrNull() ?: 0f
         sceneView.render(
@@ -207,9 +212,11 @@ class RuntimeMenuActivity : Activity() {
         backgroundBitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
     }
 
-    private fun eventDescription(eventID: String): String =
-        if (eventID.isEmpty()) "No se encontró un evento de apertura compatible en el dump."
-        else "Evento YW2 cargado: $eventID\nEl intérprete XQ32 se conectará antes de mostrar su diálogo."
+    private fun eventDescription(eventID: String, symbol: String, instructions: Int, arguments: Int): String {
+        if (eventID.isEmpty()) return "No se encontró un evento de apertura compatible en el dump."
+        val entry = if (symbol.isEmpty()) "sin símbolo recuperado" else symbol
+        return "Programa YW2 cargado (sin ejecutar)\n$eventID\nEntrada: $entry · $instructions instrucciones · $arguments argumentos\nFalta el intérprete XQ32 para reproducir el evento real."
+    }
 
     private fun labelFor(key: String): String = when (key) {
         "menu.new_game" -> "Nueva partida"

@@ -24,6 +24,7 @@
 		310013 /* xpck_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210013 /* xpck_reader.cpp */; };
 		310014 /* runtime_save.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210014 /* runtime_save.cpp */; };
 		310015 /* runtime_content.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210015 /* runtime_content.cpp */; };
+		310016 /* xq32_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210016 /* xq32_reader.cpp */; };
 		320001 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220001 /* Foundation.framework */; };
 		320002 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220002 /* UIKit.framework */; };
 		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
@@ -52,6 +53,7 @@
 		210013 /* xpck_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = xpck_reader.cpp; sourceTree = "<group>"; };
 		210014 /* runtime_save.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_save.cpp; sourceTree = "<group>"; };
 		210015 /* runtime_content.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = runtime_content.cpp; sourceTree = "<group>"; };
+		210016 /* xq32_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = xq32_reader.cpp; sourceTree = "<group>"; };
 		220001 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
@@ -124,6 +126,7 @@
 				210013 /* xpck_reader.cpp */,
 				210014 /* runtime_save.cpp */,
 				210015 /* runtime_content.cpp */,
+				210016 /* xq32_reader.cpp */,
 			);
 			name = core;
 			path = ../core/src;
@@ -211,6 +214,7 @@
 				310013 /* xpck_reader.cpp in Sources */,
 				310014 /* runtime_save.cpp in Sources */,
 				310015 /* runtime_content.cpp in Sources */,
+				310016 /* xq32_reader.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

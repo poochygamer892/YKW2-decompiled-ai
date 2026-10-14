@@ -212,6 +212,26 @@ ParseResult<InitialContentInfo> load_initial_content(
     result.first_file_path = first_file.path;
     result.first_file_size = first_file.size;
     result.runtime_content = select_runtime_content_manifest(*archive.value);
+    if (result.runtime_content.has_opening_event()) {
+        const auto* opening_file = archive.value->find(result.runtime_content.opening_event_path);
+        if (opening_file == nullptr) {
+            return failure<InitialContentInfo>("initial_opening_event_not_found");
+        }
+        const auto opening_window = ResourceWindowStore::create(
+            store, result.archive_path, opening_file->offset, opening_file->size,
+            result.runtime_content.opening_event_path);
+        if (!opening_window) {
+            return failure<InitialContentInfo>(opening_window.error->code,
+                                               opening_window.error->offset);
+        }
+        const auto opening_program = read_xq32_program(
+            *opening_window.value, opening_window.value->virtual_path());
+        if (!opening_program) {
+            return failure<InitialContentInfo>(opening_program.error->code,
+                                               opening_program.error->offset);
+        }
+        result.opening_event_program = *opening_program.value;
+    }
     result.scene_resources = select_initial_scene_resources(*archive.value);
     for (auto& resource : result.scene_resources) {
         const auto* file = archive.value->find(resource.path);

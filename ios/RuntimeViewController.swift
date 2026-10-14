@@ -221,7 +221,9 @@ final class RuntimeViewController: UIViewController {
         var playerY: Float = 0
         var speaker = ""
         var eventID = ""
-        var textKey = ""
+        var eventSymbol = ""
+        var eventInstructions = 0
+        var eventArguments = 0
         var enemyID = ""
         var playerHP = 0
         var playerMaxHP = 1
@@ -244,7 +246,9 @@ final class RuntimeViewController: UIViewController {
             case "player_y": playerY = Float(parts[1]) ?? 0
             case "speaker": speaker = parts[1]
             case "event_id": eventID = parts[1]
-            case "text_key": textKey = parts[1]
+            case "event_symbol": eventSymbol = parts[1]
+            case "event_instructions": eventInstructions = Int(parts[1]) ?? 0
+            case "event_arguments": eventArguments = Int(parts[1]) ?? 0
             case "enemy_id": enemyID = parts[1]
             case "player_hp": playerHP = Int(parts[1]) ?? 0
             case "player_max_hp": playerMaxHP = Int(parts[1]) ?? 1
@@ -265,7 +269,8 @@ final class RuntimeViewController: UIViewController {
         } else {
             selectedLabel.text = statusText(for: status, screen: screen)
         }
-        let dialogue = eventDescription(eventID: eventID)
+        let dialogue = eventDescription(eventID: eventID, symbol: eventSymbol,
+                                        instructions: eventInstructions, arguments: eventArguments)
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
                          playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
@@ -324,9 +329,11 @@ final class RuntimeViewController: UIViewController {
         sceneView.setNeedsDisplay()
     }
 
-    private func eventDescription(eventID: String) -> String {
+    private func eventDescription(eventID: String, symbol: String, instructions: Int,
+                                  arguments: Int) -> String {
         if eventID.isEmpty { return "No se encontró un evento de apertura compatible en el dump." }
-        return "Evento YW2 cargado: \(eventID)\nEl intérprete XQ32 se conectará antes de mostrar su diálogo."
+        let entry = symbol.isEmpty ? "sin símbolo recuperado" : symbol
+        return "Programa YW2 cargado (sin ejecutar)\n\(eventID)\nEntrada: \(entry) · \(instructions) instrucciones · \(arguments) argumentos\nFalta el intérprete XQ32 para reproducir el evento real."
     }
 
     private func label(for key: String) -> String {

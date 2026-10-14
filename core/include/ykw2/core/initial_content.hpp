@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -8,6 +9,7 @@
 #include "ykw2/core/arc0_reader.hpp"
 #include "ykw2/core/resource_store.hpp"
 #include "ykw2/core/runtime_content.hpp"
+#include "ykw2/core/xq32_reader.hpp"
 
 namespace ykw2::core {
 
@@ -48,6 +50,8 @@ struct InitialContentInfo {
     std::string first_file_path;
     std::uint32_t first_file_size = 0;
     RuntimeContentManifest runtime_content;
+    // Metadata from the verified opening program. This is not an interpreter.
+    std::optional<Xq32ProgramInfo> opening_event_program;
     std::vector<InitialSceneResource> scene_resources;
     std::uint16_t background_width = 0;
     std::uint16_t background_height = 0;

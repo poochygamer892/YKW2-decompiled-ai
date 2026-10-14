@@ -18,6 +18,7 @@ add_library(ykw2_core STATIC
     src/runtime_save.cpp
     src/runtime_scene.cpp
     src/xpck_reader.cpp
+    src/xq32_reader.cpp
 )
 
 target_compile_features(ykw2_core PUBLIC cxx_std_17)
@@ -80,4 +81,8 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_imgc_tests tests/imgc_tests.cpp)
     target_link_libraries(ykw2_imgc_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_imgc_tests COMMAND ykw2_imgc_tests)
+
+    add_executable(ykw2_xq32_reader_tests tests/xq32_reader_tests.cpp)
+    target_link_libraries(ykw2_xq32_reader_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_xq32_reader_tests COMMAND ykw2_xq32_reader_tests)
 endif()
