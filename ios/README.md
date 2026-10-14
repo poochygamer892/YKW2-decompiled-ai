@@ -5,6 +5,14 @@ Xcode como biblioteca C++17. El adaptador iOS debe implementar
 `ykw2::core::ResourceSource` sobre el bundle o almacenamiento de la app, sin
 distribuir la ROM ni los recursos originales.
 
+`CMakeLists.txt` enumera las mismas fuentes del núcleo para generar una
+biblioteca estática desde Xcode/CMake. En un proyecto iOS nuevo añade además
+`ImportViewController.swift`, `RuntimeViewController.swift`,
+`YKW2ImportBridge.mm`, `YKW2ImportBridge.h` y
+`YKW2Port-Bridging-Header.h` al target, enlaza Foundation/UIKit y configura
+`C++ Language Dialect = C++17`. Este entorno Linux no puede generar ni
+compilar un target UIKit porque Xcode requiere macOS.
+
 Swift/Objective-C++ se reservará para ciclo de vida, entrada, audio,
 renderizado y lectura de archivos; los parsers y reglas permanecen en el
 núcleo C++.

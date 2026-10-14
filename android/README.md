@@ -5,6 +5,12 @@ mediante el NDK/CMake cuando se añada la aplicación. El adaptador Android debe
 implementar `ykw2::core::ResourceSource` para `assets/` o almacenamiento local,
 sin copiar ROMs ni recursos al repositorio.
 
+El proyecto Gradle está en este directorio (`settings.gradle.kts` y
+`build.gradle.kts`) y usa `src/main/cpp/CMakeLists.txt` para compilar el núcleo
+común y el puente JNI. Requiere Android Studio/SDK con API 35, NDK y CMake
+3.22.1; desde esta máquina Linux no se ha ejecutado Gradle porque esas
+dependencias no están instaladas.
+
 La API de plataforma deberá quedar limitada a ciclo de vida, entrada, audio,
 renderizado, permisos y lectura de archivos. Los parsers y reglas permanecen
 en el núcleo C++.
