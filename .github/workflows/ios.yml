@@ -107,7 +107,7 @@ jobs:
               CODE_SIGN_IDENTITY="" \
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO 2>&1 | tee "$RUNNER_TEMP/archive.log"; then
-            SUMMARY="$(rg -i 'error:|fatal error:|undefined|requires a provisioning|provisioning profile|no such file|failed' "$RUNNER_TEMP/archive.log" | tail -40 | tr '\r\n' ' ' | sed 's/%/%25/g')"
+            SUMMARY="$(grep -Ei 'error:|fatal error:|undefined|requires a provisioning|provisioning profile|no such file|failed' "$RUNNER_TEMP/archive.log" | tail -40 | tr '\r\n' ' ' | sed 's/%/%25/g')"
             if [ -z "$SUMMARY" ]; then
               SUMMARY="$(tail -40 "$RUNNER_TEMP/archive.log" | tr '\r\n' ' ' | sed 's/%/%25/g')"
             fi
