@@ -19,12 +19,13 @@ import fnmatch
 import json
 import os
 import posixpath
-import sys
+import struct
 import tempfile
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, NoReturn
-from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+from zipfile import ZipFile, ZipInfo
 
 
 @dataclass(frozen=True)
@@ -116,19 +117,96 @@ def package_entries(package: ZipFile, kind: str) -> dict[str, ZipInfo]:
     return entries
 
 
-def copy_info(info: ZipInfo) -> ZipInfo:
-    # ZipInfo is mutable and cannot be reused after changing its filename.
-    clone = ZipInfo(info.filename, info.date_time)
-    clone.compress_type = ZIP_DEFLATED
-    clone.comment = info.comment
-    clone.extra = info.extra
-    clone.internal_attr = info.internal_attr
-    clone.external_attr = info.external_attr
-    clone.create_system = info.create_system
-    clone.create_version = info.create_version
-    clone.extract_version = info.extract_version
-    clone.flag_bits = info.flag_bits
-    return clone
+def patch_android_manifest(payload: bytes) -> bytes:
+    # Keep every replacement the same byte length so the binary AXML string
+    # pool and resource offsets remain valid. The package ID is changed to
+    # make Android distinguish this private build from the YW1 host.
+    replacements = {
+        # Full-width ２ keeps the original 14 UTF-16 characters and 16 UTF-8
+        # bytes, so the binary XML string-pool offsets remain valid.
+        b"Yo-kai watch \xef\xbc\x91": b"Yo-kai Watch \xef\xbc\x92",
+        b"jp.co.level5.yws4.deploygateprovider": b"jp.co.level5.yws2.deploygateprovider",
+        b"jp.co.level5.yws4": b"jp.co.level5.yws2",
+        b"jp.co.level5.yws1": b"jp.co.level5.yws2",
+    }
+    for old, new in replacements.items():
+        if len(old) != len(new):
+            fail("internal Android identity replacement length mismatch")
+        payload = payload.replace(old, new)
+    if b"Yo-kai Watch \xef\xbc\x92" not in payload or b"jp.co.level5.yws2" not in payload:
+        fail("Android manifest identity was not found")
+    return payload
+
+
+def patch_ios_info_plist(payload: bytes) -> bytes:
+    replacements = {
+        "妖怪ｳｫｯﾁ1".encode("utf-8"): b"Yo-kai Watch 2 Smartphone",
+        b"jp.co.level5.yws1": b"jp.co.level5.yws2",
+    }
+    for old, new in replacements.items():
+        if old not in payload:
+            fail(f"iOS identity value was not found: {old!r}")
+        payload = payload.replace(old, new)
+    return payload
+
+
+def dos_datetime(info: ZipInfo) -> tuple[int, int]:
+    year, month, day, hour, minute, second = info.date_time
+    year = max(1980, min(year, 2107))
+    return ((hour << 11) | (minute << 5) | (second // 2),
+            ((year - 1980) << 9) | (month << 5) | day)
+
+
+def write_classic_entry(destination, central: list[bytes], name: str,
+                        payload: bytes, template: ZipInfo | None = None,
+                        compress: bool = True) -> None:
+    name_bytes = name.encode("utf-8")
+    if len(name_bytes) > 0xffff:
+        fail(f"ZIP filename is too long: {name}")
+    crc = zlib.crc32(payload) & 0xffffffff
+    method = 0
+    compressed = payload
+    if compress and payload:
+        compressor = zlib.compressobj(level=6, method=zlib.DEFLATED, wbits=-15)
+        candidate = compressor.compress(payload) + compressor.flush()
+        if len(candidate) < len(payload):
+            method = 8
+            compressed = candidate
+    compressed_size = len(compressed)
+    uncompressed_size = len(payload)
+    offset = destination.tell()
+    if any(value >= 0x100000000 for value in (offset, compressed_size, uncompressed_size)):
+        fail("classic ZIP limit exceeded; split or reduce the overlay")
+    mod_time, mod_date = dos_datetime(template) if template else (0, 33)
+    flags = 0x800  # UTF-8 names; all current paths are ASCII-compatible.
+    local = struct.pack(
+        "<I5H3I2H", 0x04034B50, 20, flags, method, mod_time, mod_date,
+        crc, compressed_size, uncompressed_size, len(name_bytes), 0,
+    )
+    destination.write(local)
+    destination.write(name_bytes)
+    destination.write(compressed)
+    external_attr = template.external_attr if template else 0
+    central.append(struct.pack(
+        "<I6H3I5H2I", 0x02014B50, 20, 20, flags, method, mod_time, mod_date,
+        crc, compressed_size, uncompressed_size, len(name_bytes), 0, 0, 0, 0,
+        external_attr, offset,
+    ) + name_bytes)
+
+
+def finish_classic_zip(destination, central: list[bytes]) -> None:
+    central_offset = destination.tell()
+    for entry in central:
+        destination.write(entry)
+    central_size = destination.tell() - central_offset
+    if any(value >= 0x100000000 for value in (central_offset, central_size)):
+        fail("classic ZIP central directory limit exceeded")
+    if len(central) >= 0xffff:
+        fail("classic ZIP entry-count limit exceeded")
+    destination.write(struct.pack(
+        "<IHHHHIIH", 0x06054B50, 0, 0, len(central), len(central), central_size,
+        central_offset, 0,
+    ))
 
 
 def write_overlay(
@@ -169,6 +247,8 @@ def write_overlay(
             "new_yw2_entries": len(selected_files) - collisions,
             "kind": kind,
             "signed": False,
+            "classic_zip": True,
+            "identity": "jp.co.level5.yws2 / Yo-kai Watch 2 Smartphone",
             "dry_run": dry_run,
         }
         if dry_run:
@@ -179,19 +259,31 @@ def write_overlay(
         os.close(fd)
         temporary = Path(temporary_name)
         try:
-            with ZipFile(temporary, "w", compression=ZIP_DEFLATED, allowZip64=True) as destination:
+            with temporary.open("wb") as destination:
+                central: list[bytes] = []
                 replacements = set(mapped.values())
                 for info in base.infolist():
                     if info.filename in replacements:
                         continue
-                    destination.writestr(copy_info(info), base.read(info))
+                    payload = base.read(info)
+                    if kind == "apk" and info.filename == "AndroidManifest.xml":
+                        payload = patch_android_manifest(payload)
+                    elif kind == "ipa" and info.filename == "Payload/yw1_rom.app/Info.plist":
+                        payload = patch_ios_info_plist(payload)
+                    write_classic_entry(
+                        destination, central, info.filename, payload, info,
+                        compress=not info.is_dir(),
+                    )
                 with arc0.open("rb") as source:
                     for item in selected_files:
                         source.seek(item.offset)
                         payload = source.read(item.size)
                         if len(payload) != item.size:
                             fail(f"short read in ARC0 payload: {item.path}")
-                        destination.writestr(package_path(item.path, kind), payload)
+                        write_classic_entry(
+                            destination, central, package_path(item.path, kind), payload,
+                        )
+                finish_classic_zip(destination, central)
             os.replace(temporary, output)
         finally:
             if temporary.exists():

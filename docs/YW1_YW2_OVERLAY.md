@@ -41,3 +41,10 @@ modelos, shaders y referencias internas pueden necesitar conversores. El
 siguiente paso técnico es comparar los recursos compartidos, comprobar el
 formato de los eventos y adaptar IDs de YW2 a las tablas que el ejecutable de
 YW1 Mobile espera.
+
+Para que la copia móvil no se instale como una actualización de YW1, el
+generador cambia la identidad del paquete a `jp.co.level5.yws2` en Android y
+en iOS. En Android también conserva un ZIP clásico compatible con el
+instalador y aplica una firma nueva; en iOS el resultado queda sin firmar para
+que el propietario lo firme con su certificado. El nombre visible del IPA es
+`Yo-kai Watch 2 Smartphone`.
