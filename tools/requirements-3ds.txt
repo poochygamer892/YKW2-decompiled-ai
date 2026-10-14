@@ -1,0 +1,2 @@
+# 3DS analysis dependencies
+pyctr==0.7.6
