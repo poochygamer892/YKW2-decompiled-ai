@@ -14,9 +14,11 @@ y usará `UIDocumentPickerViewController` con acceso seguro al documento. La
 URI se entregará al extractor nativo y la salida quedará en el contenedor
 privado de la aplicación.
 
-El lector RomFS ya está en el núcleo C++; falta añadir el puente Objective-C++
-que conecte `UIDocumentPickerViewController` con `ResourceSource` y un
-`ResourceSink` sobre el contenedor privado. La primera versión también
-requerirá una imagen descifrada.
+El lector RomFS ya está en el núcleo C++ y `YKW2ImportBridge.mm` conecta el
+documento seleccionado con `ResourceSource` y un `ResourceSink` sobre el
+contenedor privado. Tras extraerlos genera `.catalog` y después
+`.import-complete`. La primera versión también requerirá una imagen
+descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
+mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
 No incluyas IPA, símbolos de distribución ni recursos propietarios en Git.

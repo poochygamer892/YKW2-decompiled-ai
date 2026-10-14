@@ -1,16 +1,24 @@
 #include <jni.h>
 
 #include <array>
+#include <algorithm>
+#include <charconv>
 #include <cerrno>
 #include <cstdint>
 #include <fcntl.h>
+#include <fstream>
+#include <iterator>
 #include <string>
+#include <string_view>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include "ykw2/core/import_contract.hpp"
+#include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
+#include "ykw2/core/runtime_bootstrap.hpp"
 
 namespace {
 
@@ -85,7 +93,11 @@ public:
         if (file_descriptor_ >= 0) {
             return false;
         }
-        current_path_ = root_ + "/" + std::string(path);
+        current_relative_path_ = std::string(path);
+        current_size_ = 0;
+        current_signature_.fill(0);
+        current_signature_size_ = 0;
+        current_path_ = root_ + "/" + current_relative_path_;
         const auto separator = current_path_.find_last_of('/');
         if (separator == std::string::npos || !ensure_directory(current_path_.substr(0, separator))) {
             current_path_.clear();
@@ -99,6 +111,10 @@ public:
         if (file_descriptor_ < 0) {
             return false;
         }
+        const auto signature_bytes = std::min<std::size_t>(
+            current_signature_.size() - current_signature_size_, size);
+        std::copy_n(data, signature_bytes, current_signature_.data() + current_signature_size_);
+        current_signature_size_ += signature_bytes;
         std::size_t written = 0;
         while (written < size) {
             const auto result = ::write(file_descriptor_, data + written, size - written);
@@ -110,6 +126,7 @@ public:
             }
             written += static_cast<std::size_t>(result);
         }
+        current_size_ += size;
         return true;
     }
 
@@ -119,6 +136,10 @@ public:
         }
         const bool success = close(file_descriptor_) == 0;
         file_descriptor_ = -1;
+        if (success) {
+            inputs_.push_back({current_relative_path_, current_size_, current_signature_});
+        }
+        current_relative_path_.clear();
         current_path_.clear();
         return success;
     }
@@ -130,15 +151,98 @@ public:
         }
         if (!current_path_.empty()) {
             unlink(current_path_.c_str());
+            current_relative_path_.clear();
             current_path_.clear();
         }
     }
 
+    const std::vector<ykw2::core::CatalogInput>& inputs() const { return inputs_; }
+
 private:
     std::string root_;
     std::string current_path_;
+    std::string current_relative_path_;
+    std::array<std::uint8_t, 4> current_signature_{};
+    std::size_t current_signature_size_ = 0;
+    std::uint64_t current_size_ = 0;
     int file_descriptor_ = -1;
+    std::vector<ykw2::core::CatalogInput> inputs_;
 };
+
+bool write_text_file(const std::string& path, const std::string& contents) {
+    const auto descriptor = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (descriptor < 0) {
+        return false;
+    }
+    std::size_t written = 0;
+    while (written < contents.size()) {
+        const auto result = ::write(descriptor, contents.data() + written,
+                                    contents.size() - written);
+        if (result < 0 && errno == EINTR) {
+            continue;
+        }
+        if (result <= 0) {
+            close(descriptor);
+            return false;
+        }
+        written += static_cast<std::size_t>(result);
+    }
+    return close(descriptor) == 0;
+}
+
+bool read_text_file(const std::string& path, std::string& contents) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return false;
+    }
+    contents.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+    return input.good() || input.eof();
+}
+
+bool marker_value(std::string_view marker, std::string_view key, std::uint64_t& value) {
+    std::size_t cursor = 0;
+    while (cursor <= marker.size()) {
+        const auto end = marker.find('\n', cursor);
+        const auto line = marker.substr(cursor, end == std::string_view::npos
+                                                  ? marker.size() - cursor
+                                                  : end - cursor);
+        const auto prefix = std::string(key) + "=";
+        if (line.substr(0, prefix.size()) == prefix) {
+            const auto text = line.substr(prefix.size());
+            const auto result = std::from_chars(text.data(), text.data() + text.size(), value);
+            return result.ec == std::errc{} && result.ptr == text.data() + text.size();
+        }
+        if (end == std::string_view::npos) {
+            break;
+        }
+        cursor = end + 1;
+    }
+    return false;
+}
+
+int check_import(const std::string& cache_path) {
+    std::string catalog_text;
+    std::string marker_text;
+    if (!read_text_file(cache_path + "/.catalog", catalog_text) ||
+        !read_text_file(cache_path + "/.import-complete", marker_text)) {
+        return 1;
+    }
+    const auto catalog = ykw2::core::parse_resource_catalog(catalog_text);
+    if (!catalog) {
+        return 2;
+    }
+    std::uint64_t files = 0;
+    std::uint64_t bytes = 0;
+    std::uint64_t fingerprint = 0;
+    if (!marker_value(marker_text, "files", files) ||
+        !marker_value(marker_text, "bytes", bytes) ||
+        !marker_value(marker_text, "fingerprint", fingerprint)) {
+        return 2;
+    }
+    const auto boot = ykw2::core::evaluate_runtime_boot(
+        *catalog.value, true, files, bytes, fingerprint);
+    return boot.state == ykw2::core::RuntimeBootState::Ready ? 0 : 2;
+}
 
 int validate(int file_descriptor, std::uint64_t image_size,
              std::array<std::uint8_t, 0x200>& header) {
@@ -168,6 +272,21 @@ Java_com_ykw2_port_RomImportBridge_nativeValidateRom(
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeCheckImport(
+    JNIEnv* environment, jobject, jstring cache_directory) {
+    if (cache_directory == nullptr) {
+        return 1;
+    }
+    const auto* cache_chars = environment->GetStringUTFChars(cache_directory, nullptr);
+    if (cache_chars == nullptr) {
+        return 1;
+    }
+    const std::string cache_path(cache_chars);
+    environment->ReleaseStringUTFChars(cache_directory, cache_chars);
+    return check_import(cache_path);
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_com_ykw2_port_RomImportBridge_nativeImportRom(
     JNIEnv* environment, jobject, jint file_descriptor, jlong image_size, jstring cache_directory) {
     if (file_descriptor < 0 || image_size <= 0 || cache_directory == nullptr) {
@@ -185,6 +304,8 @@ Java_com_ykw2_port_RomImportBridge_nativeImportRom(
         close(file_descriptor);
         return 1;
     }
+    unlink((cache_path + "/.import-complete").c_str());
+    unlink((cache_path + "/.catalog").c_str());
 
     std::array<std::uint8_t, 0x200> header{};
     const auto validation = validate(file_descriptor, static_cast<std::uint64_t>(image_size), header);
@@ -204,14 +325,18 @@ Java_com_ykw2_port_RomImportBridge_nativeImportRom(
         return 3;
     }
 
-    const auto marker_path = cache_path + "/.import-complete";
-    const auto marker_fd = open(marker_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
-    if (marker_fd < 0) {
+    const auto catalog = ykw2::core::build_resource_catalog(sink.inputs());
+    if (!catalog) {
         return 3;
     }
+    const auto catalog_path = cache_path + "/.catalog";
+    if (!write_text_file(catalog_path, ykw2::core::serialize_resource_catalog(*catalog.value))) {
+        return 3;
+    }
+    const auto marker_path = cache_path + "/.import-complete";
     const std::string marker = "files=" + std::to_string(extraction.value->files) +
-                               "\nbytes=" + std::to_string(extraction.value->bytes) + "\n";
-    const auto marker_result = ::write(marker_fd, marker.data(), marker.size());
-    const bool marker_ok = marker_result == static_cast<ssize_t>(marker.size()) && close(marker_fd) == 0;
-    return marker_ok ? 0 : 3;
+                               "\nbytes=" + std::to_string(extraction.value->bytes) +
+                               "\nfingerprint=" + std::to_string(catalog.value->fingerprint()) +
+                               "\n";
+    return write_text_file(marker_path, marker) ? 0 : 3;
 }

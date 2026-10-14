@@ -15,8 +15,10 @@ La URI se leerá mediante un descriptor de archivo; no se copiará la ROM entera
 como requisito del selector ni se enviará fuera del dispositivo.
 
 `src/main/cpp/ykw2_import_jni.cpp` conecta el descriptor con el lector NCSD/
-NCCH/RomFS del núcleo y escribe los recursos en `filesDir/ykw2-cache`. El
-importador actual requiere una imagen descifrada; la integración del catálogo
-de recursos con el runtime del juego aún está en desarrollo.
+NCCH/RomFS del núcleo y escribe los recursos en `filesDir/ykw2-cache`. Tras
+extraerlos genera `.catalog` y después `.import-complete`; una extracción
+parcial no se considera arrancable. El importador actual requiere una imagen
+descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
+mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
 No incluyas APKs, AABs, dumps ni recursos propietarios en Git.

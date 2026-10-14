@@ -11,7 +11,8 @@ mostrará una pantalla de importación con esta secuencia:
    y los límites de las ocho particiones.
 4. El adaptador crea un caché privado de la aplicación y ejecuta la extracción
    de NCCH/RomFS con progreso, cancelación y reanudación.
-5. El juego abre el catálogo generado desde el caché, nunca desde una ruta fija
+5. El adaptador escribe `.catalog` y, solo después de terminar, `.import-complete`.
+6. El juego abre el catálogo generado desde el caché, nunca desde una ruta fija
    del sistema ni desde una ROM incluida en el APK/IPA.
 
 ## Menú inicial
@@ -35,11 +36,12 @@ particiones permitan lecturas fuera del archivo.
 `core/include/ykw2/core/import_contract.hpp` valida el encabezado NCSD y
 produce un `ImportPlan` sin conservar la imagen. El extractor
 `core/include/ykw2/core/romfs_extract.hpp` ya recorre una RomFS descifrada y
-escribe mediante `ResourceSink`; el puente JNI de Android lo conecta al menú y
-al caché privado. El puente equivalente de iOS y el catálogo/runtime que
-consumirá esos archivos todavía están pendientes. Por tanto, esta fase ya
-importa recursos en Android cuando se compile el módulo nativo, pero aún no es
-un port jugable completo.
+escribe mediante `ResourceSink`. `resource_catalog.hpp` crea un índice ordenado,
+una huella estable y una comprobación de arranque; los puentes JNI de Android y
+Objective-C++ de iOS escriben ese índice en el caché privado. Por tanto, esta
+fase ya deja una importación verificable cuando se compile el módulo nativo,
+pero aún no es un port jugable completo: faltan el runtime, renderizador,
+audio, entrada y la traducción de los formatos de contenido al modelo nativo.
 
 La versión de Yo-kai Watch 1 móvil sigue siendo solo referencia de integración;
 no se copiarán sus recursos al caché de Yo-kai Watch 2.

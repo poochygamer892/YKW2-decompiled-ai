@@ -23,6 +23,7 @@ class ImportActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(createView())
+        refreshImportState()
     }
 
     private fun createView(): View {
@@ -139,6 +140,14 @@ class ImportActivity : Activity() {
         }
     }
 
+    private fun refreshImportState() {
+        if (!RomImportBridge.available) return
+        when (RomImportBridge.nativeCheckImport(filesDir.resolve("ykw2-cache").absolutePath)) {
+            0 -> status.text = "Recursos importados y verificados. El runtime del juego aún está en desarrollo."
+            2 -> status.text = "La caché existe, pero la importación está incompleta; selecciona la ROM de nuevo."
+        }
+    }
+
     private fun openDetachedDescriptor(uri: Uri): Int? {
         val descriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
         return descriptor.detachFd()
@@ -178,4 +187,5 @@ object RomImportBridge {
 
     external fun nativeValidateRom(fileDescriptor: Int, imageSize: Long): Int
     external fun nativeImportRom(fileDescriptor: Int, imageSize: Long, cacheDirectory: String): Int
+    external fun nativeCheckImport(cacheDirectory: String): Int
 }

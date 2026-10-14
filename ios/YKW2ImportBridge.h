@@ -4,6 +4,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface YKW2ImportBridge : NSObject
 
++ (BOOL)hasReadyImportAtURL:(NSURL *)cacheURL;
+
 + (BOOL)importDocumentAtURL:(NSURL *)sourceURL
                      cacheURL:(NSURL *)cacheURL
                         error:(NSError * _Nullable * _Nullable)error;

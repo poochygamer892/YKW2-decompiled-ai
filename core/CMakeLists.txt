@@ -6,7 +6,9 @@ add_library(ykw2_core STATIC
     src/byte_view.cpp
     src/formats.cpp
     src/import_contract.cpp
+    src/resource_catalog.cpp
     src/romfs_extract.cpp
+    src/runtime_bootstrap.cpp
 )
 
 target_compile_features(ykw2_core PUBLIC cxx_std_17)
@@ -33,4 +35,8 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_romfs_tests tests/romfs_tests.cpp)
     target_link_libraries(ykw2_romfs_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_romfs_tests COMMAND ykw2_romfs_tests)
+
+    add_executable(ykw2_catalog_tests tests/catalog_tests.cpp)
+    target_link_libraries(ykw2_catalog_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_catalog_tests COMMAND ykw2_catalog_tests)
 endif()

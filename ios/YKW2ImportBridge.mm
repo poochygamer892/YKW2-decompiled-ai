@@ -1,16 +1,21 @@
 #import "YKW2ImportBridge.h"
 
 #include <array>
+#include <algorithm>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <string>
+#include <string_view>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
 
 #include "ykw2/core/import_contract.hpp"
+#include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
+#include "ykw2/core/runtime_bootstrap.hpp"
 
 namespace {
 
@@ -59,6 +64,10 @@ public:
         if (relative == nil) {
             return false;
         }
+        current_relative_path_ = std::string(path);
+        current_size_ = 0;
+        current_signature_.fill(0);
+        current_signature_size_ = 0;
         NSString *fullPath = [root_.path stringByAppendingPathComponent:relative];
         NSString *parent = [fullPath stringByDeletingLastPathComponent];
         NSError *directoryError = nil;
@@ -82,9 +91,14 @@ public:
         if (handle_ == nil) {
             return false;
         }
+        const auto signatureBytes = std::min<std::size_t>(
+            current_signature_.size() - current_signature_size_, size);
+        std::copy_n(data, signatureBytes, current_signature_.data() + current_signature_size_);
+        current_signature_size_ += signatureBytes;
         @try {
             NSData *chunk = [NSData dataWithBytes:data length:size];
             [handle_ writeData:chunk];
+            current_size_ += size;
             return true;
         } @catch (NSException *) {
             return false;
@@ -102,6 +116,8 @@ public:
             return false;
         }
         handle_ = nil;
+        inputs_.push_back({current_relative_path_, current_size_, current_signature_});
+        current_relative_path_.clear();
         currentPath_ = nil;
         return true;
     }
@@ -118,17 +134,62 @@ public:
             [[NSFileManager defaultManager] removeItemAtPath:currentPath_ error:nil];
             currentPath_ = nil;
         }
+        current_relative_path_.clear();
     }
+
+    const std::vector<ykw2::core::CatalogInput>& inputs() const { return inputs_; }
 
 private:
     NSURL *root_;
     NSFileHandle *handle_ = nil;
     NSString *currentPath_ = nil;
+    std::string current_relative_path_;
+    std::array<std::uint8_t, 4> current_signature_{};
+    std::size_t current_signature_size_ = 0;
+    std::uint64_t current_size_ = 0;
+    std::vector<ykw2::core::CatalogInput> inputs_;
 };
 
 }  // namespace
 
 @implementation YKW2ImportBridge
+
++ (BOOL)hasReadyImportAtURL:(NSURL *)cacheURL {
+    NSString *catalogPath = [cacheURL.path stringByAppendingPathComponent:@".catalog"];
+    NSString *markerPath = [cacheURL.path stringByAppendingPathComponent:@".import-complete"];
+    NSData *catalogData = [NSData dataWithContentsOfFile:catalogPath];
+    NSString *marker = [NSString stringWithContentsOfFile:markerPath
+                                                   encoding:NSUTF8StringEncoding error:nil];
+    if (catalogData == nil || marker == nil) {
+        return NO;
+    }
+    const auto catalogText = std::string(static_cast<const char *>(catalogData.bytes), catalogData.length);
+    const auto catalog = ykw2::core::parse_resource_catalog(catalogText);
+    if (!catalog) {
+        return NO;
+    }
+
+    std::uint64_t files = 0;
+    std::uint64_t bytes = 0;
+    std::uint64_t fingerprint = 0;
+    for (NSString *line in [marker componentsSeparatedByString:@"\n"]) {
+        NSArray<NSString *> *parts = [line componentsSeparatedByString:@"="];
+        if (parts.count != 2) {
+            continue;
+        }
+        const auto value = static_cast<std::uint64_t>(parts[1].longLongValue);
+        if ([parts[0] isEqualToString:@"files"]) {
+            files = value;
+        } else if ([parts[0] isEqualToString:@"bytes"]) {
+            bytes = value;
+        } else if ([parts[0] isEqualToString:@"fingerprint"]) {
+            fingerprint = value;
+        }
+    }
+    const auto boot = ykw2::core::evaluate_runtime_boot(
+        *catalog.value, true, files, bytes, fingerprint);
+    return boot.state == ykw2::core::RuntimeBootState::Ready;
+}
 
 + (BOOL)importDocumentAtURL:(NSURL *)sourceURL
                      cacheURL:(NSURL *)cacheURL
@@ -176,6 +237,10 @@ private:
         }
         return NO;
     }
+    [[NSFileManager defaultManager] removeItemAtPath:
+        [cacheURL.path stringByAppendingPathComponent:@".import-complete"] error:nil];
+    [[NSFileManager defaultManager] removeItemAtPath:
+        [cacheURL.path stringByAppendingPathComponent:@".catalog"] error:nil];
     FileSource source(handle, imageSize);
     DirectorySink sink(cacheURL);
     const auto extraction = ykw2::core::extract_application_romfs(source, *plan.value, sink);
@@ -188,10 +253,26 @@ private:
         return NO;
     }
 
+    const auto catalog = ykw2::core::build_resource_catalog(sink.inputs());
+    if (!catalog) {
+        if (error != nullptr) {
+            *error = ImportError(catalog.error->code);
+        }
+        return NO;
+    }
+    NSString *catalogPath = [cacheURL.path stringByAppendingPathComponent:@".catalog"];
+    NSString *catalogContents = [NSString stringWithUTF8String:
+        ykw2::core::serialize_resource_catalog(*catalog.value).c_str()];
+    if (catalogContents == nil ||
+        ![catalogContents writeToFile:catalogPath atomically:YES
+                              encoding:NSUTF8StringEncoding error:error]) {
+        return NO;
+    }
     NSString *marker = [cacheURL.path stringByAppendingPathComponent:@".import-complete"];
-    NSString *contents = [NSString stringWithFormat:@"files=%llu\nbytes=%llu\n",
+    NSString *contents = [NSString stringWithFormat:@"files=%llu\nbytes=%llu\nfingerprint=%llu\n",
                           static_cast<unsigned long long>(extraction.value->files),
-                          static_cast<unsigned long long>(extraction.value->bytes)];
+                          static_cast<unsigned long long>(extraction.value->bytes),
+                          static_cast<unsigned long long>(catalog.value->fingerprint())];
     if (![contents writeToFile:marker atomically:YES encoding:NSUTF8StringEncoding error:error]) {
         return NO;
     }

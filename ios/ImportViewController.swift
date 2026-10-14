@@ -44,6 +44,16 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             stack.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
             stack.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
         ])
+
+        if let cacheURL = try? FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ).appendingPathComponent("ykw2-cache", isDirectory: true),
+           YKW2ImportBridge.hasReadyImport(at: cacheURL) {
+            statusLabel.text = "Recursos importados y verificados. El runtime del juego aún está en desarrollo."
+        }
     }
 
     @objc private func selectRom() {
