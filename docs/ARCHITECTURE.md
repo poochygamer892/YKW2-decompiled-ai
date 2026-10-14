@@ -1,9 +1,9 @@
 # Arquitectura propuesta
 
-La arquitectura usa un núcleo C++17 pequeño y adaptadores nativos separados.
-La versión móvil de Yo-kai Watch 1 solo sirve como referencia de integración,
-formatos y comportamiento observable; los recursos del port serán los de
-Yo-kai Watch 2 autorizados por el usuario.
+La arquitectura usa un núcleo C++17 pequeño y una capa de overlay sobre el
+host móvil de Yo-kai Watch 1. El ejecutable y la presentación móvil de YW1
+son el destino privado; los recursos y la lógica de contenido que se intentan
+adaptar son los de Yo-kai Watch 2 autorizados por el usuario.
 
 ## Capas
 
@@ -46,6 +46,14 @@ Aplicación nativa con integración Kotlin/Android. El cliente debe consumir el 
 ### Cliente iOS
 
 Aplicación nativa con integración Swift/iOS. El cliente debe reutilizar las mismas especificaciones de comportamiento sin asumir APIs de Android.
+
+### Overlay de contenido
+
+`tools/build_yw1_yw2_overlay.py` conserva el paquete host de YW1 y escribe los
+recursos de YW2 en sus rutas móviles equivalentes. El overlay es una prueba de
+compatibilidad de datos, no un parche mágico del ejecutable: eventos XQ32,
+tablas de IDs, modelos, shaders y reglas deben validarse antes de afirmar que
+el contenido de YW2 funciona dentro del host.
 
 ## Decisiones pendientes
 

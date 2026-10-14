@@ -1,6 +1,9 @@
 # YKW2-decompiled-ai
 
-Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2** y construir, cuando sea legalmente posible, clientes nativos para Android e iOS tomando como referencia técnica la versión móvil de **Yo-kai Watch 1**.
+Workspace de investigación y adaptación autorizada para poner el contenido de
+**Yo-kai Watch 2** sobre el ejecutable y la experiencia móvil de **Yo-kai Watch
+1**, conservando sus controles, presentación y ciclo de vida para Android e
+iOS.
 
 > Estado: fases de importación, catálogo y runtime inicial implementadas. El repositorio no contiene ROMs, dumps, assets propietarios ni código extraído del juego.
 
@@ -9,6 +12,9 @@ Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2**
 - Inventariar formatos, recursos y comportamiento observable del software autorizado.
 - Registrar evidencia reproducible y separar observaciones de hipótesis.
 - Reimplementar la lógica en código mantenible y testeable.
+- Construir overlays privados que conserven el host móvil de YW1 y sustituyan
+  sus recursos por los de YW2, con conversores cuando sus IDs o formatos no
+  coincidan.
 - Integrar un núcleo multiplataforma con clientes nativos de Android e iOS.
 - Mantener fuera del repositorio cualquier ROM, dump, clave, recurso extraído o binario propietario.
 
@@ -38,6 +44,9 @@ Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2**
   secuencias de título/menú, el evento inicial, configuración de combate y sus
   texturas de interfaz. Las rutas se resuelven exclusivamente desde el dump
   importado del usuario.
+- `tools/build_yw1_yw2_overlay.py` compara y empaqueta, fuera del repositorio,
+  los datos del dump YW2 dentro del APK/IPA local de YW1 sin modificar ni
+  distribuir el ejecutable propietario.
 - Android e iOS tienen importación, ciclo de actualización y renderizado nativo
   de los recursos IMGC ya soportados. La maqueta anterior de diálogo y combate
   ha sido retirada: faltan el intérprete XQ32, los mapas/modelos, las reglas
