@@ -39,9 +39,11 @@ ParseResult<NcsdHeader> parse_ncsd_header(ByteView first_header,
         return failure<NcsdHeader>("invalid_ncsd_media_size", 0x104);
     }
     const auto media_size = static_cast<std::uint64_t>(*media_units) * 0x200u;
-    if (media_size > image_size) {
-        return failure<NcsdHeader>("ncsd_media_size_exceeds_image", 0x104);
-    }
+
+    // NCSD media size describes the original card capacity. Retail dumps are
+    // commonly trimmed, so the physical image may be smaller than this field.
+    // Every partition is still checked against image_size below; extraction
+    // applies the same bounds checks to the NCCH and RomFS regions.
 
     NcsdHeader header;
     header.media_size_units = *media_units;

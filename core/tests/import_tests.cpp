@@ -52,10 +52,28 @@ void test_invalid_partition() {
     assert(parsed.error->code == "ncsd_partition_out_of_bounds");
 }
 
+void test_trimmed_media_is_allowed_when_partitions_fit() {
+    std::vector<std::uint8_t> header(0x200);
+    header[0x100] = 'N';
+    header[0x101] = 'C';
+    header[0x102] = 'S';
+    header[0x103] = 'D';
+    put32(header, 0x104, 0x400);  // Declared 512 KiB media.
+    put32(header, 0x120, 1);      // Partition starts at 0x200.
+    put32(header, 0x124, 0xff);   // Ends exactly at the 128 KiB image size.
+
+    const auto parsed = ykw2::core::parse_ncsd_header(
+        ykw2::core::ByteView(header.data(), header.size()), 0x20000);
+    assert(parsed);
+    assert(parsed.value->media_size_bytes == 0x80000);
+    assert(parsed.value->partitions[0].size == 0xff * 0x200ull);
+}
+
 }  // namespace
 
 int main() {
     test_import_plan();
     test_invalid_partition();
+    test_trimmed_media_is_allowed_when_partitions_fit();
     return 0;
 }

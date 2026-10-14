@@ -8,7 +8,8 @@ mostrará una pantalla de importación con esta secuencia:
 2. El selector nativo de Android/iOS abre un documento local; no se sube a un
    servidor ni se consulta un servicio de propiedad.
 3. El núcleo lee los primeros `0x200` bytes y valida `NCSD`, el tamaño declarado
-   y los límites de las ocho particiones.
+   y los límites de las ocho particiones. También acepta dumps recortados cuando
+   todas las particiones declaradas caben en el archivo físico.
 4. El adaptador crea un caché privado de la aplicación y ejecuta la extracción
    de NCCH/RomFS con progreso, cancelación y reanudación.
 5. El adaptador escribe `.catalog` y, solo después de terminar, `.import-complete`.
