@@ -47,6 +47,7 @@ void test_title_menu_navigation() {
     assert(scene.snapshot().selected_index == 0);
     assert(scene.handle(ykw2::core::RuntimeInput::Confirm).command ==
            ykw2::core::RuntimeCommand::StartNewGame);
+    assert(scene.snapshot().screen == ykw2::core::RuntimeScreen::Dialogue);
     assert(ykw2::core::serialize_runtime_response(
                {true, ykw2::core::RuntimeCommand::StartNewGame}, snapshot)
                .find("command=start_new_game\n") == 0);
@@ -95,6 +96,13 @@ void test_new_game_enters_world_and_moves_player() {
     const auto transition = scene.handle(ykw2::core::RuntimeInput::Confirm);
     assert(transition.command == ykw2::core::RuntimeCommand::StartNewGame);
     auto snapshot = scene.snapshot();
+    assert(snapshot.screen == ykw2::core::RuntimeScreen::Dialogue);
+    assert(snapshot.dialogue.active);
+    assert(snapshot.dialogue.text_key == "story.intro.1");
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    snapshot = scene.snapshot();
     assert(snapshot.screen == ykw2::core::RuntimeScreen::World);
     assert(snapshot.status_key == "runtime.world");
     assert(snapshot.world.active);
@@ -123,6 +131,9 @@ void test_world_state_can_be_saved_and_restored() {
     ykw2::core::RuntimeScene source;
     source.start(boot(ykw2::core::RuntimeBootState::Ready), content);
     source.handle(ykw2::core::RuntimeInput::Confirm);
+    source.handle(ykw2::core::RuntimeInput::Confirm);
+    source.handle(ykw2::core::RuntimeInput::Confirm);
+    source.handle(ykw2::core::RuntimeInput::Confirm);
     source.handle(ykw2::core::RuntimeInput::MoveRight);
     const auto saved = source.save_state();
     assert(saved.has_value());
@@ -141,6 +152,30 @@ void test_world_state_can_be_saved_and_restored() {
     assert(snapshot.world.frame == 1);
 }
 
+void test_battle_actions_resolve_to_world() {
+    ykw2::core::InitialContentInfo content;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 12});
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    assert(scene.snapshot().screen == ykw2::core::RuntimeScreen::Battle);
+    assert(scene.snapshot().battle.enemy_hp == 80);
+    scene.handle(ykw2::core::RuntimeInput::Skill);
+    assert(scene.snapshot().battle.enemy_hp == 45);
+    scene.handle(ykw2::core::RuntimeInput::Attack);
+    scene.handle(ykw2::core::RuntimeInput::Attack);
+    scene.handle(ykw2::core::RuntimeInput::Attack);
+    assert(scene.snapshot().screen == ykw2::core::RuntimeScreen::World);
+    assert(scene.snapshot().battle.result == "won");
+}
+
 }  // namespace
 
 int main() {
@@ -151,5 +186,6 @@ int main() {
     test_title_menu_exposes_scene_resource_plan();
     test_new_game_enters_world_and_moves_player();
     test_world_state_can_be_saved_and_restored();
+    test_battle_actions_resolve_to_world();
     return 0;
 }

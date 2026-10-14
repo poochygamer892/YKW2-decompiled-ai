@@ -1,6 +1,7 @@
 #include "ykw2/core/runtime_scene.hpp"
 
 #include <algorithm>
+#include <utility>
 
 namespace ykw2::core {
 
@@ -18,7 +19,11 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     background_height_ = 0;
     background_format_ = 0;
     background_rgba_.clear();
+    dialogue_ = {};
     world_ = {};
+    battle_ = {};
+    audio_cue_.clear();
+    audio_sequence_ = 0;
     selected_index_ = 0;
     items_.clear();
     if (boot.state != RuntimeBootState::Ready) {
@@ -60,6 +65,83 @@ void RuntimeScene::enter_world() {
             break;
         }
     }
+}
+
+void RuntimeScene::trigger_audio(std::string cue) {
+    audio_cue_ = std::move(cue);
+    ++audio_sequence_;
+}
+
+void RuntimeScene::begin_dialogue() {
+    screen_ = RuntimeScreen::Dialogue;
+    selected_index_ = 0;
+    items_.clear();
+    dialogue_ = {true, "intro", "Narrador", "story.intro.1", 0, 3};
+    trigger_audio("story");
+}
+
+RuntimeTransition RuntimeScene::advance_dialogue() {
+    if (!dialogue_.active) {
+        return {false, RuntimeCommand::None};
+    }
+    if (dialogue_.line_index + 1 < dialogue_.line_count) {
+        ++dialogue_.line_index;
+        dialogue_.text_key = "story.intro." + std::to_string(dialogue_.line_index + 1);
+        trigger_audio("story");
+        return {true, RuntimeCommand::AdvanceDialogue};
+    }
+    dialogue_.active = false;
+    enter_world();
+    trigger_audio("scene");
+    return {true, RuntimeCommand::AdvanceDialogue};
+}
+
+void RuntimeScene::begin_battle() {
+    screen_ = RuntimeScreen::Battle;
+    selected_index_ = 0;
+    items_.clear();
+    battle_ = {true, "yokai.training", 100, 100, 80, 80, 1, ""};
+    trigger_audio("battle_start");
+}
+
+RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
+    if (!battle_.active) {
+        return {false, RuntimeCommand::None};
+    }
+    if (input == RuntimeInput::Run || input == RuntimeInput::Back) {
+        battle_.active = false;
+        battle_.result = "escaped";
+        screen_ = RuntimeScreen::World;
+        world_.active = true;
+        trigger_audio("run");
+        return {true, RuntimeCommand::BattleEscaped};
+    }
+    if (input != RuntimeInput::Confirm && input != RuntimeInput::Attack &&
+        input != RuntimeInput::Skill) {
+        return {false, RuntimeCommand::None};
+    }
+    const int damage = input == RuntimeInput::Skill ? 35 : 18;
+    battle_.enemy_hp = std::max(0, battle_.enemy_hp - damage);
+    ++battle_.turn;
+    trigger_audio(input == RuntimeInput::Skill ? "skill" : "attack");
+    if (battle_.enemy_hp == 0) {
+        battle_.active = false;
+        battle_.result = "won";
+        screen_ = RuntimeScreen::World;
+        world_.active = true;
+        trigger_audio("victory");
+        return {true, RuntimeCommand::BattleWon};
+    }
+    battle_.player_hp = std::max(0, battle_.player_hp - (input == RuntimeInput::Skill ? 8 : 5));
+    if (battle_.player_hp == 0) {
+        battle_.active = false;
+        battle_.result = "defeated";
+        screen_ = RuntimeScreen::World;
+        world_.active = true;
+        trigger_audio("defeat");
+        return {true, RuntimeCommand::BattleDefeated};
+    }
+    return {true, RuntimeCommand::None};
 }
 
 void RuntimeScene::advance(double delta_seconds) {
@@ -133,6 +215,21 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
         return {false, RuntimeCommand::None};
     }
 
+    if (screen_ == RuntimeScreen::Dialogue) {
+        if (input == RuntimeInput::Confirm || input == RuntimeInput::Attack) {
+            return advance_dialogue();
+        }
+        if (input == RuntimeInput::Back) {
+            enter_world();
+            return {true, RuntimeCommand::None};
+        }
+        return {false, RuntimeCommand::None};
+    }
+
+    if (screen_ == RuntimeScreen::Battle) {
+        return resolve_battle_action(input);
+    }
+
     if (screen_ == RuntimeScreen::World) {
         constexpr float kStep = 1.0f;
         switch (input) {
@@ -165,6 +262,11 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
                 selected_index_ = 0;
                 return {true, RuntimeCommand::None};
             case RuntimeInput::Confirm:
+                begin_battle();
+                return {true, RuntimeCommand::StartBattle};
+            case RuntimeInput::Attack:
+            case RuntimeInput::Skill:
+            case RuntimeInput::Run:
                 return {false, RuntimeCommand::None};
         }
     }
@@ -186,7 +288,7 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
             }
             switch (selected_index_) {
                 case 0:
-                    enter_world();
+                    begin_dialogue();
                     return {true, RuntimeCommand::StartNewGame};
                 case 2:
                     return {true, RuntimeCommand::OpenSettings};
@@ -194,6 +296,10 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
                     return {false, RuntimeCommand::None};
             }
         case RuntimeInput::Back:
+            return {false, RuntimeCommand::None};
+        case RuntimeInput::Attack:
+        case RuntimeInput::Skill:
+        case RuntimeInput::Run:
             return {false, RuntimeCommand::None};
     }
     return {false, RuntimeCommand::None};
@@ -211,7 +317,11 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.background_height = background_height_;
     result.background_format = background_format_;
     result.background_rgba = background_rgba_;
+    result.dialogue = dialogue_;
     result.world = world_;
+    result.battle = battle_;
+    result.audio_cue = audio_cue_;
+    result.audio_sequence = audio_sequence_;
     if (screen_ == RuntimeScreen::Import) {
         result.status_key = boot_.state == RuntimeBootState::ImportIncomplete
                                 ? "import.incomplete"
@@ -232,6 +342,16 @@ std::string runtime_command_name(RuntimeCommand command) {
             return "request_authorized_import";
         case RuntimeCommand::StartNewGame:
             return "start_new_game";
+        case RuntimeCommand::AdvanceDialogue:
+            return "advance_dialogue";
+        case RuntimeCommand::StartBattle:
+            return "start_battle";
+        case RuntimeCommand::BattleWon:
+            return "battle_won";
+        case RuntimeCommand::BattleEscaped:
+            return "battle_escaped";
+        case RuntimeCommand::BattleDefeated:
+            return "battle_defeated";
         case RuntimeCommand::ContinueGame:
             return "continue_game";
         case RuntimeCommand::OpenSettings:
@@ -250,8 +370,12 @@ const char* screen_name(RuntimeScreen screen) {
             return "import";
         case RuntimeScreen::TitleMenu:
             return "title_menu";
+        case RuntimeScreen::Dialogue:
+            return "dialogue";
         case RuntimeScreen::World:
             return "world";
+        case RuntimeScreen::Battle:
+            return "battle";
     }
     return "import";
 }
@@ -265,6 +389,12 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
               snapshot.status_key + "\n";
     result += "content_ready=" + std::string(snapshot.initial_content_ready ? "1\n" : "0\n");
     result += "content_files=" + std::to_string(snapshot.initial_content_files) + "\n";
+    result += "dialogue_active=" + std::string(snapshot.dialogue.active ? "1\n" : "0\n");
+    result += "event_id=" + snapshot.dialogue.event_id + "\n";
+    result += "speaker=" + snapshot.dialogue.speaker + "\n";
+    result += "text_key=" + snapshot.dialogue.text_key + "\n";
+    result += "line_index=" + std::to_string(snapshot.dialogue.line_index) + "\n";
+    result += "line_count=" + std::to_string(snapshot.dialogue.line_count) + "\n";
     result += "world_active=" + std::string(snapshot.world.active ? "1\n" : "0\n");
     result += "world_map=" + snapshot.world.map_resource + "\n";
     result += "player_x=" + std::to_string(snapshot.world.player_x) + "\n";
@@ -273,6 +403,16 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     result += "camera_y=" + std::to_string(snapshot.world.camera_y) + "\n";
     result += "simulation_seconds=" + std::to_string(snapshot.world.simulation_seconds) + "\n";
     result += "frame=" + std::to_string(snapshot.world.frame) + "\n";
+    result += "battle_active=" + std::string(snapshot.battle.active ? "1\n" : "0\n");
+    result += "enemy_id=" + snapshot.battle.enemy_id + "\n";
+    result += "player_hp=" + std::to_string(snapshot.battle.player_hp) + "\n";
+    result += "player_max_hp=" + std::to_string(snapshot.battle.player_max_hp) + "\n";
+    result += "enemy_hp=" + std::to_string(snapshot.battle.enemy_hp) + "\n";
+    result += "enemy_max_hp=" + std::to_string(snapshot.battle.enemy_max_hp) + "\n";
+    result += "battle_turn=" + std::to_string(snapshot.battle.turn) + "\n";
+    result += "battle_result=" + snapshot.battle.result + "\n";
+    result += "audio_cue=" + snapshot.audio_cue + "\n";
+    result += "audio_sequence=" + std::to_string(snapshot.audio_sequence) + "\n";
     for (const auto& resource : snapshot.scene_resources) {
         result += "scene_resource=" +
                   std::string(initial_scene_resource_role_name(resource.role)) + "|" +

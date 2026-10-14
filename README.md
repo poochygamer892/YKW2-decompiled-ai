@@ -34,12 +34,15 @@ Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2**
 - El núcleo C++17 valida NCSD/NCCH, extrae la RomFS autorizada a un caché privado,
   carga `yw2_a.fa`, inspecciona ARC0/XPCK/IMGC y selecciona el primer mapa,
   personaje y fondo localizado.
-- `RuntimeScene` ya tiene menú inicial, entrada de mundo, movimiento, reloj de
-  simulación y guardado binario versionado con restauración validada contra el
-  catálogo importado.
-- Android e iOS tienen adaptadores nativos, ciclo de actualización y workflows
-  reproducibles de compilación. La fase pendiente es ampliar el renderizador,
-  audio, combate, eventos y el resto de sistemas del juego.
+- `RuntimeScene` ya tiene menú inicial, tres eventos de diálogo, entrada de
+  mundo, movimiento, combate de prueba con tres acciones, señales de audio y
+  guardado binario versionado con restauración validada contra el catálogo
+  importado.
+- Android e iOS tienen renderizador nativo de la escena, controles táctiles,
+  ciclo de actualización y workflows reproducibles de compilación. Esto es una
+  vertical slice funcional; todavía falta conectar el guion completo, los mapas
+  jugables, las reglas reales de combate, el audio original y los eventos del
+  juego completo.
 
 Para Android se necesita JDK 21, Android SDK 35, CMake 3.22.1, NDK 27.2 y
 Gradle 8.11.1; el workflow `android.yml` instala esos componentes en GitHub

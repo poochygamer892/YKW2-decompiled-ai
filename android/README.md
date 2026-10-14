@@ -28,11 +28,14 @@ descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
 mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
 `RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
-del núcleo mediante JNI y envía navegación/confirmación al mismo estado C++.
+del núcleo mediante JNI y envía navegación, confirmación y acciones de combate
+al mismo estado C++. `RuntimeSceneView.kt` dibuja el fondo IMGC corregido, la
+rejilla de mundo, el diálogo y las barras de combate; los botones táctiles se
+mantienen dentro de un `ScrollView` y las transiciones producen tonos de evento.
 Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
 parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
 que ese contenido sea legible.
-Las acciones de nueva partida y opciones aún son puntos de extensión, no una
-implementación de juego.
+La historia y el combate incluidos son una vertical slice de prueba, no la
+reimplementación completa del juego.
 
 No incluyas APKs, AABs, dumps ni recursos propietarios en Git.

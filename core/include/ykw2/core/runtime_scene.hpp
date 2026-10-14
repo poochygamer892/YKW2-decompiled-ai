@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -14,7 +15,9 @@ namespace ykw2::core {
 enum class RuntimeScreen {
     Import,
     TitleMenu,
+    Dialogue,
     World,
+    Battle,
 };
 
 enum class RuntimeInput {
@@ -25,6 +28,9 @@ enum class RuntimeInput {
     MoveLeft,
     MoveRight,
     Confirm,
+    Attack,
+    Skill,
+    Run,
     Back,
 };
 
@@ -32,6 +38,11 @@ enum class RuntimeCommand {
     None,
     RequestAuthorizedImport,
     StartNewGame,
+    AdvanceDialogue,
+    StartBattle,
+    BattleWon,
+    BattleEscaped,
+    BattleDefeated,
     ContinueGame,
     OpenSettings,
 };
@@ -54,6 +65,26 @@ struct RuntimeWorldSnapshot {
     std::uint64_t frame = 0;
 };
 
+struct RuntimeDialogueSnapshot {
+    bool active = false;
+    std::string event_id;
+    std::string speaker;
+    std::string text_key;
+    std::size_t line_index = 0;
+    std::size_t line_count = 0;
+};
+
+struct RuntimeBattleSnapshot {
+    bool active = false;
+    std::string enemy_id;
+    int player_hp = 0;
+    int player_max_hp = 0;
+    int enemy_hp = 0;
+    int enemy_max_hp = 0;
+    std::uint32_t turn = 0;
+    std::string result;
+};
+
 struct RuntimeSnapshot {
     RuntimeScreen screen = RuntimeScreen::Import;
     std::size_t selected_index = 0;
@@ -66,7 +97,11 @@ struct RuntimeSnapshot {
     std::uint16_t background_height = 0;
     std::uint8_t background_format = 0;
     std::vector<std::uint8_t> background_rgba;
+    RuntimeDialogueSnapshot dialogue;
     RuntimeWorldSnapshot world;
+    RuntimeBattleSnapshot battle;
+    std::string audio_cue;
+    std::uint64_t audio_sequence = 0;
 };
 
 struct RuntimeTransition {
@@ -94,6 +129,11 @@ public:
     std::uint16_t background_height() const { return background_height_; }
 
 private:
+    void begin_dialogue();
+    RuntimeTransition advance_dialogue();
+    void begin_battle();
+    RuntimeTransition resolve_battle_action(RuntimeInput input);
+    void trigger_audio(std::string cue);
     void enter_world();
     void select_next(int direction);
     bool selected_item_enabled() const;
@@ -106,7 +146,11 @@ private:
     std::uint16_t background_height_ = 0;
     std::uint8_t background_format_ = 0;
     std::vector<std::uint8_t> background_rgba_;
+    RuntimeDialogueSnapshot dialogue_;
     RuntimeWorldSnapshot world_;
+    RuntimeBattleSnapshot battle_;
+    std::string audio_cue_;
+    std::uint64_t audio_sequence_ = 0;
     RuntimeScreen screen_ = RuntimeScreen::Import;
     std::size_t selected_index_ = 0;
     std::vector<RuntimeMenuItem> items_;

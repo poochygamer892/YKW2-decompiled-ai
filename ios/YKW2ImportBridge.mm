@@ -380,6 +380,15 @@ private:
         case 7:
             runtimeInput = ykw2::core::RuntimeInput::MoveRight;
             break;
+        case 8:
+            runtimeInput = ykw2::core::RuntimeInput::Attack;
+            break;
+        case 9:
+            runtimeInput = ykw2::core::RuntimeInput::Skill;
+            break;
+        case 10:
+            runtimeInput = ykw2::core::RuntimeInput::Run;
+            break;
         default:
             return runtimeString(ykw2::core::serialize_runtime_response(
                 {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));

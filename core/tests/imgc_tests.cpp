@@ -117,6 +117,23 @@ void test_rgba8888_decodes_swizzled_tile() {
     assert(image.value->rgba[3] == 0x44);
 }
 
+void test_rgba8888_uses_ctr_morton_order() {
+    std::vector<std::uint8_t> pixels(8 * 8 * 4);
+    for (std::size_t index = 0; index < 64; ++index) {
+        pixels[index * 4 + 0] = 0xff;
+        pixels[index * 4 + 1] = static_cast<std::uint8_t>(index);
+        pixels[index * 4 + 2] = 0;
+        pixels[index * 4 + 3] = 0;
+    }
+    MemoryStore store({{"bg.xi", make_imgc(0x00, 32, pixels)}});
+    const auto image = ykw2::core::decode_imgc_image(store, "bg.xi");
+    assert(image);
+    // The source index is Y-low/X-high Morton order: (1,0) is source 2,
+    // while (0,1) is source 1.
+    assert(image.value->rgba[1 * 4 + 2] == 2);
+    assert(image.value->rgba[8 * 4 + 2] == 1);
+}
+
 void test_etc1_decodes_a_color_block() {
     // Four ETC1 blocks, each with a red individual-mode base and the smallest
     // positive modifier. IMGC stores two 4x4 blocks per 8x8 tile.
@@ -165,6 +182,7 @@ void test_unsupported_format_is_rejected() {
 
 int main() {
     test_rgba8888_decodes_swizzled_tile();
+    test_rgba8888_uses_ctr_morton_order();
     test_etc1_decodes_a_color_block();
     test_etc1a4_decodes_alpha_and_color_blocks();
     test_unsupported_format_is_rejected();

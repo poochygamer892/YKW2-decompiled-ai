@@ -183,21 +183,15 @@ ParseResult<ImageEntry> read_image_entry(
         *tile_offset, *tile_size, *image_offset, *image_size_value});
 }
 
-std::pair<std::size_t, std::size_t> swizzled_point(
-    std::size_t point, std::size_t stride) {
-    constexpr std::size_t macro_pixels = 64;
-    const auto width_in_tiles = (stride + 7) / 8;
-    const auto macro_tile = point / macro_pixels;
-    std::size_t x = (macro_tile % width_in_tiles) * 8;
-    std::size_t y = (macro_tile / width_in_tiles) * 8;
-    constexpr std::array<std::pair<std::size_t, std::size_t>, 6> bits = {{
-        {0, 1}, {1, 0}, {0, 2}, {2, 0}, {0, 4}, {4, 0}}};
-    for (std::size_t index = 0; index < bits.size(); ++index) {
-        const auto bit = (point >> index) & 1u;
-        x ^= bit * bits[index].first;
-        y ^= bit * bits[index].second;
+std::size_t morton_pixel_index(std::size_t x, std::size_t y) {
+    // CTR textures store each 8x8 tile in Morton order. The least
+    // significant bit belongs to Y, followed by X, then Y, then X.
+    std::size_t result = 0;
+    for (std::size_t bit = 0; bit < 3; ++bit) {
+        result |= ((y >> bit) & 1u) << (bit * 2);
+        result |= ((x >> bit) & 1u) << (bit * 2 + 1);
     }
-    return {x, y};
+    return result;
 }
 
 int sign3(std::uint8_t value) {
@@ -467,12 +461,17 @@ ParseResult<ImgcImage> decode_imgc_image(
         }
         for (std::size_t y = 0; y < header.value->height; ++y) {
             for (std::size_t x = 0; x < header.value->width; ++x) {
-                const auto logical = y * padded_width + x;
-                const auto [physical_x, physical_y] = swizzled_point(logical, padded_width);
-                const auto source_pixel = physical_y * padded_width + physical_x;
+                const auto tile_x = x / 8;
+                const auto tile_y = y / 8;
+                const auto tile_index = tile_y * (padded_width / 8) + tile_x;
+                if (tile_index >= tile_count) {
+                    return failure<ImgcImage>("imgc_tile_index_out_of_bounds");
+                }
+                const auto source_pixel = static_cast<std::uint64_t>(tile_index) * 64u +
+                                           morton_pixel_index(x & 7u, y & 7u);
                 const auto byte_depth = header.value->bit_depth / 8u;
                 const auto* source_data = combined.data();
-                auto source_index = source_pixel;
+                auto source_index = static_cast<std::size_t>(source_pixel);
                 if (byte_depth != 0) {
                     source_data += source_pixel * byte_depth;
                     source_index = 0;
@@ -500,12 +499,10 @@ ParseResult<ImgcImage> decode_imgc_image(
     const auto tiles_wide = padded_width / 8;
     for (std::size_t y = 0; y < header.value->height; ++y) {
         for (std::size_t x = 0; x < header.value->width; ++x) {
-            const auto logical = y * padded_width + x;
-            const auto [physical_x, physical_y] = swizzled_point(logical, padded_width);
-            const auto tile_index = (physical_y / 8) * tiles_wide + physical_x / 8;
+            const auto tile_index = (y / 8) * tiles_wide + x / 8;
             const auto tile_size = pixel_format == ImgcPixelFormat::Etc1A4 ? 64u : 32u;
-            const auto local_x = physical_x & 7u;
-            const auto local_y = physical_y & 7u;
+            const auto local_x = x & 7u;
+            const auto local_y = y & 7u;
             const auto block_index = (local_y / 4) * 2 + local_x / 4;
             const auto block_size = pixel_format == ImgcPixelFormat::Etc1A4 ? 16u : 8u;
             const auto block_offset = tile_index * tile_size + block_index * block_size;

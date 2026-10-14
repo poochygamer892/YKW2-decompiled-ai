@@ -435,6 +435,15 @@ std::string handle_runtime_input(jint input) {
         case 7:
             runtime_input = ykw2::core::RuntimeInput::MoveRight;
             break;
+        case 8:
+            runtime_input = ykw2::core::RuntimeInput::Attack;
+            break;
+        case 9:
+            runtime_input = ykw2::core::RuntimeInput::Skill;
+            break;
+        case 10:
+            runtime_input = ykw2::core::RuntimeInput::Run;
+            break;
         default:
             return ykw2::core::serialize_runtime_response(
                 {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());

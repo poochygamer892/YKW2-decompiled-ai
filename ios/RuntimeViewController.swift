@@ -1,4 +1,129 @@
+import AudioToolbox
 import UIKit
+
+/// A lightweight scene renderer shared by the portable runtime on iOS.
+final class RuntimeSceneCanvasView: UIView {
+    var backgroundImage: UIImage?
+    private var screen = "title_menu"
+    private var playerX: Float = 0
+    private var playerY: Float = 0
+    private var speaker = ""
+    private var dialogueText = ""
+    private var enemyID = ""
+    private var playerHP = 0
+    private var playerMaxHP = 1
+    private var enemyHP = 0
+    private var enemyMaxHP = 1
+
+    func render(screen: String, playerX: Float, playerY: Float, speaker: String,
+                dialogueText: String, enemyID: String, playerHP: Int,
+                playerMaxHP: Int, enemyHP: Int, enemyMaxHP: Int) {
+        self.screen = screen
+        self.playerX = playerX
+        self.playerY = playerY
+        self.speaker = speaker
+        self.dialogueText = dialogueText
+        self.enemyID = enemyID
+        self.playerHP = playerHP
+        self.playerMaxHP = max(1, playerMaxHP)
+        self.enemyHP = enemyHP
+        self.enemyMaxHP = max(1, enemyMaxHP)
+        setNeedsDisplay()
+    }
+
+    override func draw(_ rect: CGRect) {
+        UIColor(red: 0.03, green: 0.04, blue: 0.06, alpha: 1).setFill()
+        UIRectFill(rect)
+        if let image = backgroundImage {
+            let target = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height * 0.58)
+            let scale = min(target.width / image.size.width, target.height / image.size.height)
+            let imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            let imageRect = CGRect(x: target.midX - imageSize.width / 2,
+                                   y: target.midY - imageSize.height / 2,
+                                   width: imageSize.width, height: imageSize.height)
+            image.draw(in: imageRect)
+        }
+        switch screen {
+        case "world": drawWorld()
+        case "dialogue": drawDialogue()
+        case "battle": drawBattle()
+        default: drawMenuHint()
+        }
+    }
+
+    private func drawWorld() {
+        let top = bounds.height * 0.08
+        let bottom = bounds.height * 0.72
+        UIColor(red: 0.4, green: 0.75, blue: 0.8, alpha: 0.3).setStroke()
+        let cell = max(24, bounds.width / 9)
+        for x in stride(from: CGFloat(0), through: bounds.width, by: cell) {
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: x, y: top))
+            path.addLine(to: CGPoint(x: x, y: bottom))
+            path.stroke()
+        }
+        for y in stride(from: top, through: bottom, by: cell) {
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: bounds.width, y: y))
+            path.stroke()
+        }
+        UIColor(red: 0.26, green: 0.85, blue: 0.75, alpha: 1).setFill()
+        let point = CGPoint(x: bounds.midX + CGFloat(playerX) * 8,
+                            y: (top + bottom) / 2 + CGFloat(playerY) * 8)
+        UIBezierPath(ovalIn: CGRect(x: point.x - 14, y: point.y - 14, width: 28, height: 28)).fill()
+        drawText("Exploración", at: CGPoint(x: 16, y: bottom + 8), color: .white, size: 14)
+    }
+
+    private func drawDialogue() {
+        let panelTop = bounds.height * 0.55
+        UIColor(red: 0.03, green: 0.05, blue: 0.1, alpha: 0.92).setFill()
+        UIBezierPath(roundedRect: CGRect(x: 12, y: panelTop, width: bounds.width - 24,
+                                         height: bounds.height - panelTop - 10), cornerRadius: 14).fill()
+        drawText(speaker, at: CGPoint(x: 28, y: panelTop + 14), color: UIColor(
+            red: 0.42, green: 0.86, blue: 1, alpha: 1), size: 17)
+        drawText(dialogueText, at: CGPoint(x: 28, y: panelTop + 47), color: .white, size: 16)
+    }
+
+    private func drawBattle() {
+        UIColor(red: 0.06, green: 0.1, blue: 0.18, alpha: 0.95).setFill()
+        UIBezierPath(roundedRect: bounds.insetBy(dx: 12, dy: 12), cornerRadius: 16).fill()
+        UIColor(red: 0.95, green: 0.68, blue: 0.36, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: bounds.width * 0.72 - 48, y: bounds.height * 0.32 - 48,
+                                    width: 96, height: 96)).fill()
+        UIColor(red: 0.31, green: 0.78, blue: 0.87, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: bounds.width * 0.28 - 38, y: bounds.height * 0.57 - 38,
+                                    width: 76, height: 76)).fill()
+        drawText(enemyID.isEmpty ? "Yo-kai enemigo" : enemyID,
+                 at: CGPoint(x: 18, y: 16), color: .white, size: 15)
+        drawBar(at: CGPoint(x: 18, y: 42), width: bounds.width * 0.46,
+                value: enemyHP, maximum: enemyMaxHP, color: .systemRed)
+        drawText("Jugador", at: CGPoint(x: 18, y: bounds.height * 0.46), color: .white, size: 15)
+        drawBar(at: CGPoint(x: 18, y: bounds.height * 0.46 + 22), width: bounds.width * 0.46,
+                value: playerHP, maximum: playerMaxHP, color: .systemGreen)
+        drawText("Atacar · Habilidad · Huir", at: CGPoint(x: 18, y: bounds.height - 30),
+                 color: .white, size: 13)
+    }
+
+    private func drawBar(at point: CGPoint, width: CGFloat, value: Int, maximum: Int, color: UIColor) {
+        UIColor.darkGray.setFill()
+        UIBezierPath(roundedRect: CGRect(x: point.x, y: point.y, width: width, height: 10), cornerRadius: 5).fill()
+        color.setFill()
+        let ratio = min(1, max(0, CGFloat(value) / CGFloat(maximum)))
+        UIBezierPath(roundedRect: CGRect(x: point.x, y: point.y, width: width * ratio, height: 10), cornerRadius: 5).fill()
+    }
+
+    private func drawMenuHint() {
+        drawText("Selecciona una opción", at: CGPoint(x: 16, y: bounds.height * 0.72), color: .white, size: 15)
+    }
+
+    private func drawText(_ text: String, at point: CGPoint, color: UIColor, size: CGFloat) {
+        text.draw(at: point, withAttributes: [
+            .font: UIFont.systemFont(ofSize: size),
+            .foregroundColor: color,
+        ])
+    }
+}
 
 /// Native host for the platform-neutral RuntimeScene.
 final class RuntimeViewController: UIViewController {
@@ -6,8 +131,9 @@ final class RuntimeViewController: UIViewController {
     private let statusLabel = UILabel()
     private let selectedLabel = UILabel()
     private let commandLabel = UILabel()
-    private let backgroundImage = UIImageView()
+    private let sceneView = RuntimeSceneCanvasView()
     private var displayLink: CADisplayLink?
+    private var lastAudioSequence: UInt64 = 0
 
     init(cacheURL: URL) {
         self.cacheURL = cacheURL
@@ -28,43 +154,39 @@ final class RuntimeViewController: UIViewController {
         selectedLabel.textAlignment = .center
         commandLabel.numberOfLines = 0
         commandLabel.textAlignment = .center
-        backgroundImage.contentMode = .scaleAspectFit
-        backgroundImage.isHidden = true
 
-        let previous = UIButton(type: .system)
-        previous.setTitle("Anterior", for: .normal)
-        previous.addTarget(self, action: #selector(movePrevious), for: .touchUpInside)
-        let next = UIButton(type: .system)
-        next.setTitle("Siguiente", for: .normal)
-        next.addTarget(self, action: #selector(moveNext), for: .touchUpInside)
-        let confirm = UIButton(type: .system)
-        confirm.setTitle("Confirmar", for: .normal)
-        confirm.addTarget(self, action: #selector(confirmSelection), for: .touchUpInside)
-        let up = UIButton(type: .system)
-        up.setTitle("Arriba", for: .normal)
-        up.addTarget(self, action: #selector(moveUp), for: .touchUpInside)
-        let down = UIButton(type: .system)
-        down.setTitle("Abajo", for: .normal)
-        down.addTarget(self, action: #selector(moveDown), for: .touchUpInside)
-        let left = UIButton(type: .system)
-        left.setTitle("Izquierda", for: .normal)
-        left.addTarget(self, action: #selector(moveLeft), for: .touchUpInside)
-        let right = UIButton(type: .system)
-        right.setTitle("Derecha", for: .normal)
-        right.addTarget(self, action: #selector(moveRight), for: .touchUpInside)
-        let back = UIButton(type: .system)
-        back.setTitle("Volver", for: .normal)
-        back.addTarget(self, action: #selector(moveBack), for: .touchUpInside)
+        let previous = button("Anterior", #selector(movePrevious))
+        let next = button("Siguiente", #selector(moveNext))
+        let confirm = button("Confirmar / Interactuar", #selector(confirmSelection))
+        let up = button("Arriba", #selector(moveUp))
+        let down = button("Abajo", #selector(moveDown))
+        let left = button("Izquierda", #selector(moveLeft))
+        let right = button("Derecha", #selector(moveRight))
+        let attack = button("Atacar", #selector(attack))
+        let skill = button("Habilidad", #selector(skill))
+        let run = button("Huir", #selector(run))
+        let back = button("Volver", #selector(moveBack))
 
-        let stack = UIStackView(arrangedSubviews: [statusLabel, backgroundImage, selectedLabel, previous, next, up, down, left, right, confirm, back, commandLabel])
+        let stack = UIStackView(arrangedSubviews: [statusLabel, sceneView, selectedLabel,
+            previous, next, up, down, left, right, confirm, attack, skill, run, back, commandLabel])
         stack.axis = .vertical
-        stack.spacing = 20
+        stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        sceneView.heightAnchor.constraint(equalToConstant: 280).isActive = true
+        let scroll = UIScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(stack)
+        view.addSubview(scroll)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
-            stack.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -12),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -48),
         ])
         render(YKW2ImportBridge.startRuntime(at: cacheURL))
         renderBackground()
@@ -83,26 +205,27 @@ final class RuntimeViewController: UIViewController {
         super.viewWillDisappear(animated)
     }
 
+    private func button(_ title: String, _ action: Selector) -> UIButton {
+        let result = UIButton(type: .system)
+        result.setTitle(title, for: .normal)
+        result.addTarget(self, action: action, for: .touchUpInside)
+        return result
+    }
+
     @objc private func advanceFrame(_ displayLink: CADisplayLink) {
         render(YKW2ImportBridge.advanceRuntime(1.0 / 60.0))
     }
 
-    @objc private func movePrevious() {
-        render(YKW2ImportBridge.handleRuntimeInput(1))
-    }
-
-    @objc private func moveNext() {
-        render(YKW2ImportBridge.handleRuntimeInput(0))
-    }
-
-    @objc private func confirmSelection() {
-        render(YKW2ImportBridge.handleRuntimeInput(2))
-    }
-
+    @objc private func movePrevious() { render(YKW2ImportBridge.handleRuntimeInput(1)) }
+    @objc private func moveNext() { render(YKW2ImportBridge.handleRuntimeInput(0)) }
+    @objc private func confirmSelection() { render(YKW2ImportBridge.handleRuntimeInput(2)) }
     @objc private func moveUp() { render(YKW2ImportBridge.handleRuntimeInput(4)) }
     @objc private func moveDown() { render(YKW2ImportBridge.handleRuntimeInput(5)) }
     @objc private func moveLeft() { render(YKW2ImportBridge.handleRuntimeInput(6)) }
     @objc private func moveRight() { render(YKW2ImportBridge.handleRuntimeInput(7)) }
+    @objc private func attack() { render(YKW2ImportBridge.handleRuntimeInput(8)) }
+    @objc private func skill() { render(YKW2ImportBridge.handleRuntimeInput(9)) }
+    @objc private func run() { render(YKW2ImportBridge.handleRuntimeInput(10)) }
     @objc private func moveBack() { render(YKW2ImportBridge.handleRuntimeInput(3)) }
 
     private func render(_ response: String) {
@@ -114,8 +237,17 @@ final class RuntimeViewController: UIViewController {
         var items: [[String]] = []
         var sceneResourceCount = 0
         var worldMap = "mapa pendiente"
-        var playerX = "0"
-        var playerY = "0"
+        var playerX: Float = 0
+        var playerY: Float = 0
+        var speaker = ""
+        var textKey = ""
+        var enemyID = ""
+        var playerHP = 0
+        var playerMaxHP = 1
+        var enemyHP = 0
+        var enemyMaxHP = 1
+        var audioSequence: UInt64 = 0
+        var audioCue = ""
         for line in lines {
             let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
             guard parts.count == 2 else { continue }
@@ -127,24 +259,71 @@ final class RuntimeViewController: UIViewController {
             case "item": items.append(parts[1].split(separator: "|").map(String.init))
             case "scene_resource": sceneResourceCount += 1
             case "world_map": worldMap = parts[1]
-            case "player_x": playerX = parts[1]
-            case "player_y": playerY = parts[1]
+            case "player_x": playerX = Float(parts[1]) ?? 0
+            case "player_y": playerY = Float(parts[1]) ?? 0
+            case "speaker": speaker = parts[1]
+            case "text_key": textKey = parts[1]
+            case "enemy_id": enemyID = parts[1]
+            case "player_hp": playerHP = Int(parts[1]) ?? 0
+            case "player_max_hp": playerMaxHP = Int(parts[1]) ?? 1
+            case "enemy_hp": enemyHP = Int(parts[1]) ?? 0
+            case "enemy_max_hp": enemyMaxHP = Int(parts[1]) ?? 1
+            case "audio_sequence": audioSequence = UInt64(parts[1]) ?? 0
+            case "audio_cue": audioCue = parts[1]
             default: break
             }
         }
-        statusLabel.text = statusLabel(for: status)
-        if let item = items.indices.contains(selected) ? items[selected] : nil,
-           item.count > 1 {
-            selectedLabel.text = label(for: item[1])
+        statusLabel.text = statusText(for: status, screen: screen)
+        if items.indices.contains(selected), items[selected].count > 1 {
+            selectedLabel.text = label(for: items[selected][1])
+        } else if screen == "dialogue" {
+            selectedLabel.text = "Pulsa Confirmar para continuar"
+        } else if screen == "battle" {
+            selectedLabel.text = "Elige una acción"
         } else {
-            selectedLabel.text = statusLabel(for: status)
+            selectedLabel.text = statusText(for: status, screen: screen)
         }
-        commandLabel.text = command == "start_new_game"
-            ? "Nueva partida iniciada."
-            : command == "open_settings" ? "Las opciones se conectarán en la siguiente fase."
-            : screen == "world"
-                ? "Mapa: \(worldMap)\nJugador: (\(playerX), \(playerY))\n\(sceneResourceCount) recursos de escena cargados."
-                : ""
+        let dialogue = storyText(textKey)
+        sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
+                         dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
+                         playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
+        commandLabel.text = commandText(command: command, screen: screen, speaker: speaker,
+                                        dialogue: dialogue, worldMap: worldMap, playerX: playerX,
+                                        playerY: playerY, sceneResourceCount: sceneResourceCount,
+                                        enemyID: enemyID, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
+        playAudioCue(sequence: audioSequence, cue: audioCue)
+    }
+
+    private func commandText(command: String, screen: String, speaker: String, dialogue: String,
+                             worldMap: String, playerX: Float, playerY: Float,
+                             sceneResourceCount: Int, enemyID: String, enemyHP: Int,
+                             enemyMaxHP: Int) -> String {
+        if screen == "dialogue" { return "\(speaker)\n\(dialogue)" }
+        if screen == "battle" {
+            return "Enemigo: \(enemyID) · HP \(enemyHP)/\(enemyMaxHP)\nUsa Atacar, Habilidad o Huir."
+        }
+        switch command {
+        case "request_authorized_import": return "Selecciona una copia autorizada desde el menú de importación."
+        case "start_new_game": return "Nueva partida iniciada."
+        case "advance_dialogue": return "Historia avanzada."
+        case "start_battle": return "¡Combate iniciado!"
+        case "battle_won": return "¡Victoria!"
+        case "battle_escaped": return "Has escapado del combate."
+        case "battle_defeated": return "Has sido derrotado."
+        case "open_settings": return "Las opciones se conectarán en la siguiente fase."
+        default: break
+        }
+        if screen == "world" {
+            return "Mapa: \(worldMap)\nJugador: (\(playerX), \(playerY))\n\(sceneResourceCount) recursos cargados. Pulsa Confirmar para combatir."
+        }
+        return ""
+    }
+
+    private func playAudioCue(sequence: UInt64, cue: String) {
+        guard sequence > lastAudioSequence else { return }
+        lastAudioSequence = sequence
+        let sound: SystemSoundID = cue == "victory" ? 1057 : cue == "defeat" ? 1073 : 1104
+        AudioServicesPlaySystemSound(sound)
     }
 
     private func renderBackground() {
@@ -153,24 +332,25 @@ final class RuntimeViewController: UIViewController {
         let data = YKW2ImportBridge.runtimeBackgroundRGBA()
         guard width > 0, height > 0, data.count == width * height * 4,
               let provider = CGDataProvider(data: data as CFData),
-              let image = CGImage(
-                width: width,
-                height: height,
-                bitsPerComponent: 8,
-                bitsPerPixel: 32,
-                bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue |
-                    CGBitmapInfo.byteOrder32Big.rawValue),
-                provider: provider,
-                decode: nil,
-                shouldInterpolate: false,
-                intent: .defaultIntent) else {
-            backgroundImage.isHidden = true
+              let image = CGImage(width: width, height: height, bitsPerComponent: 8,
+                                  bitsPerPixel: 32, bytesPerRow: width * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue |
+                                      CGBitmapInfo.byteOrder32Big.rawValue), provider: provider,
+                                  decode: nil, shouldInterpolate: false, intent: .defaultIntent) else {
             return
         }
-        backgroundImage.image = UIImage(cgImage: image)
-        backgroundImage.isHidden = false
+        sceneView.backgroundImage = UIImage(cgImage: image)
+        sceneView.setNeedsDisplay()
+    }
+
+    private func storyText(_ key: String) -> String {
+        switch key {
+        case "story.intro.1": return "El reloj vuelve a ponerse en marcha."
+        case "story.intro.2": return "Una presencia extraña te espera al otro lado."
+        case "story.intro.3": return "Avanza y descubre qué ocurre en este mundo."
+        default: return key
+        }
     }
 
     private func label(for key: String) -> String {
@@ -182,12 +362,13 @@ final class RuntimeViewController: UIViewController {
         }
     }
 
-    private func statusLabel(for key: String) -> String {
+    private func statusText(for key: String, screen: String) -> String {
+        if screen == "dialogue" { return "Historia" }
+        if screen == "battle" { return "Combate" }
         switch key {
         case "runtime.title_menu": return "Contenido inicial validado"
         case "runtime.world": return "Explorando Yo-kai Watch 2"
-        case "runtime.content_missing":
-            return "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
+        case "runtime.content_missing": return "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
         case "import.required": return "Selecciona una copia autorizada para importar."
         case "import.incomplete": return "La importación está incompleta; vuelve a seleccionar el dump."
         default: return key
