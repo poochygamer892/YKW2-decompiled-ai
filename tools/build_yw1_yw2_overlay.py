@@ -138,6 +138,51 @@ def patch_android_manifest(payload: bytes) -> bytes:
     return payload
 
 
+def replace_android_utf8_string(payload: bytes, old: str, new: str) -> bytes:
+    old_bytes = old.encode("utf-8")
+    new_bytes = new.encode("utf-8")
+    if len(old_bytes) != len(new_bytes):
+        fail(f"Android resource replacement changes byte length: {old!r}")
+    positions = []
+    start = 0
+    while True:
+        position = payload.find(old_bytes, start)
+        if position < 0:
+            break
+        positions.append(position)
+        start = position + 1
+    if len(positions) != 1:
+        fail(f"expected one Android resource string {old!r}, found {len(positions)}")
+    position = positions[0]
+    old_utf16_length = len(old.encode("utf-16-le")) // 2
+    old_utf8_length = len(old_bytes)
+    if position < 2 or payload[position - 2:position] != bytes((old_utf16_length, old_utf8_length)):
+        fail(f"invalid Android UTF-8 string-pool entry for {old!r}")
+    new_utf16_length = len(new.encode("utf-16-le")) // 2
+    new_utf8_length = len(new_bytes)
+    if new_utf16_length > 0x7f or new_utf8_length > 0x7f:
+        fail(f"Android resource replacement needs a long string length: {new!r}")
+    patched = bytearray(payload)
+    patched[position - 2:position] = bytes((new_utf16_length, new_utf8_length))
+    patched[position:position + len(old_bytes)] = new_bytes
+    return bytes(patched)
+
+
+def patch_android_resources(payload: bytes) -> bytes:
+    # Android keeps resource package names in UTF-16 and labels in the
+    # resource string pool. Keep all byte spans unchanged so table offsets
+    # remain valid while making PackageManager see a coherent YW2 identity.
+    old_package = "jp.co.level5.yws4".encode("utf-16-le")
+    new_package = "jp.co.level5.yws2".encode("utf-16-le")
+    if payload.count(old_package) != 1:
+        fail("Android resource package name was not found exactly once")
+    payload = payload.replace(old_package, new_package)
+    payload = replace_android_utf8_string(payload, "jp.co.level5.yws1", "jp.co.level5.yws2")
+    payload = replace_android_utf8_string(payload, "妖怪ウォッチ１ スマホ", "Yo-kai Watch 2 Smartphone      ")
+    payload = replace_android_utf8_string(payload, "妖怪ｳｫｯﾁ1", "Yo-kai Watch 2 App!")
+    return payload
+
+
 def patch_ios_info_plist(payload: bytes) -> bytes:
     replacements = {
         "妖怪ｳｫｯﾁ1".encode("utf-8"): b"Yo-kai Watch 2 Smartphone",
@@ -268,6 +313,8 @@ def write_overlay(
                     payload = base.read(info)
                     if kind == "apk" and info.filename == "AndroidManifest.xml":
                         payload = patch_android_manifest(payload)
+                    elif kind == "apk" and info.filename == "resources.arsc":
+                        payload = patch_android_resources(payload)
                     elif kind == "ipa" and info.filename == "Payload/yw1_rom.app/Info.plist":
                         payload = patch_ios_info_plist(payload)
                     write_classic_entry(
