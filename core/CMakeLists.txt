@@ -6,6 +6,7 @@ add_library(ykw2_core STATIC
     src/byte_view.cpp
     src/formats.cpp
     src/import_contract.cpp
+    src/initial_content.cpp
     src/level5_decode.cpp
     src/arc0_reader.cpp
     src/resource_catalog.cpp
@@ -44,6 +45,10 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_scene_tests tests/runtime_scene_tests.cpp)
     target_link_libraries(ykw2_scene_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_scene_tests COMMAND ykw2_scene_tests)
+
+    add_executable(ykw2_initial_content_tests tests/initial_content_tests.cpp)
+    target_link_libraries(ykw2_initial_content_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_initial_content_tests COMMAND ykw2_initial_content_tests)
 
     add_executable(ykw2_import_tests tests/import_tests.cpp)
     target_link_libraries(ykw2_import_tests PRIVATE ykw2_core)

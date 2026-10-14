@@ -24,6 +24,8 @@ Prioridades:
   de archivos anidados sin copiar el archivo completo.
 - `ykw2/core/runtime_scene.hpp`: primera escena portable; expone estado de
   importación, menú inicial y comandos para que cada plataforma dibuje su UI.
+- `ykw2/core/initial_content.hpp`: localiza y valida el índice ARC0 del
+  archivo inicial antes de habilitar Nueva partida.
 - `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
   importación que exige confirmación local de derechos.
 - `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y

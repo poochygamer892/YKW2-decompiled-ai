@@ -17,10 +17,12 @@
 #include <vector>
 
 #include "ykw2/core/import_contract.hpp"
+#include "ykw2/core/initial_content.hpp"
 #include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
 #include "ykw2/core/runtime_scene.hpp"
+#include "ykw2/core/resource_store.hpp"
 
 namespace {
 
@@ -222,7 +224,8 @@ bool marker_value(std::string_view marker, std::string_view key, std::uint64_t& 
     return false;
 }
 
-int load_runtime_boot(const std::string& cache_path, ykw2::core::RuntimeBootInfo& boot) {
+int load_runtime_boot(const std::string& cache_path, ykw2::core::RuntimeBootInfo& boot,
+                      ykw2::core::ResourceCatalog* catalog_output = nullptr) {
     std::string catalog_text;
     std::string marker_text;
     if (!read_text_file(cache_path + "/.catalog", catalog_text) ||
@@ -244,10 +247,54 @@ int load_runtime_boot(const std::string& cache_path, ykw2::core::RuntimeBootInfo
         boot.state = ykw2::core::RuntimeBootState::ImportIncomplete;
         return 2;
     }
+    if (catalog_output != nullptr) {
+        *catalog_output = *catalog.value;
+    }
     boot = ykw2::core::evaluate_runtime_boot(
         *catalog.value, true, files, bytes, fingerprint);
     return boot.state == ykw2::core::RuntimeBootState::Ready ? 0 : 2;
 }
+
+class CacheResourceStore final : public ykw2::core::ResourceStore {
+public:
+    CacheResourceStore(std::string root, const ykw2::core::ResourceCatalog& catalog)
+        : root_(std::move(root)), catalog_(catalog) {}
+
+    const ykw2::core::ResourceCatalog& catalog() const override { return catalog_; }
+
+    bool read(std::string_view path, std::uint64_t offset,
+              std::uint8_t* destination, std::size_t length) const override {
+        const auto* entry = catalog_.find(path);
+        if (entry == nullptr || offset > entry->size || length > entry->size - offset) {
+            return false;
+        }
+        const auto file_path = root_ + "/" + std::string(path);
+        const auto descriptor = open(file_path.c_str(), O_RDONLY);
+        if (descriptor < 0) {
+            return false;
+        }
+        std::size_t read_bytes = 0;
+        while (read_bytes < length) {
+            const auto result = pread(descriptor, destination + read_bytes,
+                                      length - read_bytes,
+                                      static_cast<off_t>(offset + read_bytes));
+            if (result < 0 && errno == EINTR) {
+                continue;
+            }
+            if (result <= 0) {
+                close(descriptor);
+                return false;
+            }
+            read_bytes += static_cast<std::size_t>(result);
+        }
+        close(descriptor);
+        return true;
+    }
+
+private:
+    std::string root_;
+    const ykw2::core::ResourceCatalog& catalog_;
+};
 
 int check_import(const std::string& cache_path) {
     ykw2::core::RuntimeBootInfo boot;
@@ -260,8 +307,19 @@ bool runtime_started = false;
 
 std::string start_runtime(const std::string& cache_path) {
     ykw2::core::RuntimeBootInfo boot;
-    load_runtime_boot(cache_path, boot);
-    runtime_scene.start(boot);
+    ykw2::core::ResourceCatalog catalog;
+    const auto boot_state = load_runtime_boot(cache_path, boot, &catalog);
+    if (boot_state == 0) {
+        CacheResourceStore store(cache_path, catalog);
+        const auto content = ykw2::core::load_initial_content(store);
+        if (content) {
+            runtime_scene.start(boot, *content.value);
+        } else {
+            runtime_scene.start(boot, false, 0);
+        }
+    } else {
+        runtime_scene.start(boot);
+    }
     runtime_started = true;
     return ykw2::core::serialize_runtime_response(
         {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());

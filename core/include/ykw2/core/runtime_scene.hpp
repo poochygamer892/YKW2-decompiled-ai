@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "ykw2/core/initial_content.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
 
 namespace ykw2::core {
@@ -41,6 +42,8 @@ struct RuntimeSnapshot {
     std::size_t selected_index = 0;
     std::vector<RuntimeMenuItem> items;
     std::string status_key;
+    bool initial_content_ready = false;
+    std::uint64_t initial_content_files = 0;
 };
 
 struct RuntimeTransition {
@@ -55,6 +58,9 @@ public:
     RuntimeScene() = default;
 
     void start(const RuntimeBootInfo& boot);
+    void start(const RuntimeBootInfo& boot, bool initial_content_ready,
+               std::uint64_t initial_content_files);
+    void start(const RuntimeBootInfo& boot, const InitialContentInfo& content);
     RuntimeTransition handle(RuntimeInput input);
     RuntimeSnapshot snapshot() const;
 
@@ -63,6 +69,8 @@ private:
     bool selected_item_enabled() const;
 
     RuntimeBootInfo boot_{};
+    bool initial_content_ready_ = false;
+    std::uint64_t initial_content_files_ = 0;
     RuntimeScreen screen_ = RuntimeScreen::Import;
     std::size_t selected_index_ = 0;
     std::vector<RuntimeMenuItem> items_;

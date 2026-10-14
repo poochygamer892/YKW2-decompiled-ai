@@ -23,6 +23,9 @@ mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
 `RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
 del núcleo mediante JNI y envía navegación/confirmación al mismo estado C++.
+Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
+parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
+que ese contenido sea legible.
 Las acciones de nueva partida y opciones aún son puntos de extensión, no una
 implementación de juego.
 

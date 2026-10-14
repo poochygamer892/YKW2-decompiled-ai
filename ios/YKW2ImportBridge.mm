@@ -14,10 +14,12 @@
 #include <vector>
 
 #include "ykw2/core/import_contract.hpp"
+#include "ykw2/core/initial_content.hpp"
 #include "ykw2/core/resource_catalog.hpp"
 #include "ykw2/core/romfs_extract.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
 #include "ykw2/core/runtime_scene.hpp"
+#include "ykw2/core/resource_store.hpp"
 
 namespace {
 
@@ -39,7 +41,8 @@ bool markerValue(NSString *marker, NSString *key, std::uint64_t& value) {
     return false;
 }
 
-ykw2::core::RuntimeBootInfo loadRuntimeBoot(NSURL *cacheURL) {
+ykw2::core::RuntimeBootInfo loadRuntimeBoot(
+    NSURL *cacheURL, ykw2::core::ResourceCatalog *catalogOutput = nullptr) {
     ykw2::core::RuntimeBootInfo boot;
     NSString *catalogPath = [cacheURL.path stringByAppendingPathComponent:@".catalog"];
     NSString *markerPath = [cacheURL.path stringByAppendingPathComponent:@".import-complete"];
@@ -64,6 +67,9 @@ ykw2::core::RuntimeBootInfo loadRuntimeBoot(NSURL *cacheURL) {
         boot.state = ykw2::core::RuntimeBootState::ImportIncomplete;
         return boot;
     }
+    if (catalogOutput != nullptr) {
+        *catalogOutput = *catalog.value;
+    }
     return ykw2::core::evaluate_runtime_boot(
         *catalog.value, true, files, bytes, fingerprint);
 }
@@ -75,6 +81,51 @@ bool runtimeStarted = false;
 NSString *runtimeString(const std::string& value) {
     return [NSString stringWithUTF8String:value.c_str()] ?: @"";
 }
+
+class CacheResourceStore final : public ykw2::core::ResourceStore {
+public:
+    CacheResourceStore(NSURL *root, const ykw2::core::ResourceCatalog& catalog)
+        : root_(root), catalog_(catalog) {}
+
+    const ykw2::core::ResourceCatalog& catalog() const override { return catalog_; }
+
+    bool read(std::string_view path, std::uint64_t offset,
+              std::uint8_t *destination, std::size_t length) const override {
+        const auto *entry = catalog_.find(path);
+        if (entry == nullptr || offset > entry->size || length > entry->size - offset) {
+            return false;
+        }
+        NSString *relative = [NSString stringWithUTF8String:std::string(path).c_str()];
+        if (relative == nil) {
+            return false;
+        }
+        const auto fullPath = [root_.path stringByAppendingPathComponent:relative];
+        const int descriptor = open(fullPath.fileSystemRepresentation, O_RDONLY);
+        if (descriptor < 0) {
+            return false;
+        }
+        std::size_t readBytes = 0;
+        while (readBytes < length) {
+            const auto result = pread(descriptor, destination + readBytes,
+                                      length - readBytes,
+                                      static_cast<off_t>(offset + readBytes));
+            if (result < 0 && errno == EINTR) {
+                continue;
+            }
+            if (result <= 0) {
+                close(descriptor);
+                return false;
+            }
+            readBytes += static_cast<std::size_t>(result);
+        }
+        close(descriptor);
+        return true;
+    }
+
+private:
+    NSURL *root_;
+    const ykw2::core::ResourceCatalog& catalog_;
+};
 
 class FileSource final : public ykw2::core::ResourceSource {
 public:
@@ -243,7 +294,19 @@ private:
 
 + (NSString *)startRuntimeAtURL:(NSURL *)cacheURL {
     std::lock_guard<std::mutex> lock(runtimeMutex);
-    runtimeScene.start(loadRuntimeBoot(cacheURL));
+    ykw2::core::ResourceCatalog catalog;
+    const auto boot = loadRuntimeBoot(cacheURL, &catalog);
+    if (boot.state == ykw2::core::RuntimeBootState::Ready) {
+        CacheResourceStore store(cacheURL, catalog);
+        const auto content = ykw2::core::load_initial_content(store);
+        if (content) {
+            runtimeScene.start(boot, *content.value);
+        } else {
+            runtimeScene.start(boot, false, 0);
+        }
+    } else {
+        runtimeScene.start(boot);
+    }
     runtimeStarted = true;
     return runtimeString(ykw2::core::serialize_runtime_response(
         {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));

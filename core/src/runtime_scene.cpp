@@ -5,7 +5,14 @@
 namespace ykw2::core {
 
 void RuntimeScene::start(const RuntimeBootInfo& boot) {
+    start(boot, boot.state == RuntimeBootState::Ready, 0);
+}
+
+void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready,
+                         std::uint64_t initial_content_files) {
     boot_ = boot;
+    initial_content_ready_ = initial_content_ready && boot.state == RuntimeBootState::Ready;
+    initial_content_files_ = initial_content_ready_ ? initial_content_files : 0;
     selected_index_ = 0;
     items_.clear();
     if (boot.state != RuntimeBootState::Ready) {
@@ -15,10 +22,14 @@ void RuntimeScene::start(const RuntimeBootInfo& boot) {
 
     screen_ = RuntimeScreen::TitleMenu;
     items_ = {
-        {"new_game", "menu.new_game", true},
+        {"new_game", "menu.new_game", initial_content_ready_},
         {"continue", "menu.continue", false},
         {"settings", "menu.settings", true},
     };
+}
+
+void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& content) {
+    start(boot, true, content.archive_files);
 }
 
 bool RuntimeScene::selected_item_enabled() const {
@@ -81,10 +92,14 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.screen = screen_;
     result.selected_index = selected_index_;
     result.items = items_;
+    result.initial_content_ready = initial_content_ready_;
+    result.initial_content_files = initial_content_files_;
     if (screen_ == RuntimeScreen::Import) {
         result.status_key = boot_.state == RuntimeBootState::ImportIncomplete
                                 ? "import.incomplete"
                                 : "import.required";
+    } else if (!initial_content_ready_) {
+        result.status_key = "runtime.content_missing";
     } else {
         result.status_key = "runtime.title_menu";
     }
@@ -120,6 +135,8 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     result += screen_name(snapshot.screen);
     result += "\nselected=" + std::to_string(snapshot.selected_index) + "\nstatus=" +
               snapshot.status_key + "\n";
+    result += "content_ready=" + std::string(snapshot.initial_content_ready ? "1\n" : "0\n");
+    result += "content_files=" + std::to_string(snapshot.initial_content_files) + "\n";
     for (const auto& item : snapshot.items) {
         result += "item=" + item.id + "|" + item.label_key + "|" +
                   (item.enabled ? "1" : "0") + "\n";

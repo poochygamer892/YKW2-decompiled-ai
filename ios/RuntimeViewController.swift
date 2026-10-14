@@ -79,12 +79,12 @@ final class RuntimeViewController: UIViewController {
             default: break
             }
         }
-        statusLabel.text = status
+        statusLabel.text = statusLabel(for: status)
         if let item = items.indices.contains(selected) ? items[selected] : nil,
            item.count > 1 {
             selectedLabel.text = label(for: item[1])
         } else {
-            selectedLabel.text = ""
+            selectedLabel.text = statusLabel(for: status)
         }
         commandLabel.text = command == "start_new_game"
             ? "La escena de juego se conectará en la siguiente fase."
@@ -96,6 +96,17 @@ final class RuntimeViewController: UIViewController {
         case "menu.new_game": return "Nueva partida"
         case "menu.continue": return "Continuar"
         case "menu.settings": return "Opciones"
+        default: return key
+        }
+    }
+
+    private func statusLabel(for key: String) -> String {
+        switch key {
+        case "runtime.title_menu": return "Contenido inicial validado"
+        case "runtime.content_missing":
+            return "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
+        case "import.required": return "Selecciona una copia autorizada para importar."
+        case "import.incomplete": return "La importación está incompleta; vuelve a seleccionar el dump."
         default: return key
         }
     }

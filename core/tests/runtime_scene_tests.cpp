@@ -52,11 +52,24 @@ void test_title_menu_navigation() {
     assert(scene.snapshot().selected_index == 0);
 }
 
+void test_title_menu_waits_for_initial_content() {
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), false, 0);
+    const auto snapshot = scene.snapshot();
+    assert(snapshot.status_key == "runtime.content_missing");
+    assert(!snapshot.initial_content_ready);
+    assert(!snapshot.items[0].enabled);
+    assert(!scene.handle(ykw2::core::RuntimeInput::Confirm).handled);
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find("content_ready=0\n") !=
+           std::string::npos);
+}
+
 }  // namespace
 
 int main() {
     test_import_screen();
     test_incomplete_import_screen();
     test_title_menu_navigation();
+    test_title_menu_waits_for_initial_content();
     return 0;
 }

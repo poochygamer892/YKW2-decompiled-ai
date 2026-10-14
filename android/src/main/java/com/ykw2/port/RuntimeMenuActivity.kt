@@ -66,11 +66,11 @@ class RuntimeMenuActivity : Activity() {
             }
             .toList()
         val statusKey = values.lastOrNull { it.first == "status" }?.second ?: "runtime.title_menu"
-        status.text = statusKey
+        status.text = statusLabel(statusKey)
         val selected = values.lastOrNull { it.first == "selected" }?.second?.toIntOrNull() ?: 0
         val items = values.filter { it.first == "item" }.map { it.second.split('|') }
         val selectedItem = items.getOrNull(selected)
-        selectedLabel.text = selectedItem?.getOrNull(1)?.let(::labelFor) ?: statusKey
+        selectedLabel.text = selectedItem?.getOrNull(1)?.let(::labelFor) ?: statusLabel(statusKey)
         val command = values.firstOrNull { it.first == "command" }?.second ?: "none"
         commandStatus.text = when (command) {
             "request_authorized_import" -> "Selecciona una copia autorizada desde el menú de importación."
@@ -85,6 +85,14 @@ class RuntimeMenuActivity : Activity() {
         "menu.new_game" -> "Nueva partida"
         "menu.continue" -> "Continuar"
         "menu.settings" -> "Opciones"
+        else -> key
+    }
+
+    private fun statusLabel(key: String): String = when (key) {
+        "runtime.title_menu" -> "Contenido inicial validado"
+        "runtime.content_missing" -> "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
+        "import.required" -> "Selecciona una copia autorizada para importar."
+        "import.incomplete" -> "La importación está incompleta; vuelve a seleccionar el dump."
         else -> key
     }
 }
