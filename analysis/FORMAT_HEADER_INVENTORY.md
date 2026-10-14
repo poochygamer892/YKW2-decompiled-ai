@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-14
 
-Este análisis lee como máximo 64 bytes por recurso y las tablas de nombres de los contenedores `XPCK`. No extrae ni publica payloads.
+Este análisis lee cabeceras de recursos, tablas de nombres `XPCK` y tablas comprimidas de metadatos `XQ32`. No extrae ni publica payloads.
 
 ## Cabeceras del ARC0 principal
 
@@ -22,6 +22,20 @@ Este análisis lee como máximo 64 bytes por recurso y las tablas de nombres de 
 
 Otros formatos menos frecuentes (`.actbin`, `.astarbin`, `.chartbin`, `.ctpk`, `.efp3ds`, `.icn`, `.mapenv`, `.rt`, `.xf`, `.xk`) requieren parsers específicos; se mantienen clasificados por extensión y firma en el manifiesto local.
 
+## IMGC
+
+Los 2.050 archivos `.xi` inspeccionados tienen la firma de ocho bytes `IMGC00\0\0`.
+Los campos observados en `0x14`, `0x18` (16 bits), `0x1a` (16 bits), `0x1c` y
+`0x20` son invariantes en todo el conjunto: `0x30`, `0x30`, `1`, `0x48` y `3`,
+respectivamente. Los pares de 16 bits en `0x10/0x12` varían con el recurso; los
+dejamos como huella estructural, no como una afirmación definitiva sobre el
+formato de píxel. Los más frecuentes son `64x64` (890), `512x256` (346),
+`128x128` (264) y `1024x1024` (211).
+
+`tools/inspect_imgc.py` registra estos campos y comprueba la firma sin decodificar
+texturas. La siguiente etapa deberá validar formato de píxel, paleta y orden
+de bloques contra la implementación móvil de referencia.
+
 ## XPCK anidado
 
 Se inspeccionaron los 11.163 archivos de nivel superior cuya extensión y firma indican `XPCK`.
@@ -30,6 +44,24 @@ Se inspeccionaron los 11.163 archivos de nivel superior cuya extensión y firma 
 - 9.790 tablas de nombres usan `LZ10`; 1.373 no están comprimidas.
 - No se produjeron errores de lectura.
 - El campo de tipo XPCK observado toma los valores `0`–`11`; todavía no se ha asignado semántica definitiva a cada tipo.
+
+La distribución por extensión del contenedor padre ayuda a separar familias,
+sin convertir todavía los valores numéricos en nombres semánticos:
+
+| Contenedor padre | Tipos más frecuentes |
+|---|---|
+| `.xc` | `6`: 2.201; `3`: 1.763; `5`: 1.380; `7`: 1.069 |
+| `.xa` | `5`: 512; `6`: 95; `2`: 86; `8`: 61 |
+| `.pck` | `0`: 309; `1`: 257; `3`: 190; `4`: 179 |
+| `.xr` | `3`: 419; `1`: 48 |
+| `.xv` | `1`: 861 |
+| `.xk` | `2`: 115 |
+
+Los tipos `6`–`8` concentran recursos de modelo/animación (`.mbn`, `.prm`,
+`.atr`, `.mtr`, `.txp`, `.mtninf`), mientras que el tipo `3` concentra más
+`.cmn`, `.mtn2`, `.xi` y datos auxiliares. Es una correlación útil para el
+runtime nativo, no una especificación suficiente para interpretar cada
+payload.
 
 Extensiones internas dominantes:
 
@@ -48,6 +80,27 @@ Extensiones internas dominantes:
 | `.npcbin` | 5.242 |
 
 El lector [`tools/inspect_xpck.py`](../tools/inspect_xpck.py) solo enumera índices, nombres y tamaños; no descomprime `RES.bin` ni escribe recursos.
+
+## XQ32
+
+Se validaron los 2.789 archivos `.xq`: no hubo errores. Las tablas usan los
+offsets en unidades de cuatro bytes del encabezado XQ32 y sus tamaños
+descomprimidos coinciden con los layouts conocidos (`function` 0x18/0x20,
+`jump` e `instruction` 0x0c/0x10, `argument` 0x08/0x10) cuando la tabla tiene
+entradas.
+
+| Tabla | Métodos observados | Entradas con layout identificado |
+|---|---|---:|
+| `function` | RLE 1.904; LZ10 451; Huffman4 187; none 246; Huffman8 1 | 2.788 |
+| `jump` | none 1.952; LZ10 819; Huffman4 18 | 1.537 |
+| `instruction` | LZ10 2.533; none 256 | 2.778 |
+| `argument` | LZ10 2.537; none 248; Huffman8 4 | 2.778 |
+| `strings` | LZ10 1.910; none 878; Huffman8 1 | no aplica |
+
+`none` aquí identifica el método Level-5 sin compresión, no una extracción de
+la tabla. El lector [`tools/inspect_xq32.py`](../tools/inspect_xq32.py) valida
+cabeceras, regiones y tamaños, pero no publica nombres, instrucciones ni
+bytecode.
 
 ## Comparación con las versiones móviles de referencia
 
@@ -81,6 +134,16 @@ La igualdad de firma en `XPCK`, `XQ32` y `XSCR` confirma una familia de formatos
   --rom /ruta/al/dump.3ds \
   --arc0-manifest /ruta/local/yw2_a.json \
   --json-out /ruta/local/xpck.json
+
+/workspace/.local/pyctr-venv/bin/python tools/inspect_xq32.py \
+  --rom /ruta/al/dump.3ds \
+  --arc0-manifest /ruta/local/yw2_a.json \
+  --json-out /ruta/local/xq32.json
+
+/workspace/.local/pyctr-venv/bin/python tools/inspect_imgc.py \
+  --rom /ruta/al/dump.3ds \
+  --arc0-manifest /ruta/local/yw2_a.json \
+  --json-out /ruta/local/imgc.json
 ```
 
 Los JSON completos contienen nombres de recursos y deben permanecer fuera de GitHub.

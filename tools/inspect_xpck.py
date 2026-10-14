@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from inspect_arc0 import decompress_level5
@@ -118,6 +118,8 @@ def main() -> int:
     nested_extensions = Counter()
     name_compressions = Counter()
     entry_counts = Counter()
+    content_types_by_parent_extension = defaultdict(Counter)
+    nested_extensions_by_content_type = defaultdict(Counter)
     processed = 0
     skipped = 0
     errors = Counter()
@@ -147,6 +149,10 @@ def main() -> int:
                     name_compressions[info["name_compression"]] += 1
                     entry_counts[str(info["entry_count"])] += 1
                     nested_extensions.update(info["nested_extensions"])
+                    parent_extension = Path(item["path"]).suffix.lower() or "<none>"
+                    content_types_by_parent_extension[parent_extension][str(info["content_type"])] += 1
+                    for nested_extension, count in info["nested_extensions"].items():
+                        nested_extensions_by_content_type[str(info["content_type"])][nested_extension] += count
             finally:
                 parent.close()
         finally:
@@ -164,6 +170,14 @@ def main() -> int:
         "name_compressions": dict(sorted(name_compressions.items())),
         "entry_count_distribution": dict(entry_counts.most_common(20)),
         "nested_extensions": dict(sorted(nested_extensions.items())),
+        "content_types_by_parent_extension": {
+            extension: dict(sorted(types.items()))
+            for extension, types in sorted(content_types_by_parent_extension.items())
+        },
+        "nested_extensions_by_content_type": {
+            content_type: dict(sorted(extensions.items(), key=lambda pair: (-pair[1], pair[0]))[:20])
+            for content_type, extensions in sorted(nested_extensions_by_content_type.items())
+        },
     }
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
