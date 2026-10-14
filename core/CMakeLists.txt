@@ -12,6 +12,7 @@ add_library(ykw2_core STATIC
     src/resource_store.cpp
     src/romfs_extract.cpp
     src/runtime_bootstrap.cpp
+    src/runtime_scene.cpp
     src/xpck_reader.cpp
 )
 
@@ -39,6 +40,10 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_archive_tests tests/archive_tests.cpp)
     target_link_libraries(ykw2_archive_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_archive_tests COMMAND ykw2_archive_tests)
+
+    add_executable(ykw2_scene_tests tests/runtime_scene_tests.cpp)
+    target_link_libraries(ykw2_scene_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_scene_tests COMMAND ykw2_scene_tests)
 
     add_executable(ykw2_import_tests tests/import_tests.cpp)
     target_link_libraries(ykw2_import_tests PRIVATE ykw2_core)

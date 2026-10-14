@@ -22,6 +22,8 @@ Prioridades:
 - `ykw2/core/arc0_reader.hpp` y `ykw2/core/xpck_reader.hpp`: lectores de
   índices que usan `ResourceStore`, descomprimen sus tablas y validan offsets
   de archivos anidados sin copiar el archivo completo.
+- `ykw2/core/runtime_scene.hpp`: primera escena portable; expone estado de
+  importación, menú inicial y comandos para que cada plataforma dibuje su UI.
 - `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
   importación que exige confirmación local de derechos.
 - `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y

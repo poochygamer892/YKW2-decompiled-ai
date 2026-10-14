@@ -36,7 +36,8 @@ catálogo en el almacenamiento privado de la app.
 Cargadores de recursos, persistencia, entrada, audio, gráficos y reloj. Cada
 adaptador debe tener una interfaz verificable y una implementación por
 plataforma cuando sea necesario. El adaptador solo implementa almacenamiento,
-ciclo de vida y APIs del sistema; no duplica las reglas de formatos del núcleo.
+ciclo de vida, dibujo de `RuntimeSnapshot` y APIs del sistema; no duplica las
+reglas de formatos del núcleo.
 
 ### Cliente Android
 
@@ -54,8 +55,8 @@ Aplicación nativa con integración Swift/iOS. El cliente debe reutilizar las mi
 - requisitos mínimos de Android e iOS;
 - licencias y procedencia de cada dependencia.
 
-La ABI pública entre C++ y Kotlin/Swift aún está pendiente. Por ahora los
-adaptadores pueden consumir la biblioteca estática directamente durante la
-fase de investigación. No se debe fijar la semántica de IMGC o los tipos
-numéricos de XPCK basándose únicamente en nombres de archivos: deben apoyarse
-en pruebas diferenciales y evidencia documentada.
+La ABI pública entre C++ y Kotlin/Swift aún está pendiente. `RuntimeScene` es
+la frontera lógica inicial: las plataformas reciben un snapshot y envían
+`RuntimeInput`; la pantalla no contiene lógica de formatos. No se debe fijar la
+semántica de IMGC o los tipos numéricos de XPCK basándose únicamente en nombres
+de archivos: deben apoyarse en pruebas diferenciales y evidencia documentada.
