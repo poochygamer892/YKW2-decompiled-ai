@@ -7,6 +7,7 @@
 
 #include "ykw2/core/arc0_reader.hpp"
 #include "ykw2/core/resource_store.hpp"
+#include "ykw2/core/runtime_content.hpp"
 
 namespace ykw2::core {
 
@@ -46,6 +47,7 @@ struct InitialContentInfo {
     std::uint64_t archive_files = 0;
     std::string first_file_path;
     std::uint32_t first_file_size = 0;
+    RuntimeContentManifest runtime_content;
     std::vector<InitialSceneResource> scene_resources;
     std::uint16_t background_width = 0;
     std::uint16_t background_height = 0;

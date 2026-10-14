@@ -34,15 +34,15 @@ Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2**
 - El núcleo C++17 valida NCSD/NCCH, extrae la RomFS autorizada a un caché privado,
   carga `yw2_a.fa`, inspecciona ARC0/XPCK/IMGC y selecciona el primer mapa,
   personaje y fondo localizado.
-- `RuntimeScene` ya tiene menú inicial, tres eventos de diálogo, entrada de
-  mundo, movimiento, combate de prueba con tres acciones, señales de audio y
-  guardado binario versionado con restauración validada contra el catálogo
-  importado.
-- Android e iOS tienen renderizador nativo de la escena, controles táctiles,
-  ciclo de actualización y workflows reproducibles de compilación. Esto es una
-  vertical slice funcional; todavía falta conectar el guion completo, los mapas
-  jugables, las reglas reales de combate, el audio original y los eventos del
-  juego completo.
+- El núcleo C++17 identifica un manifiesto de arranque real dentro de YW2:
+  secuencias de título/menú, el evento inicial, configuración de combate y sus
+  texturas de interfaz. Las rutas se resuelven exclusivamente desde el dump
+  importado del usuario.
+- Android e iOS tienen importación, ciclo de actualización y renderizado nativo
+  de los recursos IMGC ya soportados. La maqueta anterior de diálogo y combate
+  ha sido retirada: faltan el intérprete XQ32, los mapas/modelos, las reglas
+  reales de combate, el audio y los eventos completos antes de que pueda
+  describirse como un port jugable.
 
 Para Android se necesita JDK 21, Android SDK 35, CMake 3.22.1, NDK 27.2 y
 Gradle 8.11.1; el workflow `android.yml` instala esos componentes en GitHub

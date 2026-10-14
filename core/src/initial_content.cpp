@@ -211,6 +211,7 @@ ParseResult<InitialContentInfo> load_initial_content(
     result.archive_files = archive.value->files.size();
     result.first_file_path = first_file.path;
     result.first_file_size = first_file.size;
+    result.runtime_content = select_runtime_content_manifest(*archive.value);
     result.scene_resources = select_initial_scene_resources(*archive.value);
     for (auto& resource : result.scene_resources) {
         const auto* file = archive.value->find(resource.path);

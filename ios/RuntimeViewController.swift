@@ -88,29 +88,9 @@ final class RuntimeSceneCanvasView: UIView {
     private func drawBattle() {
         UIColor(red: 0.06, green: 0.1, blue: 0.18, alpha: 0.95).setFill()
         UIBezierPath(roundedRect: bounds.insetBy(dx: 12, dy: 12), cornerRadius: 16).fill()
-        UIColor(red: 0.95, green: 0.68, blue: 0.36, alpha: 1).setFill()
-        UIBezierPath(ovalIn: CGRect(x: bounds.width * 0.72 - 48, y: bounds.height * 0.32 - 48,
-                                    width: 96, height: 96)).fill()
-        UIColor(red: 0.31, green: 0.78, blue: 0.87, alpha: 1).setFill()
-        UIBezierPath(ovalIn: CGRect(x: bounds.width * 0.28 - 38, y: bounds.height * 0.57 - 38,
-                                    width: 76, height: 76)).fill()
-        drawText(enemyID.isEmpty ? "Yo-kai enemigo" : enemyID,
-                 at: CGPoint(x: 18, y: 16), color: .white, size: 15)
-        drawBar(at: CGPoint(x: 18, y: 42), width: bounds.width * 0.46,
-                value: enemyHP, maximum: enemyMaxHP, color: .systemRed)
-        drawText("Jugador", at: CGPoint(x: 18, y: bounds.height * 0.46), color: .white, size: 15)
-        drawBar(at: CGPoint(x: 18, y: bounds.height * 0.46 + 22), width: bounds.width * 0.46,
-                value: playerHP, maximum: playerMaxHP, color: .systemGreen)
-        drawText("Atacar · Habilidad · Huir", at: CGPoint(x: 18, y: bounds.height - 30),
-                 color: .white, size: 13)
-    }
-
-    private func drawBar(at point: CGPoint, width: CGFloat, value: Int, maximum: Int, color: UIColor) {
-        UIColor.darkGray.setFill()
-        UIBezierPath(roundedRect: CGRect(x: point.x, y: point.y, width: width, height: 10), cornerRadius: 5).fill()
-        color.setFill()
-        let ratio = min(1, max(0, CGFloat(value) / CGFloat(maximum)))
-        UIBezierPath(roundedRect: CGRect(x: point.x, y: point.y, width: width * ratio, height: 10), cornerRadius: 5).fill()
+        drawText("Combate de Yo-kai Watch 2", at: CGPoint(x: 18, y: 28), color: .white, size: 17)
+        drawText("Las reglas, encuentros y comandos se cargarán desde el dump autorizado.",
+                 at: CGPoint(x: 18, y: 64), color: .white, size: 14)
     }
 
     private func drawMenuHint() {
@@ -240,6 +220,7 @@ final class RuntimeViewController: UIViewController {
         var playerX: Float = 0
         var playerY: Float = 0
         var speaker = ""
+        var eventID = ""
         var textKey = ""
         var enemyID = ""
         var playerHP = 0
@@ -262,6 +243,7 @@ final class RuntimeViewController: UIViewController {
             case "player_x": playerX = Float(parts[1]) ?? 0
             case "player_y": playerY = Float(parts[1]) ?? 0
             case "speaker": speaker = parts[1]
+            case "event_id": eventID = parts[1]
             case "text_key": textKey = parts[1]
             case "enemy_id": enemyID = parts[1]
             case "player_hp": playerHP = Int(parts[1]) ?? 0
@@ -283,7 +265,7 @@ final class RuntimeViewController: UIViewController {
         } else {
             selectedLabel.text = statusText(for: status, screen: screen)
         }
-        let dialogue = storyText(textKey)
+        let dialogue = eventDescription(eventID: eventID)
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
                          playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
@@ -299,14 +281,12 @@ final class RuntimeViewController: UIViewController {
                              sceneResourceCount: Int, enemyID: String, enemyHP: Int,
                              enemyMaxHP: Int) -> String {
         if screen == "dialogue" { return "\(speaker)\n\(dialogue)" }
-        if screen == "battle" {
-            return "Enemigo: \(enemyID) · HP \(enemyHP)/\(enemyMaxHP)\nUsa Atacar, Habilidad o Huir."
-        }
+        if screen == "battle" { return "El intérprete de reglas y encuentros de YW2 aún no está disponible." }
         switch command {
         case "request_authorized_import": return "Selecciona una copia autorizada desde el menú de importación."
         case "start_new_game": return "Nueva partida iniciada."
         case "advance_dialogue": return "Historia avanzada."
-        case "start_battle": return "¡Combate iniciado!"
+        case "start_battle": return "El motor de combate de YW2 todavía no está disponible."
         case "battle_won": return "¡Victoria!"
         case "battle_escaped": return "Has escapado del combate."
         case "battle_defeated": return "Has sido derrotado."
@@ -344,13 +324,9 @@ final class RuntimeViewController: UIViewController {
         sceneView.setNeedsDisplay()
     }
 
-    private func storyText(_ key: String) -> String {
-        switch key {
-        case "story.intro.1": return "El reloj vuelve a ponerse en marcha."
-        case "story.intro.2": return "Una presencia extraña te espera al otro lado."
-        case "story.intro.3": return "Avanza y descubre qué ocurre en este mundo."
-        default: return key
-        }
+    private func eventDescription(eventID: String) -> String {
+        if eventID.isEmpty { return "No se encontró un evento de apertura compatible en el dump." }
+        return "Evento YW2 cargado: \(eventID)\nEl intérprete XQ32 se conectará antes de mostrar su diálogo."
     }
 
     private func label(for key: String) -> String {

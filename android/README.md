@@ -28,14 +28,14 @@ descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
 mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
 `RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
-del núcleo mediante JNI y envía navegación, confirmación y acciones de combate
-al mismo estado C++. `RuntimeSceneView.kt` dibuja el fondo IMGC corregido, la
-rejilla de mundo, el diálogo y las barras de combate; los botones táctiles se
-mantienen dentro de un `ScrollView` y las transiciones producen tonos de evento.
+del núcleo mediante JNI y envía navegación y confirmación al mismo estado C++.
+`RuntimeSceneView.kt` dibuja el fondo IMGC corregido y el estado de escena; los
+botones táctiles se mantienen dentro de un `ScrollView`.
 Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
 parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
 que ese contenido sea legible.
-La historia y el combate incluidos son una vertical slice de prueba, no la
-reimplementación completa del juego.
+El núcleo ya identifica eventos y configuración de combate reales de YW2, pero
+no simula todavía su bytecode ni sus reglas. La interfaz no debe sustituirlos
+por diálogos, enemigos o estadísticas inventadas.
 
 No incluyas APKs, AABs, dumps ni recursos propietarios en Git.

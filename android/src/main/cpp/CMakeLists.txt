@@ -16,6 +16,7 @@ add_library(ykw2_core STATIC
     "${YKW2_CORE_ROOT}/src/resource_store.cpp"
     "${YKW2_CORE_ROOT}/src/romfs_extract.cpp"
     "${YKW2_CORE_ROOT}/src/runtime_bootstrap.cpp"
+    "${YKW2_CORE_ROOT}/src/runtime_content.cpp"
     "${YKW2_CORE_ROOT}/src/runtime_save.cpp"
     "${YKW2_CORE_ROOT}/src/runtime_scene.cpp"
     "${YKW2_CORE_ROOT}/src/xpck_reader.cpp"

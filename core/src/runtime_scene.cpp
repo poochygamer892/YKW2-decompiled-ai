@@ -15,6 +15,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     initial_content_ready_ = initial_content_ready && boot.state == RuntimeBootState::Ready;
     initial_content_files_ = initial_content_ready_ ? initial_content_files : 0;
     scene_resources_.clear();
+    runtime_content_ = {};
     background_width_ = 0;
     background_height_ = 0;
     background_format_ = 0;
@@ -42,6 +43,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
 void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& content) {
     start(boot, true, content.archive_files);
     scene_resources_ = content.scene_resources;
+    runtime_content_ = content.runtime_content;
     background_width_ = content.background_width;
     background_height_ = content.background_height;
     background_format_ = content.background_format;
@@ -76,32 +78,31 @@ void RuntimeScene::begin_dialogue() {
     screen_ = RuntimeScreen::Dialogue;
     selected_index_ = 0;
     items_.clear();
-    dialogue_ = {true, "intro", "Narrador", "story.intro.1", 0, 3};
-    trigger_audio("story");
+    dialogue_ = {true, runtime_content_.opening_event_path, "", "", 0, 0};
+    trigger_audio("event_begin");
 }
 
 RuntimeTransition RuntimeScene::advance_dialogue() {
     if (!dialogue_.active) {
         return {false, RuntimeCommand::None};
     }
-    if (dialogue_.line_index + 1 < dialogue_.line_count) {
+    if (dialogue_.line_count != 0 && dialogue_.line_index + 1 < dialogue_.line_count) {
         ++dialogue_.line_index;
         dialogue_.text_key = "story.intro." + std::to_string(dialogue_.line_index + 1);
-        trigger_audio("story");
+        trigger_audio("event_advance");
         return {true, RuntimeCommand::AdvanceDialogue};
     }
     dialogue_.active = false;
     enter_world();
-    trigger_audio("scene");
+    trigger_audio("event_end");
     return {true, RuntimeCommand::AdvanceDialogue};
 }
 
 void RuntimeScene::begin_battle() {
-    screen_ = RuntimeScreen::Battle;
-    selected_index_ = 0;
-    items_.clear();
-    battle_ = {true, "yokai.training", 100, 100, 80, 80, 1, ""};
-    trigger_audio("battle_start");
+    // Battle data is identified by the manifest, but a parser/interpreter for
+    // the YW2 rule and encounter data must exist before a battle is entered.
+    // Do not substitute an invented enemy, HP values or attacks here.
+    battle_ = {};
 }
 
 RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
@@ -262,8 +263,11 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
                 selected_index_ = 0;
                 return {true, RuntimeCommand::None};
             case RuntimeInput::Confirm:
+                if (!runtime_content_.has_battle_definition()) {
+                    return {false, RuntimeCommand::None};
+                }
                 begin_battle();
-                return {true, RuntimeCommand::StartBattle};
+                return {false, RuntimeCommand::None};
             case RuntimeInput::Attack:
             case RuntimeInput::Skill:
             case RuntimeInput::Run:
@@ -313,6 +317,7 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.initial_content_ready = initial_content_ready_;
     result.initial_content_files = initial_content_files_;
     result.scene_resources = scene_resources_;
+    result.runtime_content = runtime_content_;
     result.background_width = background_width_;
     result.background_height = background_height_;
     result.background_format = background_format_;
@@ -389,6 +394,15 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
               snapshot.status_key + "\n";
     result += "content_ready=" + std::string(snapshot.initial_content_ready ? "1\n" : "0\n");
     result += "content_files=" + std::to_string(snapshot.initial_content_files) + "\n";
+    result += "title_sequence=" + snapshot.runtime_content.title_sequence_path + "\n";
+    result += "main_menu_sequence=" + snapshot.runtime_content.main_menu_sequence_path + "\n";
+    result += "opening_event=" + snapshot.runtime_content.opening_event_path + "\n";
+    result += "battle_config=" + snapshot.runtime_content.battle_config_path + "\n";
+    result += "battle_rule=" + snapshot.runtime_content.battle_rule_path + "\n";
+    result += "battle_command=" + snapshot.runtime_content.battle_command_path + "\n";
+    for (const auto& path : snapshot.runtime_content.battle_texture_paths) {
+        result += "battle_texture=" + path + "\n";
+    }
     result += "dialogue_active=" + std::string(snapshot.dialogue.active ? "1\n" : "0\n");
     result += "event_id=" + snapshot.dialogue.event_id + "\n";
     result += "speaker=" + snapshot.dialogue.speaker + "\n";

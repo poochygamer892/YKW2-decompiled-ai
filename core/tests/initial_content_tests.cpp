@@ -143,6 +143,22 @@ void test_prefers_localized_menu_background_when_available() {
     assert(resources[0].path == "data/menu/img/esus/transfer_image00.xi");
 }
 
+void test_selects_runtime_content_manifest() {
+    ykw2::core::Arc0Archive archive;
+    for (const char* path : {
+             "seq/menu/TitleMenu.xq",
+             "seq/event/ev01_0100.xq",
+             "data/res/battle/battle_config_0.09k.cfg.bin",
+             "data/res/battle/battle_rule_config_0.03g.cfg.bin",
+             "data/res/battle/battle_command_0.04d.cfg.bin",
+         }) {
+        archive.files.push_back({path, 0, 1, 0});
+    }
+    const auto manifest = ykw2::core::select_runtime_content_manifest(archive);
+    assert(manifest.has_opening_event());
+    assert(manifest.has_battle_definition());
+}
+
 }  // namespace
 
 int main() {
@@ -150,5 +166,6 @@ int main() {
     test_reports_missing_archive();
     test_selects_scene_resources_by_role_and_path();
     test_prefers_localized_menu_background_when_available();
+    test_selects_runtime_content_manifest();
     return 0;
 }

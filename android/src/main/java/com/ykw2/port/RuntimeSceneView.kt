@@ -125,26 +125,11 @@ class RuntimeSceneView(context: Context) : View(context) {
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(220, 16, 25, 45)
         canvas.drawRoundRect(RectF(12f, 12f, width - 12f, height - 12f), 16f, 16f, paint)
-        paint.color = Color.rgb(242, 174, 91)
-        canvas.drawCircle(width * 0.72f, height * 0.32f, 48f, paint)
-        paint.color = Color.rgb(79, 199, 223)
-        canvas.drawCircle(width * 0.28f, height * 0.57f, 38f, paint)
         paint.color = Color.WHITE
-        paint.textSize = 15f
-        canvas.drawText(enemyId.ifEmpty { "Yo-kai enemigo" }, 18f, 32f, paint)
-        drawBar(canvas, 18f, 46f, width * 0.46f, enemyHp, enemyMaxHp, Color.rgb(242, 105, 105))
-        canvas.drawText("Jugador", 18f, height * 0.46f, paint)
-        drawBar(canvas, 18f, height * 0.46f + 14f, width * 0.46f, playerHp, playerMaxHp, Color.rgb(83, 222, 145))
-        paint.textSize = 13f
-        canvas.drawText("Atacar · Habilidad · Huir", 18f, height - 24f, paint)
-    }
-
-    private fun drawBar(canvas: Canvas, left: Float, top: Float, barWidth: Float, value: Int, maximum: Int, color: Int) {
-        paint.color = Color.DKGRAY
-        canvas.drawRoundRect(RectF(left, top, left + barWidth, top + 10f), 5f, 5f, paint)
-        paint.color = color
-        val ratio = (value.toFloat() / max(1, maximum)).coerceIn(0f, 1f)
-        canvas.drawRoundRect(RectF(left, top, left + barWidth * ratio, top + 10f), 5f, 5f, paint)
+        paint.textSize = 17f
+        canvas.drawText("Combate de Yo-kai Watch 2", 18f, 42f, paint)
+        paint.textSize = 14f
+        drawWrapped(canvas, "Las reglas, encuentros y comandos se cargarán desde el dump autorizado.", 18f, 76f, width - 36f, 22f)
     }
 
     private fun drawMenuHint(canvas: Canvas) {

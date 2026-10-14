@@ -53,14 +53,13 @@ contenedor privado. Tras extraerlos genera `.catalog` y después
 descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
 mostrar que la caché está lista; todavía no contiene el runtime jugable.
 
-`RuntimeViewController.swift` ya hospeda la primera escena portable: dibuja el
-fondo IMGC corregido, mundo, diálogo y combate, y envía navegación,
-confirmación y acciones de combate al puente Objective-C++. Los controles están
-dentro de un `UIScrollView` para que sean táctiles también en pantallas
-pequeñas; los eventos producen señales de audio del sistema. Al arrancar el
-puente valida el catálogo y parsea el índice ARC0 de `yw2_a.fa`; Nueva partida
-permanece bloqueada hasta que ese contenido sea legible.
-La historia y el combate incluidos son una vertical slice de prueba, no la
-reimplementación completa del juego.
+`RuntimeViewController.swift` hospeda la primera escena portable y dibuja el
+fondo IMGC corregido. Los controles están dentro de un `UIScrollView` para que
+sean táctiles también en pantallas pequeñas. Al arrancar el puente valida el
+catálogo y parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece
+bloqueada hasta que ese contenido sea legible.
+El núcleo identifica eventos y configuración de combate reales de YW2, pero no
+simula todavía su bytecode ni sus reglas. La interfaz no debe sustituirlos por
+diálogos, enemigos o estadísticas inventadas.
 
 No incluyas IPA, símbolos de distribución ni recursos propietarios en Git.

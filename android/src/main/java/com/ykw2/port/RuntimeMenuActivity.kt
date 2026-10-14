@@ -133,8 +133,9 @@ class RuntimeMenuActivity : Activity() {
             else if (screen == "battle") "Elige una acción"
             else statusLabel(statusKey, screen)
 
+        val eventID = value("event_id")
         val speaker = value("speaker")
-        val dialogueText = storyText(value("text_key"))
+        val dialogueText = eventDescription(eventID)
         val playerX = value("player_x", "0").toFloatOrNull() ?: 0f
         val playerY = value("player_y", "0").toFloatOrNull() ?: 0f
         sceneView.render(
@@ -154,12 +155,12 @@ class RuntimeMenuActivity : Activity() {
         val command = value("command", "none")
         val sceneResourceCount = values.count { it.first == "scene_resource" }
         commandStatus.text = when {
-            screen == "dialogue" -> "$speaker\n$dialogueText"
-            screen == "battle" -> "Enemigo: ${value("enemy_id")} · HP ${value("enemy_hp")}/${value("enemy_max_hp")}\nUsa Atacar, Habilidad o Huir."
+            screen == "dialogue" -> dialogueText
+            screen == "battle" -> "El intérprete de reglas y encuentros de YW2 aún no está disponible."
             command == "request_authorized_import" -> "Selecciona una copia autorizada desde el menú de importación."
             command == "start_new_game" -> "Nueva partida iniciada."
             command == "advance_dialogue" -> "Historia avanzada."
-            command == "start_battle" -> "¡Combate iniciado!"
+            command == "start_battle" -> "El motor de combate de YW2 todavía no está disponible."
             command == "battle_won" -> "¡Victoria!"
             command == "battle_escaped" -> "Has escapado del combate."
             command == "battle_defeated" -> "Has sido derrotado."
@@ -206,12 +207,9 @@ class RuntimeMenuActivity : Activity() {
         backgroundBitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
     }
 
-    private fun storyText(key: String): String = when (key) {
-        "story.intro.1" -> "El reloj vuelve a ponerse en marcha."
-        "story.intro.2" -> "Una presencia extraña te espera al otro lado."
-        "story.intro.3" -> "Avanza y descubre qué ocurre en este mundo."
-        else -> key
-    }
+    private fun eventDescription(eventID: String): String =
+        if (eventID.isEmpty()) "No se encontró un evento de apertura compatible en el dump."
+        else "Evento YW2 cargado: $eventID\nEl intérprete XQ32 se conectará antes de mostrar su diálogo."
 
     private fun labelFor(key: String): String = when (key) {
         "menu.new_game" -> "Nueva partida"

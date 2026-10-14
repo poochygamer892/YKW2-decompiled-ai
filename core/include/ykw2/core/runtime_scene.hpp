@@ -93,6 +93,7 @@ struct RuntimeSnapshot {
     bool initial_content_ready = false;
     std::uint64_t initial_content_files = 0;
     std::vector<InitialSceneResource> scene_resources;
+    RuntimeContentManifest runtime_content;
     std::uint16_t background_width = 0;
     std::uint16_t background_height = 0;
     std::uint8_t background_format = 0;
@@ -142,6 +143,7 @@ private:
     bool initial_content_ready_ = false;
     std::uint64_t initial_content_files_ = 0;
     std::vector<InitialSceneResource> scene_resources_;
+    RuntimeContentManifest runtime_content_;
     std::uint16_t background_width_ = 0;
     std::uint16_t background_height_ = 0;
     std::uint8_t background_format_ = 0;
