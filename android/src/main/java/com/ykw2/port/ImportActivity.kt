@@ -210,4 +210,7 @@ object RomImportBridge {
     external fun nativeCheckImport(cacheDirectory: String): Int
     external fun nativeStartRuntime(cacheDirectory: String): String
     external fun nativeRuntimeInput(input: Int): String
+    external fun nativeRuntimeBackgroundWidth(): Int
+    external fun nativeRuntimeBackgroundHeight(): Int
+    external fun nativeRuntimeBackgroundRgba(): ByteArray?
 }

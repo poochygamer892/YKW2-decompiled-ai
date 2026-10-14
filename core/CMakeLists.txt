@@ -5,6 +5,7 @@ project(ykw2_core VERSION 0.1.0 LANGUAGES CXX)
 add_library(ykw2_core STATIC
     src/byte_view.cpp
     src/formats.cpp
+    src/imgc_reader.cpp
     src/import_contract.cpp
     src/initial_content.cpp
     src/level5_decode.cpp
@@ -65,4 +66,8 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_store_tests tests/store_tests.cpp)
     target_link_libraries(ykw2_store_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_store_tests COMMAND ykw2_store_tests)
+
+    add_executable(ykw2_imgc_tests tests/imgc_tests.cpp)
+    target_link_libraries(ykw2_imgc_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_imgc_tests COMMAND ykw2_imgc_tests)
 endif()

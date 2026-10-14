@@ -14,6 +14,10 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     initial_content_ready_ = initial_content_ready && boot.state == RuntimeBootState::Ready;
     initial_content_files_ = initial_content_ready_ ? initial_content_files : 0;
     scene_resources_.clear();
+    background_width_ = 0;
+    background_height_ = 0;
+    background_format_ = 0;
+    background_rgba_.clear();
     selected_index_ = 0;
     items_.clear();
     if (boot.state != RuntimeBootState::Ready) {
@@ -32,6 +36,10 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
 void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& content) {
     start(boot, true, content.archive_files);
     scene_resources_ = content.scene_resources;
+    background_width_ = content.background_width;
+    background_height_ = content.background_height;
+    background_format_ = content.background_format;
+    background_rgba_ = content.background_rgba;
 }
 
 bool RuntimeScene::selected_item_enabled() const {
@@ -97,6 +105,10 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.initial_content_ready = initial_content_ready_;
     result.initial_content_files = initial_content_files_;
     result.scene_resources = scene_resources_;
+    result.background_width = background_width_;
+    result.background_height = background_height_;
+    result.background_format = background_format_;
+    result.background_rgba = background_rgba_;
     if (screen_ == RuntimeScreen::Import) {
         result.status_key = boot_.state == RuntimeBootState::ImportIncomplete
                                 ? "import.incomplete"
@@ -147,6 +159,13 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
                   std::to_string(resource.offset) + "|" +
                   std::to_string(static_cast<unsigned int>(resource.kind)) + "|" +
                   std::to_string(resource.child_count) + "\n";
+        if (resource.texture_width != 0 && resource.texture_height != 0) {
+            result += "scene_texture=" + resource.path + "|" +
+                      std::to_string(resource.texture_width) + "|" +
+                      std::to_string(resource.texture_height) + "|" +
+                      std::to_string(static_cast<unsigned int>(resource.texture_format)) +
+                      "|" + std::to_string(resource.texture_rgba_bytes) + "\n";
+        }
     }
     for (const auto& item : snapshot.items) {
         result += "item=" + item.id + "|" + item.label_key + "|" +

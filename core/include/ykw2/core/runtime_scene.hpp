@@ -45,6 +45,10 @@ struct RuntimeSnapshot {
     bool initial_content_ready = false;
     std::uint64_t initial_content_files = 0;
     std::vector<InitialSceneResource> scene_resources;
+    std::uint16_t background_width = 0;
+    std::uint16_t background_height = 0;
+    std::uint8_t background_format = 0;
+    std::vector<std::uint8_t> background_rgba;
 };
 
 struct RuntimeTransition {
@@ -64,6 +68,9 @@ public:
     void start(const RuntimeBootInfo& boot, const InitialContentInfo& content);
     RuntimeTransition handle(RuntimeInput input);
     RuntimeSnapshot snapshot() const;
+    const std::vector<std::uint8_t>& background_rgba() const { return background_rgba_; }
+    std::uint16_t background_width() const { return background_width_; }
+    std::uint16_t background_height() const { return background_height_; }
 
 private:
     void select_next(int direction);
@@ -73,6 +80,10 @@ private:
     bool initial_content_ready_ = false;
     std::uint64_t initial_content_files_ = 0;
     std::vector<InitialSceneResource> scene_resources_;
+    std::uint16_t background_width_ = 0;
+    std::uint16_t background_height_ = 0;
+    std::uint8_t background_format_ = 0;
+    std::vector<std::uint8_t> background_rgba_;
     RuntimeScreen screen_ = RuntimeScreen::Import;
     std::size_t selected_index_ = 0;
     std::vector<RuntimeMenuItem> items_;

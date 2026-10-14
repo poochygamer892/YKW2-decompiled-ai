@@ -1,9 +1,13 @@
 package com.ykw2.port
 
 import android.app.Activity
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -12,6 +16,7 @@ class RuntimeMenuActivity : Activity() {
     private lateinit var selectedLabel: TextView
     private lateinit var status: TextView
     private lateinit var commandStatus: TextView
+    private lateinit var backgroundImage: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +35,11 @@ class RuntimeMenuActivity : Activity() {
             setPadding(0, padding / 2, 0, padding / 2)
         }
         layout.addView(status)
+        backgroundImage = ImageView(this).apply {
+            adjustViewBounds = true
+            visibility = View.GONE
+        }
+        layout.addView(backgroundImage)
         selectedLabel = TextView(this).apply {
             textSize = 20f
             gravity = Gravity.CENTER
@@ -56,6 +66,7 @@ class RuntimeMenuActivity : Activity() {
         layout.addView(commandStatus)
         setContentView(layout)
         render(RomImportBridge.nativeStartRuntime(filesDir.resolve("ykw2-cache").absolutePath))
+        renderBackground()
     }
 
     private fun render(response: String) {
@@ -80,6 +91,31 @@ class RuntimeMenuActivity : Activity() {
             else -> ""
         }
         if (command == "request_authorized_import") finish()
+    }
+
+    private fun renderBackground() {
+        val width = RomImportBridge.nativeRuntimeBackgroundWidth()
+        val height = RomImportBridge.nativeRuntimeBackgroundHeight()
+        val rgba = RomImportBridge.nativeRuntimeBackgroundRgba()
+        val expectedBytes = width.toLong() * height.toLong() * 4L
+        if (width <= 0 || height <= 0 || expectedBytes > Int.MAX_VALUE ||
+            rgba == null || rgba.size.toLong() != expectedBytes) {
+            backgroundImage.visibility = View.GONE
+            return
+        }
+        val pixels = IntArray(width * height)
+        for (index in pixels.indices) {
+            val offset = index * 4
+            val red = rgba[offset].toInt() and 0xff
+            val green = rgba[offset + 1].toInt() and 0xff
+            val blue = rgba[offset + 2].toInt() and 0xff
+            val alpha = rgba[offset + 3].toInt() and 0xff
+            pixels[index] = Color.argb(alpha, red, green, blue)
+        }
+        backgroundImage.setImageBitmap(
+            Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888),
+        )
+        backgroundImage.visibility = View.VISIBLE
     }
 
     private fun labelFor(key: String): String = when (key) {

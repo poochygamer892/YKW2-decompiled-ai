@@ -343,6 +343,22 @@ private:
         transition, runtimeScene.snapshot()));
 }
 
++ (NSInteger)runtimeBackgroundWidth {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    return static_cast<NSInteger>(runtimeScene.background_width());
+}
+
++ (NSInteger)runtimeBackgroundHeight {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    return static_cast<NSInteger>(runtimeScene.background_height());
+}
+
++ (NSData *)runtimeBackgroundRGBA {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    const auto& rgba = runtimeScene.background_rgba();
+    return [NSData dataWithBytes:rgba.data() length:rgba.size()];
+}
+
 + (BOOL)importDocumentAtURL:(NSURL *)sourceURL
                      cacheURL:(NSURL *)cacheURL
                         error:(NSError **)error {

@@ -6,6 +6,7 @@ final class RuntimeViewController: UIViewController {
     private let statusLabel = UILabel()
     private let selectedLabel = UILabel()
     private let commandLabel = UILabel()
+    private let backgroundImage = UIImageView()
 
     init(cacheURL: URL) {
         self.cacheURL = cacheURL
@@ -26,6 +27,8 @@ final class RuntimeViewController: UIViewController {
         selectedLabel.textAlignment = .center
         commandLabel.numberOfLines = 0
         commandLabel.textAlignment = .center
+        backgroundImage.contentMode = .scaleAspectFit
+        backgroundImage.isHidden = true
 
         let previous = UIButton(type: .system)
         previous.setTitle("Anterior", for: .normal)
@@ -37,7 +40,7 @@ final class RuntimeViewController: UIViewController {
         confirm.setTitle("Confirmar", for: .normal)
         confirm.addTarget(self, action: #selector(confirmSelection), for: .touchUpInside)
 
-        let stack = UIStackView(arrangedSubviews: [statusLabel, selectedLabel, previous, next, confirm, commandLabel])
+        let stack = UIStackView(arrangedSubviews: [statusLabel, backgroundImage, selectedLabel, previous, next, confirm, commandLabel])
         stack.axis = .vertical
         stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -48,6 +51,7 @@ final class RuntimeViewController: UIViewController {
             stack.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
         ])
         render(YKW2ImportBridge.startRuntime(at: cacheURL))
+        renderBackground()
     }
 
     @objc private func movePrevious() {
@@ -91,6 +95,32 @@ final class RuntimeViewController: UIViewController {
         commandLabel.text = command == "start_new_game"
             ? "Nueva partida: (sceneResourceCount) recursos base listos para el renderer."
             : command == "open_settings" ? "Las opciones se conectarán en la siguiente fase." : ""
+    }
+
+    private func renderBackground() {
+        let width = Int(YKW2ImportBridge.runtimeBackgroundWidth())
+        let height = Int(YKW2ImportBridge.runtimeBackgroundHeight())
+        let data = YKW2ImportBridge.runtimeBackgroundRGBA()
+        guard width > 0, height > 0, data.count == width * height * 4,
+              let provider = CGDataProvider(data: data as CFData),
+              let image = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue |
+                    CGBitmapInfo.byteOrder32Big.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent) else {
+            backgroundImage.isHidden = true
+            return
+        }
+        backgroundImage.image = UIImage(cgImage: image)
+        backgroundImage.isHidden = false
     }
 
     private func label(for key: String) -> String {

@@ -23,6 +23,12 @@ struct InitialSceneResource {
     std::uint32_t size = 0;
     ResourceKind kind = ResourceKind::Unknown;
     std::uint64_t child_count = 0;
+    // Populated for the first background IMGC after it has been decoded to
+    // row-major RGBA8. The pixel buffer itself lives on InitialContentInfo.
+    std::uint16_t texture_width = 0;
+    std::uint16_t texture_height = 0;
+    std::uint8_t texture_format = 0;
+    std::uint64_t texture_rgba_bytes = 0;
 };
 
 const char* initial_scene_resource_role_name(InitialSceneResourceRole role);
@@ -41,6 +47,10 @@ struct InitialContentInfo {
     std::string first_file_path;
     std::uint32_t first_file_size = 0;
     std::vector<InitialSceneResource> scene_resources;
+    std::uint16_t background_width = 0;
+    std::uint16_t background_height = 0;
+    std::uint8_t background_format = 0;
+    std::vector<std::uint8_t> background_rgba;
 };
 
 // Finds the YKW2 main ARC0 archive (preferring the canonical file name),

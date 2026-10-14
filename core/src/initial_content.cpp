@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "ykw2/core/arc0_reader.hpp"
+#include "ykw2/core/imgc_reader.hpp"
 #include "ykw2/core/xpck_reader.hpp"
 
 namespace ykw2::core {
@@ -102,7 +103,16 @@ ParseResult<InitialSceneResource> inspect_scene_resource(
         return inspect_failure<InitialSceneResource>(
             parsed.error->code, parsed.error->offset);
     }
+    const auto image = decode_imgc_image(*window.value, window.value->virtual_path());
+    if (!image) {
+        return inspect_failure<InitialSceneResource>(
+            image.error->code, image.error->offset);
+    }
     resource.kind = ResourceKind::Imgc;
+    resource.texture_width = image.value->width;
+    resource.texture_height = image.value->height;
+    resource.texture_format = image.value->format;
+    resource.texture_rgba_bytes = image.value->rgba.size();
     return ParseResult<InitialSceneResource>::success(std::move(resource));
 }
 
@@ -195,6 +205,24 @@ ParseResult<InitialContentInfo> load_initial_content(
                 inspected.error->code, inspected.error->offset);
         }
         resource = std::move(*inspected.value);
+        if (resource.role == InitialSceneResourceRole::Background) {
+            const auto window = ResourceWindowStore::create(
+                store, result.archive_path, resource.offset, resource.size,
+                resource.path);
+            if (!window) {
+                return failure<InitialContentInfo>(
+                    window.error->code, window.error->offset);
+            }
+            const auto image = decode_imgc_image(*window.value, resource.path);
+            if (!image) {
+                return failure<InitialContentInfo>(
+                    image.error->code, image.error->offset);
+            }
+            result.background_width = image.value->width;
+            result.background_height = image.value->height;
+            result.background_format = image.value->format;
+            result.background_rgba = std::move(image.value->rgba);
+        }
     }
     return ParseResult<InitialContentInfo>::success(std::move(result));
 }

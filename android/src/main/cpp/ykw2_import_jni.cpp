@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -421,6 +422,38 @@ Java_com_ykw2_port_RomImportBridge_nativeRuntimeInput(
     JNIEnv* environment, jobject, jint input) {
     std::lock_guard<std::mutex> lock(runtime_mutex);
     return to_java_string(environment, handle_runtime_input(input));
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeRuntimeBackgroundWidth(
+    JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    return static_cast<jint>(runtime_scene.background_width());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeRuntimeBackgroundHeight(
+    JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    return static_cast<jint>(runtime_scene.background_height());
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeRuntimeBackgroundRgba(
+    JNIEnv* environment, jobject) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    const auto& rgba = runtime_scene.background_rgba();
+    if (rgba.size() > static_cast<std::size_t>(std::numeric_limits<jsize>::max())) {
+        return nullptr;
+    }
+    const auto array = environment->NewByteArray(static_cast<jsize>(rgba.size()));
+    if (array == nullptr || rgba.empty()) {
+        return array;
+    }
+    environment->SetByteArrayRegion(
+        array, 0, static_cast<jsize>(rgba.size()),
+        reinterpret_cast<const jbyte*>(rgba.data()));
+    return array;
 }
 
 extern "C" JNIEXPORT jint JNICALL

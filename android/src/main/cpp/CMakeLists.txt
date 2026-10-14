@@ -8,6 +8,7 @@ add_library(ykw2_core STATIC
     "${YKW2_CORE_ROOT}/src/arc0_reader.cpp"
     "${YKW2_CORE_ROOT}/src/byte_view.cpp"
     "${YKW2_CORE_ROOT}/src/formats.cpp"
+    "${YKW2_CORE_ROOT}/src/imgc_reader.cpp"
     "${YKW2_CORE_ROOT}/src/import_contract.cpp"
     "${YKW2_CORE_ROOT}/src/initial_content.cpp"
     "${YKW2_CORE_ROOT}/src/level5_decode.cpp"
