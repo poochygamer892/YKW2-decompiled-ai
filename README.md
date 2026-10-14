@@ -1,0 +1,38 @@
+# YKW2-decompiled-ai
+
+Workspace de investigación y reimplementación para estudiar **Yo-kai Watch 2** y construir, cuando sea legalmente posible, clientes nativos para Android e iOS tomando como referencia técnica la versión móvil de **Yo-kai Watch 1**.
+
+> Estado: scaffold inicial. El repositorio no contiene ROMs, dumps, assets propietarios ni código extraído del juego.
+
+## Objetivos
+
+- Inventariar formatos, recursos y comportamiento observable del software autorizado.
+- Registrar evidencia reproducible y separar observaciones de hipótesis.
+- Reimplementar la lógica en código mantenible y testeable.
+- Integrar un núcleo multiplataforma con clientes nativos de Android e iOS.
+- Mantener fuera del repositorio cualquier ROM, dump, clave, recurso extraído o binario propietario.
+
+## Estructura
+
+- `analysis/`: notas, hashes, mapas de símbolos y resultados de investigación.
+- `core/`: lógica independiente de la plataforma y formatos documentados.
+- `android/`: cliente y herramientas específicas de Android.
+- `ios/`: cliente y herramientas específicas de iOS.
+- `tools/`: utilidades de inventario, conversión y validación.
+- `docs/`: arquitectura, metodología y decisiones del proyecto.
+
+## Flujo inicial
+
+1. Trabaja con una copia del software que tengas derecho a analizar.
+2. Guarda los dumps y recursos locales fuera del repositorio, por ejemplo en `.local/`.
+3. Registra hashes, versión y procedencia sin subir el contenido protegido.
+4. Documenta cada hallazgo con evidencia, confianza y una prueba reproducible.
+5. Implementa primero formatos y comportamiento; deja la integración de plataforma para después.
+
+## Requisitos previstos
+
+El scaffold no fija todavía un lenguaje para el núcleo. La elección entre C++, Rust u otra opción debe hacerse después del inventario inicial, considerando depuración, integración con Kotlin/Android y Swift/iOS, y soporte de pruebas.
+
+## Uso responsable
+
+Este repositorio está pensado para investigación, interoperabilidad y reimplementación autorizada. No subas ROMs, claves, assets comerciales, ejecutables extraídos ni material que no tengas derecho a redistribuir.
