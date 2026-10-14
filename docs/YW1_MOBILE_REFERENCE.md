@@ -4,11 +4,20 @@ El vídeo proporcionado para fijar la referencia visual es:
 
 - [Gameplay de Yo-kai Watch 1 para smartphone](https://www.youtube.com/watch?v=jIyUHM9TsVg)
 
+La referencia complementaria del comportamiento y el alcance del juego es:
+
+- [Gameplay completo de Yo-kai Watch 2](https://www.youtube.com/watch?v=Axy-7U5rrYw)
+
 Esta referencia define la adaptación de plataforma, no el contenido que debe
 entrar en el port. El objetivo es que Android/iOS adopten una presentación y
 un modelo de entrada móvil comparables, mientras que la historia, mapas,
 personajes, eventos, combate, audio y recursos cargados pertenecen a Yo-kai
 Watch 2.
+
+El vídeo de Yo-kai Watch 2 no sustituye al dump autorizado: la ROM y sus
+formatos son la fuente de verdad para recursos, escenas, eventos y reglas. El
+vídeo se usa para comprobar que la reimplementación reproduce el flujo visible
+del juego.
 
 ## Criterio de implementación
 
