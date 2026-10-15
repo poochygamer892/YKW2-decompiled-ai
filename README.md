@@ -27,6 +27,10 @@ renderizado y controles; no se utiliza como ejecutable anfitrión del port.
 - `tools/`: utilidades de inventario, conversión y validación.
 - `docs/`: arquitectura, metodología y decisiones del proyecto.
 
+La evaluación de `3dsrecomp` está documentada en
+[`docs/3DSRECOMP.md`](docs/3DSRECOMP.md). Se usa como herramienta externa de
+análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
+
 ## Flujo inicial
 
 1. Trabaja con una copia del software que tengas derecho a analizar.

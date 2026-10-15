@@ -19,6 +19,9 @@ Prioridades:
 - `ykw2/core/xq32_reader.hpp`: lector acotado de programas XQ32 que descomprime
   las tablas de funciones, saltos, instrucciones y argumentos y conserva sus
   filas como palabras crudas para la recuperación verificable del ABI.
+- `ykw2/core/xq32_execution.hpp`: cursor seguro que selecciona una función por
+  símbolo, respeta sus límites y expone el token de operación y su ventana de
+  argumentos sin ejecutar todavía semántica no demostrada.
 - `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
   `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
   un backend portable.

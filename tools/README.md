@@ -11,3 +11,7 @@ Las herramientas deben ser reproducibles, evitar sobrescribir entradas y escribi
 `compare_arc0_mobile.py` compara esos manifiestos con los directorios ZIP del APK/IPA usando solo rutas normalizadas y tamaños declarados. Los JSON generados deben permanecer fuera del repositorio porque contienen nombres de recursos propietarios.
 
 `compare_format_headers.py` clasifica firmas de recursos y compara los primeros 4 bytes/tamaños de rutas compartidas. `inspect_xpck.py` enumera las tablas internas de `XPCK` sin extraer `RES.bin` ni otros payloads. `inspect_xq32.py` valida las tablas y métodos de compresión de scripts `XQ32`; el lector nativo equivalente de `core/` conserva además sus filas decodificadas para la recuperación del ABI. `inspect_imgc.py` registra la huella de cabecera de texturas `IMGC` sin decodificarlas.
+
+`profile_xq32_abi.py` comprueba invariantes estructurales del ABI XQ32 y solo
+emite conteos, hashes coincidentes y frecuencias de tokens. Su JSON debe
+permanecer fuera de Git si se genera contra un dump privado.

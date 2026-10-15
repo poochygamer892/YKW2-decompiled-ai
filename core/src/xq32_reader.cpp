@@ -21,6 +21,17 @@ bool is_symbol_byte(std::uint8_t byte) {
     return byte >= 0x20 && byte <= 0x7e;
 }
 
+std::uint32_t crc32(std::string_view value) {
+    std::uint32_t result = 0xffffffffu;
+    for (const auto byte : value) {
+        result ^= static_cast<std::uint8_t>(byte);
+        for (int bit = 0; bit < 8; ++bit) {
+            result = (result & 1u) != 0 ? (result >> 1) ^ 0xedb88320u : result >> 1;
+        }
+    }
+    return ~result;
+}
+
 ParseResult<std::vector<std::uint8_t>> decode_table_region(
     ByteView region, std::uint64_t expected_decoded_bytes,
     std::uint64_t max_decoded_bytes) {
@@ -156,6 +167,29 @@ ParseResult<Xq32ProgramInfo> read_xq32_program(const ResourceStore& store,
     append_records(ByteView(argument_table.value->data(), argument_table.value->size()),
                    8, result.argument_records);
 
+    result.arguments.reserve(result.argument_records.size());
+    for (const auto& record : result.argument_records) {
+        if (record.words.size() == 2) {
+            result.arguments.push_back({record.words[0], record.words[1]});
+        }
+    }
+    result.instructions.reserve(result.instruction_records.size());
+    for (const auto& record : result.instruction_records) {
+        if (record.words.size() != 3) {
+            continue;
+        }
+        const auto argument_word = record.words[0];
+        Xq32InstructionInfo instruction;
+        instruction.argument_index = static_cast<std::uint16_t>(argument_word & 0xffffu);
+        instruction.argument_count = static_cast<std::uint16_t>(argument_word >> 16);
+        instruction.operation_token = record.words[1];
+        instruction.flags = record.words[2];
+        instruction.argument_span_valid =
+            static_cast<std::uint64_t>(instruction.argument_index) +
+                instruction.argument_count <= result.arguments.size();
+        result.instructions.push_back(instruction);
+    }
+
     std::size_t current = 0;
     const auto& strings = *string_table.value;
     const auto string_bytes = ByteView(strings.data(), strings.size());
@@ -179,6 +213,26 @@ ParseResult<Xq32ProgramInfo> read_xq32_program(const ResourceStore& store,
                                         current - start);
         }
         ++current;
+    }
+
+    result.functions.reserve(result.function_records.size());
+    for (const auto& record : result.function_records) {
+        if (record.words.size() != 6) {
+            continue;
+        }
+        Xq32FunctionInfo function;
+        function.instruction_index = record.words[0];
+        function.name_hash = record.words[1];
+        function.instruction_index_valid =
+            function.instruction_index < result.instructions.size();
+        for (const auto& symbol : result.symbols) {
+            if (crc32(symbol) == function.name_hash) {
+                function.symbol = symbol;
+                function.symbol_hash_matches = true;
+                break;
+            }
+        }
+        result.functions.push_back(std::move(function));
     }
     return ParseResult<Xq32ProgramInfo>::success(std::move(result));
 }

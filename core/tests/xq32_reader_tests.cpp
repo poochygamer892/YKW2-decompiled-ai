@@ -15,6 +15,13 @@ void put16(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint16_t v
     bytes[offset + 1] = static_cast<std::uint8_t>(value >> 8);
 }
 
+void put32(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint32_t value) {
+    bytes[offset] = static_cast<std::uint8_t>(value & 0xffu);
+    bytes[offset + 1] = static_cast<std::uint8_t>((value >> 8) & 0xffu);
+    bytes[offset + 2] = static_cast<std::uint8_t>((value >> 16) & 0xffu);
+    bytes[offset + 3] = static_cast<std::uint8_t>(value >> 24);
+}
+
 class MemoryStore final : public ykw2::core::ResourceStore {
 public:
     explicit MemoryStore(std::vector<std::uint8_t> program) : program_(std::move(program)) {
@@ -86,7 +93,9 @@ std::vector<std::uint8_t> decoded_tables_program() {
         bytes[offset + 2] = static_cast<std::uint8_t>((word >> 16) & 0xffu);
         bytes[offset + 3] = static_cast<std::uint8_t>(word >> 24);
     }
-    const std::uint32_t instruction_words[] = {0x00020000u, 0x00140689u, 0u};
+    put32(bytes, 0x18, 0);
+    put32(bytes, 0x1c, 0x1f1a625au); // CRC32("Main")
+    const std::uint32_t instruction_words[] = {0x00010000u, 0x00140689u, 0u};
     for (std::size_t index = 0; index < 3; ++index) {
         const auto word = instruction_words[index];
         const auto offset = 0x30 + index * 4;
@@ -131,13 +140,22 @@ void test_exposes_decoded_table_rows() {
     assert(result);
     assert(result.value->function_records.size() == 1);
     assert(result.value->function_records[0].words.size() == 6);
+    assert(result.value->functions.size() == 1);
+    assert(result.value->functions[0].symbol == "Main");
+    assert(result.value->functions[0].symbol_hash_matches);
+    assert(result.value->functions[0].instruction_index_valid);
     assert(result.value->jump_records.empty());
     assert(result.value->instruction_records.size() == 1);
     assert(result.value->instruction_records[0].words.size() == 3);
-    assert(result.value->instruction_records[0].words[0] == 0x00020000u);
+    assert(result.value->instruction_records[0].words[0] == 0x00010000u);
     assert(result.value->instruction_records[0].words[1] == 0x00140689u);
+    assert(result.value->instructions.size() == 1);
+    assert(result.value->instructions[0].argument_index == 0);
+    assert(result.value->instructions[0].argument_count == 1);
+    assert(result.value->instructions[0].argument_span_valid);
     assert(result.value->argument_records.size() == 1);
     assert(result.value->argument_records[0].words.size() == 2);
+    assert(result.value->arguments.size() == 1);
     assert((result.value->symbols == std::vector<std::string>{"Main"}));
 }
 

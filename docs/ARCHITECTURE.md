@@ -68,9 +68,11 @@ reconstruyen en el núcleo propio.
 snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación y
 `runtime_save` persiste sólo el estado de la escena. Android usa JNI y un
 `Handler`; iOS usa Objective-C++ y `CADisplayLink`. `xq32_reader` descomprime y
-expone las filas crudas de los programas reales; `RuntimeScene` las usa como
-puntos de traza, sin inventar significados para los opcodes. El siguiente
-bloque es recuperar esos significados con evidencia del ejecutable y de los
-eventos observables. El renderizado de mapas, audio, combate y la traducción
-completa de recursos siguen siendo trabajo posterior; estos cimientos aún no
-son un port jugable completo.
+expone las filas crudas de los programas reales; `xq32_execution` selecciona
+una función por símbolo y mantiene el cursor dentro de sus límites y
+argumentos. `RuntimeScene` lo usa como punto de traza, sin inventar
+significados para los tokens. El siguiente bloque es recuperar esos
+significados con evidencia del ejecutable y de los eventos observables. El
+renderizado de mapas, audio, combate y la traducción completa de recursos
+siguen siendo trabajo posterior; estos cimientos aún no son un port jugable
+completo.

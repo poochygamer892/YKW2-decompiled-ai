@@ -19,6 +19,7 @@ add_library(ykw2_core STATIC
     "${YKW2_CORE_ROOT}/src/runtime_content.cpp"
     "${YKW2_CORE_ROOT}/src/runtime_save.cpp"
     "${YKW2_CORE_ROOT}/src/runtime_scene.cpp"
+    "${YKW2_CORE_ROOT}/src/xq32_execution.cpp"
     "${YKW2_CORE_ROOT}/src/xpck_reader.cpp"
     "${YKW2_CORE_ROOT}/src/xq32_reader.cpp"
 )

@@ -17,6 +17,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     scene_resources_.clear();
     runtime_content_ = {};
     opening_event_program_.reset();
+    opening_event_cursor_ = {};
     background_width_ = 0;
     background_height_ = 0;
     background_format_ = 0;
@@ -84,7 +85,15 @@ void RuntimeScene::begin_dialogue() {
     std::string entry_symbol = "XQ32";
     if (opening_event_program_.has_value()) {
         const auto& program = *opening_event_program_;
-        instruction_count = program.instruction_records.size();
+        if (opening_event_cursor_.start(program, "Main")) {
+            const auto execution = opening_event_cursor_.snapshot();
+            instruction_count = execution.instruction_end - execution.instruction_index;
+            if (!execution.entry_symbol.empty()) {
+                entry_symbol = execution.entry_symbol;
+            }
+        } else {
+            instruction_count = program.instruction_records.size();
+        }
         if (instruction_count == 0) {
             // Keep synthetic/partially decoded programs navigable while the
             // ABI recovery is in progress. Real YW2 programs use the decoded
@@ -107,7 +116,14 @@ RuntimeTransition RuntimeScene::advance_dialogue() {
     if (!dialogue_.active) {
         return {false, RuntimeCommand::None};
     }
-    if (dialogue_.line_count != 0 && dialogue_.line_index + 1 < dialogue_.line_count) {
+    if (opening_event_cursor_.running() && opening_event_cursor_.advance()) {
+        ++dialogue_.line_index;
+        dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
+        trigger_audio("event_advance");
+        return {true, RuntimeCommand::AdvanceDialogue};
+    }
+    if (!opening_event_cursor_.running() && dialogue_.line_count != 0 &&
+        dialogue_.line_index + 1 < dialogue_.line_count) {
         ++dialogue_.line_index;
         dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
         trigger_audio("event_advance");
@@ -340,6 +356,7 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.scene_resources = scene_resources_;
     result.runtime_content = runtime_content_;
     result.opening_event_program = opening_event_program_;
+    result.opening_event_execution = opening_event_cursor_.snapshot();
     result.background_width = background_width_;
     result.background_height = background_height_;
     result.background_format = background_format_;
@@ -452,6 +469,24 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
         for (const auto& symbol : program.symbols) {
             result += "event_symbol=" + symbol + "\n";
         }
+    }
+    result += "event_exec_state=" +
+              std::string(xq32_execution_state_name(snapshot.opening_event_execution.state)) +
+              "\n";
+    result += "event_exec_entry=" + snapshot.opening_event_execution.entry_symbol + "\n";
+    result += "event_exec_instruction=" +
+              std::to_string(snapshot.opening_event_execution.instruction_index) + "\n";
+    result += "event_exec_end=" +
+              std::to_string(snapshot.opening_event_execution.instruction_end) + "\n";
+    if (snapshot.opening_event_execution.has_instruction) {
+        const auto& instruction = snapshot.opening_event_execution.instruction;
+        result += "event_exec_operation=" + std::to_string(instruction.operation_token) + "\n";
+        result += "event_exec_argument_index=" +
+                  std::to_string(instruction.argument_index) + "\n";
+        result += "event_exec_argument_count=" +
+                  std::to_string(instruction.argument_count) + "\n";
+        result += "event_exec_argument_span_valid=" +
+                  std::string(instruction.argument_span_valid ? "1\n" : "0\n");
     }
     result += "speaker=" + snapshot.dialogue.speaker + "\n";
     result += "text_key=" + snapshot.dialogue.text_key + "\n";

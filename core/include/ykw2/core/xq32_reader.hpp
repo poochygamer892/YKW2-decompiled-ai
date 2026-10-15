@@ -18,6 +18,30 @@ struct Xq32RawRecord {
     std::vector<std::uint32_t> words;
 };
 
+// These fields are structural facts observed across the authorized XQ32
+// corpus. They are deliberately named as tokens/raw values until the
+// operation dispatch table has been recovered.
+struct Xq32FunctionInfo {
+    std::uint32_t instruction_index = 0;
+    std::uint32_t name_hash = 0;
+    std::string symbol;
+    bool instruction_index_valid = false;
+    bool symbol_hash_matches = false;
+};
+
+struct Xq32InstructionInfo {
+    std::uint16_t argument_index = 0;
+    std::uint16_t argument_count = 0;
+    std::uint32_t operation_token = 0;
+    std::uint32_t flags = 0;
+    bool argument_span_valid = false;
+};
+
+struct Xq32ArgumentInfo {
+    std::uint32_t tag = 0;
+    std::uint32_t raw_value = 0;
+};
+
 // Read-only description of an XQ32 program. The instruction encoding remains
 // opaque until its opcode definitions have been recovered; this reader only
 // decodes table compression and never executes bytes from an imported image.
@@ -33,6 +57,9 @@ struct Xq32ProgramInfo {
     std::vector<Xq32RawRecord> jump_records;
     std::vector<Xq32RawRecord> instruction_records;
     std::vector<Xq32RawRecord> argument_records;
+    std::vector<Xq32FunctionInfo> functions;
+    std::vector<Xq32InstructionInfo> instructions;
+    std::vector<Xq32ArgumentInfo> arguments;
 };
 
 // Reads a whole bounded XQ32 resource, validates its table layout, and

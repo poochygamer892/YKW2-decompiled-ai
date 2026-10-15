@@ -9,6 +9,7 @@
 #include "ykw2/core/initial_content.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
 #include "ykw2/core/runtime_save.hpp"
+#include "ykw2/core/xq32_execution.hpp"
 
 namespace ykw2::core {
 
@@ -95,6 +96,7 @@ struct RuntimeSnapshot {
     std::vector<InitialSceneResource> scene_resources;
     RuntimeContentManifest runtime_content;
     std::optional<Xq32ProgramInfo> opening_event_program;
+    Xq32ExecutionSnapshot opening_event_execution;
     std::uint16_t background_width = 0;
     std::uint16_t background_height = 0;
     std::uint8_t background_format = 0;
@@ -146,6 +148,7 @@ private:
     std::vector<InitialSceneResource> scene_resources_;
     RuntimeContentManifest runtime_content_;
     std::optional<Xq32ProgramInfo> opening_event_program_;
+    Xq32ExecutionCursor opening_event_cursor_;
     std::uint16_t background_width_ = 0;
     std::uint16_t background_height_ = 0;
     std::uint8_t background_format_ = 0;

@@ -143,6 +143,9 @@ class RuntimeMenuActivity : Activity() {
             decodedInstructions = value("event_decoded_instructions", "0").toIntOrNull() ?: 0,
             lineIndex = value("line_index", "0").toIntOrNull() ?: 0,
             lineCount = value("line_count", "0").toIntOrNull() ?: 0,
+            operationToken = value("event_exec_operation"),
+            argumentIndex = value("event_exec_argument_index", "0"),
+            argumentCount = value("event_exec_argument_count", "0"),
         )
         val playerX = value("player_x", "0").toFloatOrNull() ?: 0f
         val playerY = value("player_y", "0").toFloatOrNull() ?: 0f
@@ -223,12 +226,17 @@ class RuntimeMenuActivity : Activity() {
         decodedInstructions: Int,
         lineIndex: Int,
         lineCount: Int,
+        operationToken: String,
+        argumentIndex: String,
+        argumentCount: String,
     ): String {
         if (eventID.isEmpty()) return "No se encontró un evento de apertura compatible en el dump."
         val entry = if (symbol.isEmpty()) "sin símbolo recuperado" else symbol
         val total = if (lineCount > 0) lineCount else instructions
         val step = if (total > 0) "Paso ${lineIndex + 1}/$total" else "Programa sin pasos"
-        return "Programa XQ32 de YW2 decodificado\n$eventID\nEntrada: $entry · $decodedInstructions/$instructions instrucciones · $arguments argumentos\n$step\nLa semántica de los opcodes sigue en recuperación."
+        val operation = if (operationToken.isEmpty()) "sin operación actual"
+        else "token $operationToken · argumentos $argumentIndex+$argumentCount"
+        return "Programa XQ32 de YW2 decodificado\n$eventID\nEntrada: $entry · $decodedInstructions/$instructions instrucciones · $arguments argumentos\n$step · $operation\nLa semántica de los tokens sigue en recuperación."
     }
 
     private fun labelFor(key: String): String = when (key) {
