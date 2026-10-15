@@ -349,6 +349,7 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
 RuntimeSnapshot RuntimeScene::snapshot() const {
     RuntimeSnapshot result;
     result.screen = screen_;
+    result.presentation = mobile_yw1_smartphone_profile();
     result.selected_index = selected_index_;
     result.items = items_;
     result.initial_content_ready = initial_content_ready_;
@@ -431,6 +432,16 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     result += screen_name(snapshot.screen);
     result += "\nselected=" + std::to_string(snapshot.selected_index) + "\nstatus=" +
               snapshot.status_key + "\n";
+    result += "presentation_id=" + snapshot.presentation.id + "\n";
+    result += "presentation_reference=" + snapshot.presentation.reference_style + "\n";
+    result += "presentation_scene_height_percent=" +
+              std::to_string(snapshot.presentation.scene_height_percent) + "\n";
+    result += "presentation_dialogue_top_percent=" +
+              std::to_string(snapshot.presentation.dialogue_top_percent) + "\n";
+    result += "presentation_portrait_preferred=" +
+              std::string(snapshot.presentation.portrait_preferred ? "1\n" : "0\n");
+    result += "presentation_touch_controls=" +
+              std::string(snapshot.presentation.touch_controls ? "1\n" : "0\n");
     result += "content_ready=" + std::string(snapshot.initial_content_ready ? "1\n" : "0\n");
     result += "content_files=" + std::to_string(snapshot.initial_content_files) + "\n";
     result += "title_sequence=" + snapshot.runtime_content.title_sequence_path + "\n";

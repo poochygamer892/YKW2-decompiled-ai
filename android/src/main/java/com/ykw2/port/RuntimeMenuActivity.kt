@@ -124,6 +124,8 @@ class RuntimeMenuActivity : Activity() {
 
         val statusKey = value("status", "runtime.title_menu")
         val screen = value("screen", "title_menu")
+        val sceneHeightPercent = value("presentation_scene_height_percent", "58").toFloatOrNull() ?: 58f
+        val dialogueTopPercent = value("presentation_dialogue_top_percent", "55").toFloatOrNull() ?: 55f
         status.text = statusLabel(statusKey, screen)
         val selected = value("selected", "0").toIntOrNull() ?: 0
         val items = values.filter { it.first == "item" }.map { it.second.split('|') }
@@ -161,6 +163,8 @@ class RuntimeMenuActivity : Activity() {
             playerMaxHp = value("player_max_hp", "1").toIntOrNull() ?: 1,
             enemyHp = value("enemy_hp", "0").toIntOrNull() ?: 0,
             enemyMaxHp = value("enemy_max_hp", "1").toIntOrNull() ?: 1,
+            sceneHeightPercent = sceneHeightPercent,
+            dialogueTopPercent = dialogueTopPercent,
         )
 
         val command = value("command", "none")

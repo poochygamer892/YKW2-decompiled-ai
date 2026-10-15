@@ -14,10 +14,13 @@ final class RuntimeSceneCanvasView: UIView {
     private var playerMaxHP = 1
     private var enemyHP = 0
     private var enemyMaxHP = 1
+    private var sceneHeightPercent: CGFloat = 58
+    private var dialogueTopPercent: CGFloat = 55
 
     func render(screen: String, playerX: Float, playerY: Float, speaker: String,
                 dialogueText: String, enemyID: String, playerHP: Int,
-                playerMaxHP: Int, enemyHP: Int, enemyMaxHP: Int) {
+                playerMaxHP: Int, enemyHP: Int, enemyMaxHP: Int,
+                sceneHeightPercent: CGFloat, dialogueTopPercent: CGFloat) {
         self.screen = screen
         self.playerX = playerX
         self.playerY = playerY
@@ -28,6 +31,8 @@ final class RuntimeSceneCanvasView: UIView {
         self.playerMaxHP = max(1, playerMaxHP)
         self.enemyHP = enemyHP
         self.enemyMaxHP = max(1, enemyMaxHP)
+        self.sceneHeightPercent = min(90, max(20, sceneHeightPercent))
+        self.dialogueTopPercent = min(90, max(30, dialogueTopPercent))
         setNeedsDisplay()
     }
 
@@ -35,7 +40,8 @@ final class RuntimeSceneCanvasView: UIView {
         UIColor(red: 0.03, green: 0.04, blue: 0.06, alpha: 1).setFill()
         UIRectFill(rect)
         if let image = backgroundImage {
-            let target = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height * 0.58)
+            let target = CGRect(x: 0, y: 0, width: bounds.width,
+                               height: bounds.height * sceneHeightPercent / 100)
             let scale = min(target.width / image.size.width, target.height / image.size.height)
             let imageSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
             let imageRect = CGRect(x: target.midX - imageSize.width / 2,
@@ -76,7 +82,7 @@ final class RuntimeSceneCanvasView: UIView {
     }
 
     private func drawDialogue() {
-        let panelTop = bounds.height * 0.55
+        let panelTop = bounds.height * dialogueTopPercent / 100
         UIColor(red: 0.03, green: 0.05, blue: 0.1, alpha: 0.92).setFill()
         UIBezierPath(roundedRect: CGRect(x: 12, y: panelTop, width: bounds.width - 24,
                                          height: bounds.height - panelTop - 10), cornerRadius: 14).fill()
@@ -214,6 +220,8 @@ final class RuntimeViewController: UIViewController {
         var status = "runtime.title_menu"
         var command = "none"
         var screen = "title_menu"
+        var sceneHeightPercent: CGFloat = 58
+        var dialogueTopPercent: CGFloat = 55
         var items: [[String]] = []
         var sceneResourceCount = 0
         var worldMap = "mapa pendiente"
@@ -244,6 +252,8 @@ final class RuntimeViewController: UIViewController {
             case "screen": screen = parts[1]
             case "selected": selected = Int(parts[1]) ?? 0
             case "status": status = parts[1]
+            case "presentation_scene_height_percent": sceneHeightPercent = CGFloat(Double(parts[1]) ?? 58)
+            case "presentation_dialogue_top_percent": dialogueTopPercent = CGFloat(Double(parts[1]) ?? 55)
             case "command": command = parts[1]
             case "item": items.append(parts[1].split(separator: "|").map(String.init))
             case "scene_resource": sceneResourceCount += 1
@@ -289,7 +299,9 @@ final class RuntimeViewController: UIViewController {
                                         argumentIndex: argumentIndex, argumentCount: argumentCount)
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
-                         playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
+                         playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP,
+                         sceneHeightPercent: sceneHeightPercent,
+                         dialogueTopPercent: dialogueTopPercent)
         commandLabel.text = commandText(command: command, screen: screen, speaker: speaker,
                                         dialogue: dialogue, worldMap: worldMap, playerX: playerX,
                                         playerY: playerY, sceneResourceCount: sceneResourceCount,

@@ -2,7 +2,9 @@
 
 La arquitectura usa un núcleo C++17 pequeño y clientes nativos Android/iOS.
 La aplicación móvil de Yo-kai Watch 1 solo sirve como referencia privada de
-presentación y controles; el ejecutable del port no depende de su motor.
+presentación y controles; el ejecutable del port no depende de su motor. El
+perfil `ykw2_mobile` expresa esa referencia en datos del snapshot y mantiene
+el contenido YW2 separado de la capa visual.
 Los recursos y la lógica de contenido proceden del dump autorizado de Yo-kai
 Watch 2 y se reimplementan por capas verificables.
 
@@ -26,6 +28,14 @@ parser de cabecera -> decoder Level-5 -> lector de recurso
 Cada etapa debe validar límites antes de leer y devolver errores deterministas.
 Los decodificadores no deben escribir en el repositorio ni asumir que el
 recurso completo está en memoria.
+
+### Perfil de presentación móvil
+
+`mobile_yw1_smartphone_profile()` no reutiliza código ni archivos del juego
+original. Solo publica una configuración común para el aspecto móvil: escena
+superior, panel de diálogo, orientación preferida y controles táctiles. El
+cliente sigue siendo `ykw2_mobile`; el contenido, los eventos y los recursos
+se resuelven desde el dump autorizado de YW2.
 
 La importación inicial está descrita en
 [`docs/IMPORT_FLOW.md`](IMPORT_FLOW.md). El usuario selecciona su documento en

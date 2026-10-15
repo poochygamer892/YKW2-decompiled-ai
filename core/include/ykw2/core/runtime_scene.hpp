@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ykw2/core/initial_content.hpp"
+#include "ykw2/core/mobile_presentation.hpp"
 #include "ykw2/core/runtime_bootstrap.hpp"
 #include "ykw2/core/runtime_save.hpp"
 #include "ykw2/core/xq32_execution.hpp"
@@ -91,6 +92,7 @@ struct RuntimeSnapshot {
     std::size_t selected_index = 0;
     std::vector<RuntimeMenuItem> items;
     std::string status_key;
+    MobilePresentationProfile presentation;
     bool initial_content_ready = false;
     std::uint64_t initial_content_files = 0;
     std::vector<InitialSceneResource> scene_resources;

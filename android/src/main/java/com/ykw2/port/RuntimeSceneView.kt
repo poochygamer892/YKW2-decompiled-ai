@@ -27,6 +27,8 @@ class RuntimeSceneView(context: Context) : View(context) {
     private var playerMaxHp = 1
     private var enemyHp = 0
     private var enemyMaxHp = 1
+    private var sceneHeightPercent = 58f
+    private var dialogueTopPercent = 55f
 
     fun render(
         screen: String,
@@ -40,6 +42,8 @@ class RuntimeSceneView(context: Context) : View(context) {
         playerMaxHp: Int,
         enemyHp: Int,
         enemyMaxHp: Int,
+        sceneHeightPercent: Float,
+        dialogueTopPercent: Float,
     ) {
         this.screen = screen
         this.background = background
@@ -52,6 +56,8 @@ class RuntimeSceneView(context: Context) : View(context) {
         this.playerMaxHp = max(1, playerMaxHp)
         this.enemyHp = enemyHp
         this.enemyMaxHp = max(1, enemyMaxHp)
+        this.sceneHeightPercent = sceneHeightPercent.coerceIn(20f, 90f)
+        this.dialogueTopPercent = dialogueTopPercent.coerceIn(30f, 90f)
         invalidate()
     }
 
@@ -60,7 +66,7 @@ class RuntimeSceneView(context: Context) : View(context) {
         canvas.drawColor(Color.rgb(7, 10, 15))
         val image = background
         if (image != null && !image.isRecycled) {
-            val imageHeight = height * 0.58f
+            val imageHeight = height * sceneHeightPercent / 100f
             val scale = min(width.toFloat() / image.width, imageHeight / image.height)
             val drawWidth = image.width * scale
             val drawHeight = image.height * scale
@@ -109,7 +115,7 @@ class RuntimeSceneView(context: Context) : View(context) {
     }
 
     private fun drawDialogue(canvas: Canvas) {
-        val panelTop = height * 0.55f
+        val panelTop = height * dialogueTopPercent / 100f
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(230, 8, 14, 25)
         canvas.drawRoundRect(RectF(12f, panelTop, width - 12f, height - 10f), 14f, 14f, paint)

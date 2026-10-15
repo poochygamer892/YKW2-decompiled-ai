@@ -34,7 +34,13 @@ void test_title_menu_navigation() {
     assert(snapshot.screen == ykw2::core::RuntimeScreen::TitleMenu);
     assert(snapshot.items.size() == 3);
     assert(snapshot.selected_index == 0);
+    assert(snapshot.presentation.id == "ykw2_mobile");
+    assert(snapshot.presentation.reference_style == "yw1_smartphone");
+    assert(snapshot.presentation.portrait_preferred);
+    assert(snapshot.presentation.touch_controls);
     assert(ykw2::core::serialize_runtime_snapshot(snapshot).find("screen=title_menu\n") == 0);
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
+               "presentation_id=ykw2_mobile\n") != std::string::npos);
 
     scene.handle(ykw2::core::RuntimeInput::MoveNext);
     snapshot = scene.snapshot();

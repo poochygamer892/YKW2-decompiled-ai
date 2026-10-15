@@ -9,6 +9,7 @@ add_library(ykw2_core STATIC
     src/import_contract.cpp
     src/initial_content.cpp
     src/level5_decode.cpp
+    src/mobile_presentation.cpp
     src/arc0_reader.cpp
     src/resource_catalog.cpp
     src/resource_store.cpp

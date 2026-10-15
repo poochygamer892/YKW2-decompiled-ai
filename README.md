@@ -13,8 +13,8 @@ renderizado y controles; no se utiliza como ejecutable anfitrión del port.
 - Registrar evidencia reproducible y separar observaciones de hipótesis.
 - Reimplementar la lógica en código mantenible y testeable, empezando por los
   formatos y la máquina de eventos de YW2.
-- Usar la aplicación móvil de YW1 como referencia visual y de interacción, sin
-  sustituir el motor de YW1 con archivos incompatibles.
+- Usar la aplicación móvil de YW1 como referencia visual y de interacción,
+  reproduciendo ese perfil en un cliente YW2 independiente.
 - Integrar un núcleo multiplataforma con clientes nativos de Android e iOS.
 - Mantener fuera del repositorio cualquier ROM, dump, clave, recurso extraído o binario propietario.
 
@@ -51,6 +51,9 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
 - Android e iOS tienen importación, ciclo de actualización y renderizado nativo
   de los recursos IMGC ya soportados. El núcleo decodifica las tablas XQ32 del
   evento inicial real y expone sus filas al runtime para trazar la ejecución.
+  El snapshot común publica el perfil `ykw2_mobile` con referencia
+  `yw1_smartphone`, de modo que ambas plataformas comparten la presentación
+  móvil sin cargar el ejecutable de YW1.
   Todavía faltan la semántica probada de los opcodes, mapas/modelos 3D,
   animaciones, audio, reglas reales de combate y la reproducción completa de
   eventos antes de que pueda describirse como un port jugable.

@@ -12,6 +12,7 @@ add_library(ykw2_core STATIC
     "${YKW2_CORE_ROOT}/src/import_contract.cpp"
     "${YKW2_CORE_ROOT}/src/initial_content.cpp"
     "${YKW2_CORE_ROOT}/src/level5_decode.cpp"
+    "${YKW2_CORE_ROOT}/src/mobile_presentation.cpp"
     "${YKW2_CORE_ROOT}/src/resource_catalog.cpp"
     "${YKW2_CORE_ROOT}/src/resource_store.cpp"
     "${YKW2_CORE_ROOT}/src/romfs_extract.cpp"
