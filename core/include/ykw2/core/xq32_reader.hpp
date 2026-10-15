@@ -33,6 +33,10 @@ struct Xq32InstructionInfo {
     std::uint16_t argument_index = 0;
     std::uint16_t argument_count = 0;
     std::uint32_t operation_token = 0;
+    // Pure bit-field views of the raw token; these are not semantic opcode
+    // names. The corpus consistently uses the low/high 16-bit split.
+    std::uint16_t operation_id = 0;
+    std::uint16_t operation_group = 0;
     std::uint32_t flags = 0;
     bool argument_span_valid = false;
 };

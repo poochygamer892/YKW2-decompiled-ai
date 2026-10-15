@@ -492,6 +492,9 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     if (snapshot.opening_event_execution.has_instruction) {
         const auto& instruction = snapshot.opening_event_execution.instruction;
         result += "event_exec_operation=" + std::to_string(instruction.operation_token) + "\n";
+        result += "event_exec_operation_id=" + std::to_string(instruction.operation_id) + "\n";
+        result += "event_exec_operation_group=" +
+                  std::to_string(instruction.operation_group) + "\n";
         result += "event_exec_argument_index=" +
                   std::to_string(instruction.argument_index) + "\n";
         result += "event_exec_argument_count=" +

@@ -183,6 +183,8 @@ ParseResult<Xq32ProgramInfo> read_xq32_program(const ResourceStore& store,
         instruction.argument_index = static_cast<std::uint16_t>(argument_word & 0xffffu);
         instruction.argument_count = static_cast<std::uint16_t>(argument_word >> 16);
         instruction.operation_token = record.words[1];
+        instruction.operation_id = static_cast<std::uint16_t>(record.words[1] & 0xffffu);
+        instruction.operation_group = static_cast<std::uint16_t>(record.words[1] >> 16);
         instruction.flags = record.words[2];
         instruction.argument_span_valid =
             static_cast<std::uint64_t>(instruction.argument_index) +

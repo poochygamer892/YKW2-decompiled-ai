@@ -7,9 +7,9 @@ namespace {
 ykw2::core::Xq32ProgramInfo program() {
     ykw2::core::Xq32ProgramInfo result;
     result.instructions = {
-        {0, 1, 100, 0, true},
-        {1, 1, 200, 0, true},
-        {2, 0, 300, 0, true},
+        {0, 1, 100, 100, 0, 0, true},
+        {1, 1, 200, 200, 0, 0, true},
+        {2, 0, 300, 300, 0, 0, true},
     };
     result.functions = {
         {0, 0, "Main", true, true},

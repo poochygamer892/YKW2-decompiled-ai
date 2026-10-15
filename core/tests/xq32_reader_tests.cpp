@@ -152,6 +152,8 @@ void test_exposes_decoded_table_rows() {
     assert(result.value->instructions.size() == 1);
     assert(result.value->instructions[0].argument_index == 0);
     assert(result.value->instructions[0].argument_count == 1);
+    assert(result.value->instructions[0].operation_id == 0x0689u);
+    assert(result.value->instructions[0].operation_group == 0x0014u);
     assert(result.value->instructions[0].argument_span_valid);
     assert(result.value->argument_records.size() == 1);
     assert(result.value->argument_records[0].words.size() == 2);
