@@ -14,13 +14,16 @@ final class RuntimeSceneCanvasView: UIView {
     private var playerMaxHP = 1
     private var enemyHP = 0
     private var enemyMaxHP = 1
+    private var meshVertices: [SIMD3<Float>] = []
+    private var meshIndices: [Int] = []
     private var sceneHeightPercent: CGFloat = 58
     private var dialogueTopPercent: CGFloat = 55
 
     func render(screen: String, playerX: Float, playerY: Float, speaker: String,
                 dialogueText: String, enemyID: String, playerHP: Int,
                 playerMaxHP: Int, enemyHP: Int, enemyMaxHP: Int,
-                sceneHeightPercent: CGFloat, dialogueTopPercent: CGFloat) {
+                sceneHeightPercent: CGFloat, dialogueTopPercent: CGFloat,
+                meshVertices: [SIMD3<Float>] = [], meshIndices: [Int] = []) {
         self.screen = screen
         self.playerX = playerX
         self.playerY = playerY
@@ -31,6 +34,8 @@ final class RuntimeSceneCanvasView: UIView {
         self.playerMaxHP = max(1, playerMaxHP)
         self.enemyHP = enemyHP
         self.enemyMaxHP = max(1, enemyMaxHP)
+        self.meshVertices = meshVertices
+        self.meshIndices = meshIndices
         self.sceneHeightPercent = min(90, max(20, sceneHeightPercent))
         self.dialogueTopPercent = min(90, max(30, dialogueTopPercent))
         setNeedsDisplay()
@@ -61,18 +66,44 @@ final class RuntimeSceneCanvasView: UIView {
         let top = bounds.height * 0.08
         let bottom = bounds.height * 0.72
         UIColor(red: 0.4, green: 0.75, blue: 0.8, alpha: 0.3).setStroke()
-        let cell = max(24, bounds.width / 9)
-        for x in stride(from: CGFloat(0), through: bounds.width, by: cell) {
-            let path = UIBezierPath()
-            path.move(to: CGPoint(x: x, y: top))
-            path.addLine(to: CGPoint(x: x, y: bottom))
-            path.stroke()
-        }
-        for y in stride(from: top, through: bottom, by: cell) {
-            let path = UIBezierPath()
-            path.move(to: CGPoint(x: 0, y: y))
-            path.addLine(to: CGPoint(x: bounds.width, y: y))
-            path.stroke()
+        if meshVertices.isEmpty || meshIndices.count < 3 {
+            let cell = max(24, bounds.width / 9)
+            for x in stride(from: CGFloat(0), through: bounds.width, by: cell) {
+                let path = UIBezierPath()
+                path.move(to: CGPoint(x: x, y: top))
+                path.addLine(to: CGPoint(x: x, y: bottom))
+                path.stroke()
+            }
+            for y in stride(from: top, through: bottom, by: cell) {
+                let path = UIBezierPath()
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: bounds.width, y: y))
+                path.stroke()
+            }
+        } else {
+            let minX = meshVertices.map { $0.x }.min() ?? 0
+            let maxX = meshVertices.map { $0.x }.max() ?? 1
+            let minZ = meshVertices.map { $0.z }.min() ?? 0
+            let maxZ = meshVertices.map { $0.z }.max() ?? 1
+            let spanX = max(0.001, maxX - minX)
+            let spanZ = max(0.001, maxZ - minZ)
+            func point(_ index: Int) -> CGPoint {
+                let vertex = meshVertices[index]
+                return CGPoint(x: CGFloat((vertex.x - minX) / spanX) * bounds.width,
+                               y: bottom - CGFloat((vertex.z - minZ) / spanZ) * (bottom - top))
+            }
+            UIColor(red: 0.35, green: 0.88, blue: 1, alpha: 0.6).setStroke()
+            for index in stride(from: 0, to: meshIndices.count - 2, by: 3) {
+                let a = meshIndices[index]
+                let b = meshIndices[index + 1]
+                let c = meshIndices[index + 2]
+                guard meshVertices.indices.contains(a), meshVertices.indices.contains(b),
+                      meshVertices.indices.contains(c) else { continue }
+                let path = UIBezierPath()
+                path.move(to: point(a)); path.addLine(to: point(b))
+                path.addLine(to: point(c)); path.close()
+                path.stroke()
+            }
         }
         UIColor(red: 0.26, green: 0.85, blue: 0.75, alpha: 1).setFill()
         let point = CGPoint(x: bounds.midX + CGFloat(playerX) * 8,
@@ -95,7 +126,7 @@ final class RuntimeSceneCanvasView: UIView {
         UIColor(red: 0.06, green: 0.1, blue: 0.18, alpha: 0.95).setFill()
         UIBezierPath(roundedRect: bounds.insetBy(dx: 12, dy: 12), cornerRadius: 16).fill()
         drawText("Combate de Yo-kai Watch 2", at: CGPoint(x: 18, y: 28), color: .white, size: 17)
-        drawText("Las reglas, encuentros y comandos se cargarán desde el dump autorizado.",
+        drawText("Las reglas y el encuentro se interpretarán desde el dump autorizado.",
                  at: CGPoint(x: 18, y: 64), color: .white, size: 14)
     }
 
@@ -246,6 +277,10 @@ final class RuntimeViewController: UIViewController {
         var enemyMaxHP = 1
         var audioSequence: UInt64 = 0
         var audioCue = ""
+        var battleDefinition = "sin definición"
+        var battleCommandCount = 0
+        var meshVertices: [SIMD3<Float>] = []
+        var meshIndices: [Int] = []
         for line in lines {
             let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
             guard parts.count == 2 else { continue }
@@ -280,6 +315,15 @@ final class RuntimeViewController: UIViewController {
             case "enemy_max_hp": enemyMaxHP = Int(parts[1]) ?? 1
             case "audio_sequence": audioSequence = UInt64(parts[1]) ?? 0
             case "audio_cue": audioCue = parts[1]
+            case "battle_definition_id": battleDefinition = parts[1]
+            case "battle_configured_command_count": battleCommandCount = Int(parts[1]) ?? 0
+            case "scene_mesh_vertex":
+                let values = parts[1].split(separator: "|").compactMap { Float(String($0)) }
+                if values.count == 3 {
+                    meshVertices.append(SIMD3<Float>(values[0], values[1], values[2]))
+                }
+            case "scene_mesh_index":
+                if let index = Int(parts[1].split(separator: "|").last ?? "") { meshIndices.append(index) }
             default: break
             }
         }
@@ -303,12 +347,16 @@ final class RuntimeViewController: UIViewController {
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
                          playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP,
+                         meshVertices: meshVertices, meshIndices: meshIndices,
                          sceneHeightPercent: sceneHeightPercent,
                          dialogueTopPercent: dialogueTopPercent)
         commandLabel.text = commandText(command: command, screen: screen, speaker: speaker,
                                         dialogue: dialogue, worldMap: worldMap, playerX: playerX,
                                         playerY: playerY, sceneResourceCount: sceneResourceCount,
                                         enemyID: enemyID, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
+        if screen == "battle" {
+            commandLabel.text = "Combate configurado: \(battleDefinition)\n\(battleCommandCount) comandos detectados. Falta interpretar las reglas y el encuentro para activar el combate real."
+        }
         playAudioCue(sequence: audioSequence, cue: audioCue)
     }
 
@@ -322,7 +370,7 @@ final class RuntimeViewController: UIViewController {
         case "request_authorized_import": return "Selecciona una copia autorizada desde el menú de importación."
         case "start_new_game": return "Nueva partida iniciada."
         case "advance_dialogue": return "Historia avanzada."
-        case "start_battle": return "El motor de combate de YW2 todavía no está disponible."
+        case "start_battle": return "Definición de combate de YW2 cargada."
         case "battle_won": return "¡Victoria!"
         case "battle_escaped": return "Has escapado del combate."
         case "battle_defeated": return "Has sido derrotado."

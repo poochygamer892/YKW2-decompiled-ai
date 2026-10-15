@@ -16,6 +16,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     initial_content_files_ = initial_content_ready_ ? initial_content_files : 0;
     scene_resources_.clear();
     runtime_content_ = {};
+    battle_content_ = {};
     opening_event_program_.reset();
     opening_event_cursor_ = {};
     opening_event_operation_status_ = Xq32OperationStatus::Idle;
@@ -47,6 +48,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& 
     start(boot, true, content.archive_files);
     scene_resources_ = content.scene_resources;
     runtime_content_ = content.runtime_content;
+    battle_content_ = content.battle_content;
     opening_event_program_ = content.opening_event_program;
     background_width_ = content.background_width;
     background_height_ = content.background_height;
@@ -149,10 +151,20 @@ RuntimeTransition RuntimeScene::advance_dialogue() {
 }
 
 void RuntimeScene::begin_battle() {
-    // Battle data is identified by the manifest, but a parser/interpreter for
-    // the YW2 rule and encounter data must exist before a battle is entered.
-    // Do not substitute an invented enemy, HP values or attacks here.
     battle_ = {};
+    battle_.definition_loaded = battle_content_.ready;
+    battle_.configured_command_count =
+        static_cast<std::uint32_t>(battle_content_.command_ids.size());
+    if (!battle_content_.ready) {
+        return;
+    }
+    screen_ = RuntimeScreen::Battle;
+    world_.active = false;
+    if (!battle_content_.battle_sequence_ids.empty()) {
+        battle_.definition_id = battle_content_.battle_sequence_ids.front();
+    }
+    battle_.result = "rules_pending";
+    trigger_audio("battle_definition:" + battle_.definition_id);
 }
 
 RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
@@ -317,7 +329,7 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
                     return {false, RuntimeCommand::None};
                 }
                 begin_battle();
-                return {false, RuntimeCommand::None};
+                return {battle_.definition_loaded, RuntimeCommand::StartBattle};
             case RuntimeInput::Attack:
             case RuntimeInput::Skill:
             case RuntimeInput::Run:
@@ -369,6 +381,7 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.initial_content_files = initial_content_files_;
     result.scene_resources = scene_resources_;
     result.runtime_content = runtime_content_;
+    result.battle_content = battle_content_;
     result.opening_event_program = opening_event_program_;
     result.opening_event_execution = opening_event_cursor_.snapshot();
     result.opening_event_operation_status = opening_event_operation_status_;
@@ -475,6 +488,35 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
               std::string(snapshot.runtime_content.has_battle_presentation() ? "1\n" : "0\n");
     result += "audio_definition_ready=" +
               std::string(snapshot.runtime_content.has_audio_definition() ? "1\n" : "0\n");
+    result += "battle_content_ready=" +
+              std::string(snapshot.battle_content.ready ? "1\n" : "0\n");
+    result += "battle_config_entries=" +
+              std::to_string(snapshot.battle_content.battle_config_entries) + "\n";
+    result += "battle_rule_entries=" +
+              std::to_string(snapshot.battle_content.battle_rule_entries) + "\n";
+    result += "battle_command_entries=" +
+              std::to_string(snapshot.battle_content.battle_command_entries) + "\n";
+    result += "battle_view_entries=" +
+              std::to_string(snapshot.battle_content.battle_view_entries) + "\n";
+    result += "battle_ai_entries=" +
+              std::to_string(snapshot.battle_content.battle_ai_entries) + "\n";
+    const auto sequence_limit = std::min<std::size_t>(
+        snapshot.battle_content.battle_sequence_ids.size(), 32);
+    for (std::size_t index = 0; index < sequence_limit; ++index) {
+        result += "battle_sequence_id=" +
+                  snapshot.battle_content.battle_sequence_ids[index] + "\n";
+    }
+    const auto command_limit = std::min<std::size_t>(
+        snapshot.battle_content.command_ids.size(), 32);
+    for (std::size_t index = 0; index < command_limit; ++index) {
+        result += "battle_command_id=" +
+                  snapshot.battle_content.command_ids[index] + "\n";
+    }
+    const auto sound_limit = std::min<std::size_t>(
+        snapshot.battle_content.sound_ids.size(), 32);
+    for (std::size_t index = 0; index < sound_limit; ++index) {
+        result += "sound_id=" + snapshot.battle_content.sound_ids[index] + "\n";
+    }
     for (const auto& path : snapshot.runtime_content.battle_texture_paths) {
         result += "battle_texture=" + path + "\n";
     }
@@ -543,6 +585,11 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     result += "simulation_seconds=" + std::to_string(snapshot.world.simulation_seconds) + "\n";
     result += "frame=" + std::to_string(snapshot.world.frame) + "\n";
     result += "battle_active=" + std::string(snapshot.battle.active ? "1\n" : "0\n");
+    result += "battle_definition_loaded=" +
+              std::string(snapshot.battle.definition_loaded ? "1\n" : "0\n");
+    result += "battle_definition_id=" + snapshot.battle.definition_id + "\n";
+    result += "battle_configured_command_count=" +
+              std::to_string(snapshot.battle.configured_command_count) + "\n";
     result += "enemy_id=" + snapshot.battle.enemy_id + "\n";
     result += "player_hp=" + std::to_string(snapshot.battle.player_hp) + "\n";
     result += "player_max_hp=" + std::to_string(snapshot.battle.player_max_hp) + "\n";
@@ -565,6 +612,23 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
                       std::to_string(resource.texture_height) + "|" +
                       std::to_string(static_cast<unsigned int>(resource.texture_format)) +
                       "|" + std::to_string(resource.texture_rgba_bytes) + "\n";
+        }
+        if (!resource.mesh_preview_positions.empty()) {
+            result += "scene_mesh=" + resource.path + "|" +
+                      std::to_string(resource.mesh_vertex_count) + "|" +
+                      std::to_string(resource.mesh_triangle_index_count) + "|" +
+                      std::to_string(resource.mesh_material_hash) + "\n";
+            const auto position_count = resource.mesh_preview_positions.size() / 3;
+            for (std::size_t index = 0; index < position_count; ++index) {
+                result += "scene_mesh_vertex=" + resource.path + "|" +
+                          std::to_string(resource.mesh_preview_positions[index * 3]) + "|" +
+                          std::to_string(resource.mesh_preview_positions[index * 3 + 1]) + "|" +
+                          std::to_string(resource.mesh_preview_positions[index * 3 + 2]) + "\n";
+            }
+            for (const auto index : resource.mesh_preview_indices) {
+                result += "scene_mesh_index=" + resource.path + "|" +
+                          std::to_string(index) + "\n";
+            }
         }
     }
     for (const auto& item : snapshot.items) {

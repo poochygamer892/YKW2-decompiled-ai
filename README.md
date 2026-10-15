@@ -54,10 +54,13 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
   evento inicial real y expone sus filas al runtime para trazar la ejecución.
   El snapshot común publica el perfil `ykw2_mobile` con referencia
   `yw1_smartphone`, de modo que ambas plataformas comparten la presentación
-  móvil sin cargar el ejecutable de YW1.
-  Todavía faltan la semántica probada de los opcodes, mapas/modelos 3D,
-  animaciones, el decoder de audio, reglas reales de combate y la reproducción
-  completa de eventos antes de que pueda describirse como un port jugable.
+  móvil sin cargar el ejecutable de YW1. El lector XMPR/XPVB/XPVI ya extrae
+  una malla acotada del primer mapa y los clientes dibujan esa geometría como
+  previsualización nativa.
+  Todavía faltan la semántica probada de todos los opcodes, materiales y
+  animaciones 3D, el decoder de audio propietario y las reglas completas de
+  combate; esos límites siguen explícitos para no presentar una demo como el
+  port jugable terminado.
 - `tools/build_yw1_yw2_overlay.py` queda como herramienta de diagnóstico
   privada y no es la ruta de ejecución del port nativo.
 

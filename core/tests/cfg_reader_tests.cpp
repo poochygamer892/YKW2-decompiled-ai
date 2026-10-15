@@ -77,6 +77,38 @@ void test_reads_from_resource_store() {
     assert(parsed.value->field_0x0c == 4);
 }
 
+void test_decodes_packed_types_and_strings() {
+    std::vector<std::uint8_t> bytes(0x40, 0);
+    put32(bytes, 0x00, 2);      // entries
+    put32(bytes, 0x04, 0x30);   // string table offset
+    put32(bytes, 0x08, 6);      // string table length
+    put32(bytes, 0x0c, 1);      // string count
+    put32(bytes, 0x10, 0x11111111);
+    bytes[0x14] = 3;
+    bytes[0x15] = 0x24;         // string, int, float
+    put32(bytes, 0x18, 0);      // string offset
+    put32(bytes, 0x1c, 42);
+    put32(bytes, 0x20, 0x3f800000); // 1.0f
+    put32(bytes, 0x24, 0x22222222);
+    bytes[0x28] = 1;
+    bytes[0x29] = 0x01;         // int
+    put32(bytes, 0x2c, 7);
+    const std::string text = "hello";
+    std::copy(text.begin(), text.end(), bytes.begin() + 0x30);
+
+    const auto parsed = ykw2::core::parse_cfg_binary(
+        ykw2::core::ByteView(bytes.data(), bytes.size()), bytes.size());
+    assert(parsed);
+    assert(parsed.value->entries.size() == 2);
+    assert(parsed.value->entries[0].values.size() == 3);
+    assert(parsed.value->entries[0].values[0].type ==
+           ykw2::core::CfgValueType::String);
+    assert(parsed.value->entries[0].values[0].string_bytes == "hello");
+    assert(parsed.value->entries[0].values[1].raw_value == 42);
+    assert(parsed.value->entries[0].values[2].raw_value == 0x3f800000);
+    assert(parsed.value->entries[1].values[0].raw_value == 7);
+}
+
 void test_rejects_short_header() {
     const std::array<std::uint8_t, 8> bytes{};
     const auto parsed = ykw2::core::parse_cfg_binary_header(
@@ -90,6 +122,7 @@ void test_rejects_short_header() {
 int main() {
     test_reads_raw_structural_header();
     test_reads_from_resource_store();
+    test_decodes_packed_types_and_strings();
     test_rejects_short_header();
     return 0;
 }

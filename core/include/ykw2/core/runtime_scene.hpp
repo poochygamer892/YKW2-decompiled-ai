@@ -79,6 +79,9 @@ struct RuntimeDialogueSnapshot {
 
 struct RuntimeBattleSnapshot {
     bool active = false;
+    bool definition_loaded = false;
+    std::string definition_id;
+    std::uint32_t configured_command_count = 0;
     std::string enemy_id;
     int player_hp = 0;
     int player_max_hp = 0;
@@ -98,6 +101,7 @@ struct RuntimeSnapshot {
     std::uint64_t initial_content_files = 0;
     std::vector<InitialSceneResource> scene_resources;
     RuntimeContentManifest runtime_content;
+    InitialBattleContent battle_content;
     std::optional<Xq32ProgramInfo> opening_event_program;
     Xq32ExecutionSnapshot opening_event_execution;
     Xq32OperationStatus opening_event_operation_status = Xq32OperationStatus::Idle;
@@ -151,6 +155,7 @@ private:
     std::uint64_t initial_content_files_ = 0;
     std::vector<InitialSceneResource> scene_resources_;
     RuntimeContentManifest runtime_content_;
+    InitialBattleContent battle_content_;
     std::optional<Xq32ProgramInfo> opening_event_program_;
     Xq32ExecutionCursor opening_event_cursor_;
     Xq32OperationDispatcher opening_event_dispatcher_;

@@ -10,6 +10,7 @@
 #include "ykw2/core/cfg_reader.hpp"
 #include "ykw2/core/resource_store.hpp"
 #include "ykw2/core/runtime_content.hpp"
+#include "ykw2/core/model_reader.hpp"
 #include "ykw2/core/xq32_reader.hpp"
 
 namespace ykw2::core {
@@ -33,6 +34,23 @@ struct InitialSceneResource {
     std::uint16_t texture_height = 0;
     std::uint8_t texture_format = 0;
     std::uint64_t texture_rgba_bytes = 0;
+    std::uint32_t mesh_vertex_count = 0;
+    std::uint32_t mesh_triangle_index_count = 0;
+    std::uint32_t mesh_material_hash = 0;
+    std::vector<float> mesh_preview_positions;
+    std::vector<std::uint16_t> mesh_preview_indices;
+};
+
+struct InitialBattleContent {
+    bool ready = false;
+    std::uint32_t battle_config_entries = 0;
+    std::uint32_t battle_rule_entries = 0;
+    std::uint32_t battle_command_entries = 0;
+    std::uint32_t battle_view_entries = 0;
+    std::uint32_t battle_ai_entries = 0;
+    std::vector<std::string> battle_sequence_ids;
+    std::vector<std::string> command_ids;
+    std::vector<std::string> sound_ids;
 };
 
 const char* initial_scene_resource_role_name(InitialSceneResourceRole role);
@@ -51,6 +69,7 @@ struct InitialContentInfo {
     std::string first_file_path;
     std::uint32_t first_file_size = 0;
     RuntimeContentManifest runtime_content;
+    InitialBattleContent battle_content;
     std::optional<CfgBinaryInfo> battle_config_header;
     std::optional<CfgBinaryInfo> battle_rule_header;
     std::optional<CfgBinaryInfo> battle_command_header;

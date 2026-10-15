@@ -135,6 +135,18 @@ class RuntimeMenuActivity : Activity() {
             else if (screen == "battle") "Elige una acción"
             else statusLabel(statusKey, screen)
 
+        val meshVertices = values.filter { it.first == "scene_mesh_vertex" }.mapNotNull { entry ->
+            val parts = entry.second.split('|')
+            if (parts.size != 4) return@mapNotNull null
+            val x = parts[1].toFloatOrNull() ?: return@mapNotNull null
+            val y = parts[2].toFloatOrNull() ?: return@mapNotNull null
+            val z = parts[3].toFloatOrNull() ?: return@mapNotNull null
+            floatArrayOf(x, y, z)
+        }
+        val meshIndices = values.filter { it.first == "scene_mesh_index" }.mapNotNull { entry ->
+            entry.second.substringAfterLast('|').toIntOrNull()
+        }
+
         val eventID = value("event_id")
         val speaker = value("speaker")
         val dialogueText = eventDescription(
@@ -164,19 +176,23 @@ class RuntimeMenuActivity : Activity() {
             playerMaxHp = value("player_max_hp", "1").toIntOrNull() ?: 1,
             enemyHp = value("enemy_hp", "0").toIntOrNull() ?: 0,
             enemyMaxHp = value("enemy_max_hp", "1").toIntOrNull() ?: 1,
+            meshVertices = meshVertices,
+            meshIndices = meshIndices,
             sceneHeightPercent = sceneHeightPercent,
             dialogueTopPercent = dialogueTopPercent,
         )
 
         val command = value("command", "none")
         val sceneResourceCount = values.count { it.first == "scene_resource" }
+        val battleDefinition = value("battle_definition_id", "sin definición")
+        val battleCommandCount = value("battle_configured_command_count", "0")
         commandStatus.text = when {
             screen == "dialogue" -> dialogueText
-            screen == "battle" -> "El intérprete de reglas y encuentros de YW2 aún no está disponible."
+            screen == "battle" -> "Combate configurado: $battleDefinition\n$battleCommandCount comandos detectados. Falta interpretar las reglas y el encuentro para activar el combate real."
             command == "request_authorized_import" -> "Selecciona una copia autorizada desde el menú de importación."
             command == "start_new_game" -> "Nueva partida iniciada."
             command == "advance_dialogue" -> "Historia avanzada."
-            command == "start_battle" -> "El motor de combate de YW2 todavía no está disponible."
+            command == "start_battle" -> "Definición de combate de YW2 cargada."
             command == "battle_won" -> "¡Victoria!"
             command == "battle_escaped" -> "Has escapado del combate."
             command == "battle_defeated" -> "Has sido derrotado."
@@ -194,10 +210,11 @@ class RuntimeMenuActivity : Activity() {
     private fun playAudioCue(sequence: Long, cue: String) {
         if (sequence <= lastAudioSequence) return
         lastAudioSequence = sequence
-        val tone = when (cue) {
-            "victory" -> ToneGenerator.TONE_PROP_ACK
-            "defeat" -> ToneGenerator.TONE_PROP_NACK
-            "battle_start" -> ToneGenerator.TONE_PROP_PROMPT
+        val tone = when {
+            cue == "victory" -> ToneGenerator.TONE_PROP_ACK
+            cue == "defeat" -> ToneGenerator.TONE_PROP_NACK
+            cue == "battle_start" || cue.startsWith("battle_definition:") ->
+                ToneGenerator.TONE_PROP_PROMPT
             else -> ToneGenerator.TONE_PROP_BEEP
         }
         toneGenerator.startTone(tone, 120)

@@ -39,6 +39,18 @@ bool ends_with(std::string_view value, std::string_view suffix) {
            value.substr(value.size() - suffix.size()) == suffix;
 }
 
+bool is_catalog_identifier(std::string_view value) {
+    // map_sound also stores serialized/base64 playback metadata as strings.
+    // Expose only short symbolic IDs to the runtime catalog.
+    if (value.empty() || value.size() > 128 || value.find('=') != std::string_view::npos) {
+        return false;
+    }
+    return std::all_of(value.begin(), value.end(), [](char byte) {
+        return (byte >= 'a' && byte <= 'z') || (byte >= 'A' && byte <= 'Z') ||
+               (byte >= '0' && byte <= '9') || byte == '_' || byte == '-' || byte == '.';
+    });
+}
+
 const Arc0File* first_path_match(const Arc0Archive& archive,
                                  bool (*matches)(std::string_view)) {
     const Arc0File* selected = nullptr;
@@ -106,6 +118,31 @@ ParseResult<InitialSceneResource> inspect_scene_resource(
         }
         resource.kind = ResourceKind::Xpck;
         resource.child_count = parsed.value->files.size();
+        // Decode only the first bounded mesh preview. This keeps startup
+        // cheap while proving that the map geometry is coming from YW2 data.
+        for (const auto& child : parsed.value->files) {
+            if (!ends_with(child.name, ".prm")) {
+                continue;
+            }
+            std::vector<std::uint8_t> bytes(child.size);
+            if (!window.value->read_exact(window.value->virtual_path(), child.offset,
+                                          bytes.data(), bytes.size())) {
+                return inspect_failure<InitialSceneResource>(
+                    "initial_scene_mesh_read_failed");
+            }
+            const auto mesh = parse_xmpr_model(ByteView(bytes.data(), bytes.size()));
+            if (!mesh) {
+                continue;
+            }
+            resource.mesh_vertex_count += mesh.value->vertex_count;
+            resource.mesh_triangle_index_count += mesh.value->triangle_index_count;
+            if (resource.mesh_preview_positions.empty()) {
+                resource.mesh_material_hash = mesh.value->material_hash;
+                resource.mesh_preview_positions = mesh.value->preview_positions;
+                resource.mesh_preview_indices = mesh.value->preview_indices;
+            }
+            break;
+        }
         return ParseResult<InitialSceneResource>::success(std::move(resource));
     }
 
@@ -133,16 +170,16 @@ ParseResult<InitialSceneResource> inspect_scene_resource(
     return ParseResult<InitialSceneResource>::success(std::move(resource));
 }
 
-ParseResult<CfgBinaryInfo> inspect_cfg_resource(
+ParseResult<CfgBinary> inspect_cfg_resource(
     const ResourceStore& store, std::string_view archive_path,
     const Arc0File& file, std::string_view path) {
     const auto window = ResourceWindowStore::create(
         store, archive_path, file.offset, file.size, std::string(path));
     if (!window) {
-        return ParseResult<CfgBinaryInfo>::failure(
+        return ParseResult<CfgBinary>::failure(
             window.error->code, window.error->offset);
     }
-    return read_cfg_binary_info(*window.value, path);
+    return read_cfg_binary(*window.value, path);
 }
 
 std::string_view basename(std::string_view path) {
@@ -196,7 +233,12 @@ std::vector<InitialSceneResource> select_initial_scene_resources(
                                ? first_background_match(archive)
                                : first_path_match(archive, candidate.matches);
         if (file != nullptr) {
-            resources.push_back({candidate.role, file->path, file->offset, file->size});
+            InitialSceneResource resource;
+            resource.role = candidate.role;
+            resource.path = file->path;
+            resource.offset = file->offset;
+            resource.size = file->size;
+            resources.push_back(std::move(resource));
         }
     }
     return resources;
@@ -225,7 +267,8 @@ ParseResult<InitialContentInfo> load_initial_content(
     result.first_file_size = first_file.size;
     result.runtime_content = select_runtime_content_manifest(*archive.value);
     const auto inspect_manifest_cfg = [&](std::string_view path,
-                                          std::optional<CfgBinaryInfo>& destination)
+                                          std::optional<CfgBinaryInfo>& destination,
+                                          std::vector<std::string>* strings)
         -> bool {
         if (path.empty()) {
             return true;
@@ -238,25 +281,52 @@ ParseResult<InitialContentInfo> load_initial_content(
         if (!parsed) {
             return false;
         }
-        destination = *parsed.value;
+        destination = parsed.value->header;
+        if (strings != nullptr) {
+            for (const auto& entry : parsed.value->entries) {
+                for (const auto& value : entry.values) {
+                    if (value.type == CfgValueType::String &&
+                        is_catalog_identifier(value.string_bytes)) {
+                        strings->push_back(value.string_bytes);
+                    }
+                }
+            }
+        }
         return true;
     };
     if (!inspect_manifest_cfg(result.runtime_content.battle_config_path,
-                              result.battle_config_header) ||
+                              result.battle_config_header,
+                              &result.battle_content.battle_sequence_ids) ||
         !inspect_manifest_cfg(result.runtime_content.battle_rule_path,
-                              result.battle_rule_header) ||
+                              result.battle_rule_header, nullptr) ||
         !inspect_manifest_cfg(result.runtime_content.battle_command_path,
-                              result.battle_command_header) ||
+                              result.battle_command_header,
+                              &result.battle_content.command_ids) ||
         !inspect_manifest_cfg(result.runtime_content.battle_view_config_path,
-                              result.battle_view_config_header) ||
+                              result.battle_view_config_header, nullptr) ||
         !inspect_manifest_cfg(result.runtime_content.battle_ai_path,
-                              result.battle_ai_header) ||
+                              result.battle_ai_header, nullptr) ||
         !inspect_manifest_cfg(result.runtime_content.map_sound_config_path,
-                              result.map_sound_config_header) ||
+                              result.map_sound_config_header,
+                              &result.battle_content.sound_ids) ||
         !inspect_manifest_cfg(result.runtime_content.opening_event_sound_config_path,
-                              result.opening_event_sound_config_header)) {
+                              result.opening_event_sound_config_header, nullptr)) {
         return failure<InitialContentInfo>("initial_runtime_config_invalid");
     }
+    result.battle_content.battle_config_entries =
+        result.battle_config_header ? result.battle_config_header->field_0x00 : 0;
+    result.battle_content.battle_rule_entries =
+        result.battle_rule_header ? result.battle_rule_header->field_0x00 : 0;
+    result.battle_content.battle_command_entries =
+        result.battle_command_header ? result.battle_command_header->field_0x00 : 0;
+    result.battle_content.battle_view_entries =
+        result.battle_view_config_header ? result.battle_view_config_header->field_0x00 : 0;
+    result.battle_content.battle_ai_entries =
+        result.battle_ai_header ? result.battle_ai_header->field_0x00 : 0;
+    result.battle_content.ready = result.runtime_content.has_battle_definition() &&
+                                  result.battle_config_header.has_value() &&
+                                  result.battle_rule_header.has_value() &&
+                                  result.battle_command_header.has_value();
     if (result.runtime_content.has_opening_event()) {
         const auto* opening_file = archive.value->find(result.runtime_content.opening_event_path);
         if (opening_file == nullptr) {

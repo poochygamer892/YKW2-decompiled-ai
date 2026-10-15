@@ -27,6 +27,8 @@ class RuntimeSceneView(context: Context) : View(context) {
     private var playerMaxHp = 1
     private var enemyHp = 0
     private var enemyMaxHp = 1
+    private var meshVertices: List<FloatArray> = emptyList()
+    private var meshIndices: List<Int> = emptyList()
     private var sceneHeightPercent = 58f
     private var dialogueTopPercent = 55f
 
@@ -42,6 +44,8 @@ class RuntimeSceneView(context: Context) : View(context) {
         playerMaxHp: Int,
         enemyHp: Int,
         enemyMaxHp: Int,
+        meshVertices: List<FloatArray>,
+        meshIndices: List<Int>,
         sceneHeightPercent: Float,
         dialogueTopPercent: Float,
     ) {
@@ -56,6 +60,8 @@ class RuntimeSceneView(context: Context) : View(context) {
         this.playerMaxHp = max(1, playerMaxHp)
         this.enemyHp = enemyHp
         this.enemyMaxHp = max(1, enemyMaxHp)
+        this.meshVertices = meshVertices
+        this.meshIndices = meshIndices
         this.sceneHeightPercent = sceneHeightPercent.coerceIn(20f, 90f)
         this.dialogueTopPercent = dialogueTopPercent.coerceIn(30f, 90f)
         invalidate()
@@ -94,15 +100,44 @@ class RuntimeSceneView(context: Context) : View(context) {
         paint.strokeWidth = 1f
         paint.color = Color.argb(75, 100, 180, 210)
         val cell = max(24f, width / 9f)
-        var x = 0f
-        while (x <= width) {
-            canvas.drawLine(x, top, x, bottom, paint)
-            x += cell
-        }
-        var y = top
-        while (y <= bottom) {
-            canvas.drawLine(0f, y, width.toFloat(), y, paint)
-            y += cell
+        if (meshVertices.isEmpty() || meshIndices.size < 3) {
+            var x = 0f
+            while (x <= width) {
+                canvas.drawLine(x, top, x, bottom, paint)
+                x += cell
+            }
+            var y = top
+            while (y <= bottom) {
+                canvas.drawLine(0f, y, width.toFloat(), y, paint)
+                y += cell
+            }
+        } else {
+            val minX = meshVertices.minOf { it[0] }
+            val maxX = meshVertices.maxOf { it[0] }
+            val minZ = meshVertices.minOf { it[2] }
+            val maxZ = meshVertices.maxOf { it[2] }
+            val spanX = max(0.001f, maxX - minX)
+            val spanZ = max(0.001f, maxZ - minZ)
+            fun point(index: Int): Pair<Float, Float> {
+                val vertex = meshVertices[index]
+                return Pair((vertex[0] - minX) / spanX * width,
+                    bottom - (vertex[2] - minZ) / spanZ * (bottom - top))
+            }
+            paint.color = Color.argb(155, 90, 225, 255)
+            for (index in meshIndices.indices step 3) {
+                if (index + 2 >= meshIndices.size) break
+                val a = meshIndices[index]
+                val b = meshIndices[index + 1]
+                val c = meshIndices[index + 2]
+                if (a !in meshVertices.indices || b !in meshVertices.indices ||
+                    c !in meshVertices.indices) continue
+                val pa = point(a)
+                val pb = point(b)
+                val pc = point(c)
+                canvas.drawLine(pa.first, pa.second, pb.first, pb.second, paint)
+                canvas.drawLine(pb.first, pb.second, pc.first, pc.second, paint)
+                canvas.drawLine(pc.first, pc.second, pa.first, pa.second, paint)
+            }
         }
         paint.style = Paint.Style.FILL
         paint.color = Color.rgb(67, 218, 190)

@@ -224,6 +224,36 @@ void test_world_does_not_fabricate_a_battle() {
     assert(!scene.snapshot().battle.active);
 }
 
+void test_world_enters_data_backed_battle_catalog() {
+    ykw2::core::InitialContentInfo content;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 12});
+    content.runtime_content.opening_event_path = "seq/event/ev01_0100.xq";
+    content.runtime_content.battle_config_path = "battle.cfg";
+    content.runtime_content.battle_rule_path = "rule.cfg";
+    content.runtime_content.battle_command_path = "command.cfg";
+    content.battle_content.ready = true;
+    content.battle_content.battle_sequence_ids = {"N40_norm_battle_intro"};
+    content.battle_content.command_ids = {"sp_101000", "sp_102000"};
+
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    const auto transition = scene.handle(ykw2::core::RuntimeInput::Confirm);
+    assert(transition.handled);
+    assert(transition.command == ykw2::core::RuntimeCommand::StartBattle);
+    const auto snapshot = scene.snapshot();
+    assert(snapshot.screen == ykw2::core::RuntimeScreen::Battle);
+    assert(snapshot.battle.definition_loaded);
+    assert(snapshot.battle.definition_id == "N40_norm_battle_intro");
+    assert(snapshot.battle.configured_command_count == 2);
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
+               "battle_sequence_id=N40_norm_battle_intro\n") != std::string::npos);
+}
+
 }  // namespace
 
 int main() {
@@ -236,5 +266,6 @@ int main() {
     test_dialogue_traces_decoded_xq32_rows();
     test_world_state_can_be_saved_and_restored();
     test_world_does_not_fabricate_a_battle();
+    test_world_enters_data_backed_battle_catalog();
     return 0;
 }

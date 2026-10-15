@@ -19,6 +19,8 @@ Prioridades:
 - `ykw2/core/xq32_reader.hpp`: lector acotado de programas XQ32 que descomprime
   las tablas de funciones, saltos, instrucciones y argumentos y conserva sus
   filas como palabras crudas para la recuperación verificable del ABI.
+- `ykw2/core/model_reader.hpp`: lector acotado de mallas XMPR con buffers XPVB
+  y XPVI, usado para dibujar una previsualización real del primer mapa.
 - `ykw2/core/xq32_execution.hpp`: cursor seguro que selecciona una función por
   símbolo, respeta sus límites y expone el token de operación y su ventana de
   argumentos; también ofrece saltos intra-función con comprobación de límites
