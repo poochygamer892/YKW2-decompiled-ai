@@ -37,11 +37,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     }
 
     screen_ = RuntimeScreen::TitleMenu;
-    items_ = {
-        {"new_game", "menu.new_game", initial_content_ready_},
-        {"continue", "menu.continue", false},
-        {"settings", "menu.settings", true},
-    };
+    rebuild_menu();
 }
 
 void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& content) {
@@ -54,66 +50,44 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, const InitialContentInfo& 
     background_height_ = content.background_height;
     background_format_ = content.background_format;
     background_rgba_ = content.background_rgba;
+    rebuild_menu();
 }
 
-bool RuntimeScene::selected_item_enabled() const {
-    return screen_ == RuntimeScreen::TitleMenu && selected_index_ < items_.size() &&
-           items_[selected_index_].enabled;
+void RuntimeScene::rebuild_menu() {
+    Xq32ExecutionCursor probe;
+    const bool opening_available = initial_content_ready_ &&
+        !runtime_content_.opening_event_path.empty() &&
+        opening_event_program_.has_value() &&
+        probe.start(*opening_event_program_, "Main");
+    const bool catalog_available = initial_content_ready_ && battle_content_.ready &&
+        (!battle_content_.command_catalog.empty() || !battle_content_.command_ids.empty());
+    items_ = {
+        {"new_game", "menu.new_game", false},
+        {"continue", "menu.continue", false},
+        {"inspect_opening", "menu.inspect_opening", opening_available},
+        {"battle_catalog", "menu.battle_catalog", catalog_available},
+    };
+    selected_index_ = opening_available ? 2 : catalog_available ? 3 : 0;
 }
 
-void RuntimeScene::enter_world() {
-    screen_ = RuntimeScreen::World;
-    selected_index_ = 0;
-    items_.clear();
-    world_ = {};
-    world_.active = true;
-    for (const auto& resource : scene_resources_) {
-        if (resource.role == InitialSceneResourceRole::Map) {
-            world_.map_resource = resource.path;
-            break;
-        }
-    }
-}
-
-void RuntimeScene::trigger_audio(std::string cue) {
-    audio_cue_ = std::move(cue);
-    ++audio_sequence_;
+void RuntimeScene::return_to_menu() {
+    screen_ = RuntimeScreen::TitleMenu;
+    dialogue_ = {};
+    battle_ = {};
+    opening_event_cursor_ = {};
+    opening_event_operation_status_ = Xq32OperationStatus::Idle;
+    rebuild_menu();
 }
 
 void RuntimeScene::begin_dialogue() {
     screen_ = RuntimeScreen::Dialogue;
     selected_index_ = 0;
     items_.clear();
-    std::size_t instruction_count = 0;
-    std::string entry_symbol = "XQ32";
-    if (opening_event_program_.has_value()) {
-        const auto& program = *opening_event_program_;
-        opening_event_operation_status_ = Xq32OperationStatus::Idle;
-        if (opening_event_cursor_.start(program, "Main")) {
-            const auto execution = opening_event_cursor_.snapshot();
-            instruction_count = execution.instruction_end - execution.instruction_index;
-            if (!execution.entry_symbol.empty()) {
-                entry_symbol = execution.entry_symbol;
-            }
-        } else {
-            instruction_count = program.instruction_records.size();
-        }
-        if (instruction_count == 0) {
-            // Keep synthetic/partially decoded programs navigable while the
-            // ABI recovery is in progress. Real YW2 programs use the decoded
-            // row count above; a metadata-only fixture gets one checkpoint.
-            instruction_count = 1;
-        }
-        if (!program.symbols.empty()) {
-            entry_symbol = program.symbols.front();
-        }
-    }
-    if (instruction_count == 0) {
-        instruction_count = 1;
-    }
-    dialogue_ = {true, runtime_content_.opening_event_path, entry_symbol,
-                 "xq32.step.1", 0, instruction_count};
-    trigger_audio("event_begin");
+    opening_event_operation_status_ = Xq32OperationStatus::Idle;
+    opening_event_cursor_.start(*opening_event_program_, "Main");
+    const auto execution = opening_event_cursor_.snapshot();
+    dialogue_ = {true, runtime_content_.opening_event_path, "", "",
+                 0, execution.instruction_end - execution.instruction_index};
 }
 
 RuntimeTransition RuntimeScene::advance_dialogue() {
@@ -124,29 +98,16 @@ RuntimeTransition RuntimeScene::advance_dialogue() {
         const auto operation = opening_event_dispatcher_.dispatch(
             opening_event_cursor_, *opening_event_program_);
         opening_event_operation_status_ = operation.status;
-        if (operation.progressed) {
-            ++dialogue_.line_index;
-            dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
-            trigger_audio("event_advance");
+        if (operation.status == Xq32OperationStatus::InvalidArguments) {
+            return {false, RuntimeCommand::None};
+        }
+        if (opening_event_cursor_.running() && operation.progressed) {
+            dialogue_.line_index = opening_event_cursor_.snapshot().instruction_index -
+                (opening_event_cursor_.snapshot().instruction_end - dialogue_.line_count);
             return {true, RuntimeCommand::AdvanceDialogue};
         }
     }
-    if (opening_event_cursor_.running() && opening_event_cursor_.advance()) {
-        ++dialogue_.line_index;
-        dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
-        trigger_audio("event_advance");
-        return {true, RuntimeCommand::AdvanceDialogue};
-    }
-    if (!opening_event_cursor_.running() && dialogue_.line_count != 0 &&
-        dialogue_.line_index + 1 < dialogue_.line_count) {
-        ++dialogue_.line_index;
-        dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
-        trigger_audio("event_advance");
-        return {true, RuntimeCommand::AdvanceDialogue};
-    }
-    dialogue_.active = false;
-    enter_world();
-    trigger_audio("event_end");
+    return_to_menu();
     return {true, RuntimeCommand::AdvanceDialogue};
 }
 
@@ -161,13 +122,12 @@ void RuntimeScene::begin_battle() {
         return;
     }
     screen_ = RuntimeScreen::Battle;
-    world_.active = false;
+    items_.clear();
     if (!battle_content_.battle_sequence_ids.empty()) {
         battle_.definition_id = battle_content_.battle_sequence_ids.front();
     }
     battle_.active = battle_.configured_command_count != 0;
-    battle_.result = battle_.active ? "awaiting_rule_interpreter" : "no_commands";
-    trigger_audio("battle_definition:" + battle_.definition_id);
+    battle_.result = "catalog_only";
 }
 
 RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
@@ -175,12 +135,8 @@ RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
         return {false, RuntimeCommand::None};
     }
     if (input == RuntimeInput::Run || input == RuntimeInput::Back) {
-        battle_.active = false;
-        battle_.result = "escaped";
-        screen_ = RuntimeScreen::World;
-        world_.active = true;
-        trigger_audio("run");
-        return {true, RuntimeCommand::BattleEscaped};
+        return_to_menu();
+        return {true, RuntimeCommand::None};
     }
     if (input != RuntimeInput::Confirm && input != RuntimeInput::Attack &&
         input != RuntimeInput::Skill) {
@@ -199,9 +155,6 @@ RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
     } else {
         battle_.last_command_id = battle_content_.command_ids[command_index];
     }
-    ++battle_.turn;
-    battle_.result = "command_selected";
-    trigger_audio("battle_command:" + battle_.last_command_id);
     return {true, RuntimeCommand::None};
 }
 
@@ -218,37 +171,13 @@ void RuntimeScene::advance(double delta_seconds) {
 }
 
 std::optional<RuntimeSaveState> RuntimeScene::save_state() const {
-    if (screen_ != RuntimeScreen::World || !world_.active || world_.map_resource.empty()) {
-        return std::nullopt;
-    }
-    return RuntimeSaveState{true, world_.map_resource, world_.player_x, world_.player_y,
-                            world_.simulation_seconds, world_.frame};
+    // An indexed map and a structural XQ32 trace are not a playable save.
+    return std::nullopt;
 }
 
 bool RuntimeScene::restore_state(const RuntimeSaveState& state) {
-    if (!initial_content_ready_ || !state.active || state.map_resource.empty()) {
-        return false;
-    }
-    const auto resource = std::find_if(
-        scene_resources_.begin(), scene_resources_.end(), [&state](const auto& candidate) {
-            return candidate.role == InitialSceneResourceRole::Map &&
-                   candidate.path == state.map_resource;
-        });
-    if (resource == scene_resources_.end()) {
-        return false;
-    }
-    screen_ = RuntimeScreen::World;
-    selected_index_ = 0;
-    items_.clear();
-    world_.active = true;
-    world_.map_resource = state.map_resource;
-    world_.player_x = state.player_x;
-    world_.player_y = state.player_y;
-    world_.camera_x = state.player_x;
-    world_.camera_y = state.player_y;
-    world_.simulation_seconds = state.simulation_seconds;
-    world_.frame = state.frame;
-    return true;
+    (void)state;
+    return false;
 }
 
 void RuntimeScene::select_next(int direction) {
@@ -277,11 +206,11 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
     }
 
     if (screen_ == RuntimeScreen::Dialogue) {
-        if (input == RuntimeInput::Confirm || input == RuntimeInput::Attack) {
+        if (input == RuntimeInput::Confirm) {
             return advance_dialogue();
         }
         if (input == RuntimeInput::Back) {
-            enter_world();
+            return_to_menu();
             return {true, RuntimeCommand::None};
         }
         return {false, RuntimeCommand::None};
@@ -292,47 +221,8 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
     }
 
     if (screen_ == RuntimeScreen::World) {
-        constexpr float kStep = 1.0f;
-        switch (input) {
-            case RuntimeInput::MoveNext:
-            case RuntimeInput::MoveRight:
-                world_.player_x += kStep;
-                advance(1.0 / 60.0);
-                return {true, RuntimeCommand::None};
-            case RuntimeInput::MovePrevious:
-            case RuntimeInput::MoveLeft:
-                world_.player_x -= kStep;
-                advance(1.0 / 60.0);
-                return {true, RuntimeCommand::None};
-            case RuntimeInput::MoveUp:
-                world_.player_y -= kStep;
-                advance(1.0 / 60.0);
-                return {true, RuntimeCommand::None};
-            case RuntimeInput::MoveDown:
-                world_.player_y += kStep;
-                advance(1.0 / 60.0);
-                return {true, RuntimeCommand::None};
-            case RuntimeInput::Back:
-                screen_ = RuntimeScreen::TitleMenu;
-                world_.active = false;
-                items_ = {
-                    {"new_game", "menu.new_game", initial_content_ready_},
-                    {"continue", "menu.continue", false},
-                    {"settings", "menu.settings", true},
-                };
-                selected_index_ = 0;
-                return {true, RuntimeCommand::None};
-            case RuntimeInput::Confirm:
-                if (!runtime_content_.has_battle_definition()) {
-                    return {false, RuntimeCommand::None};
-                }
-                begin_battle();
-                return {battle_.definition_loaded, RuntimeCommand::StartBattle};
-            case RuntimeInput::Attack:
-            case RuntimeInput::Skill:
-            case RuntimeInput::Run:
-                return {false, RuntimeCommand::None};
-        }
+        return_to_menu();
+        return {true, RuntimeCommand::None};
     }
 
     switch (input) {
@@ -347,24 +237,30 @@ RuntimeTransition RuntimeScene::handle(RuntimeInput input) {
             select_next(-1);
             return {true, RuntimeCommand::None};
         case RuntimeInput::Confirm:
-            if (!selected_item_enabled()) {
-                return {false, RuntimeCommand::None};
-            }
-            switch (selected_index_) {
-                case 0:
-                    begin_dialogue();
-                    return {true, RuntimeCommand::StartNewGame};
-                case 2:
-                    return {true, RuntimeCommand::OpenSettings};
-                default:
-                    return {false, RuntimeCommand::None};
-            }
+            return select_menu_item(selected_index_);
         case RuntimeInput::Back:
             return {false, RuntimeCommand::None};
         case RuntimeInput::Attack:
         case RuntimeInput::Skill:
         case RuntimeInput::Run:
             return {false, RuntimeCommand::None};
+    }
+    return {false, RuntimeCommand::None};
+}
+
+RuntimeTransition RuntimeScene::select_menu_item(std::size_t index) {
+    if (screen_ != RuntimeScreen::TitleMenu || index >= items_.size() ||
+        !items_[index].enabled) {
+        return {false, RuntimeCommand::None};
+    }
+    selected_index_ = index;
+    if (items_[index].id == "inspect_opening") {
+        begin_dialogue();
+        return {true, RuntimeCommand::InspectOpening};
+    }
+    if (items_[index].id == "battle_catalog") {
+        begin_battle();
+        return {true, RuntimeCommand::OpenBattleCatalog};
     }
     return {false, RuntimeCommand::None};
 }
@@ -396,8 +292,10 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
         result.status_key = boot_.state == RuntimeBootState::ImportIncomplete
                                 ? "import.incomplete"
                                 : "import.required";
-    } else if (screen_ == RuntimeScreen::World) {
-        result.status_key = "runtime.world";
+    } else if (screen_ == RuntimeScreen::Dialogue) {
+        result.status_key = "runtime.opening_inspector";
+    } else if (screen_ == RuntimeScreen::Battle) {
+        result.status_key = "runtime.battle_catalog";
     } else if (!initial_content_ready_) {
         result.status_key = "runtime.content_missing";
     } else {
@@ -426,6 +324,10 @@ std::string runtime_command_name(RuntimeCommand command) {
             return "continue_game";
         case RuntimeCommand::OpenSettings:
             return "open_settings";
+        case RuntimeCommand::InspectOpening:
+            return "inspect_opening";
+        case RuntimeCommand::OpenBattleCatalog:
+            return "open_battle_catalog";
         case RuntimeCommand::None:
             return "none";
     }

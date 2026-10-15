@@ -413,6 +413,17 @@ private:
         {true, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
 }
 
++ (NSString *)selectRuntimeMenuItem:(NSInteger)index {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (!runtimeStarted || index < 0) {
+        return runtimeString(ykw2::core::serialize_runtime_response(
+            {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
+    }
+    const auto transition = runtimeScene.select_menu_item(static_cast<std::size_t>(index));
+    return runtimeString(ykw2::core::serialize_runtime_response(
+        transition, runtimeScene.snapshot()));
+}
+
 + (NSInteger)runtimeBackgroundWidth {
     std::lock_guard<std::mutex> lock(runtimeMutex);
     return static_cast<NSInteger>(runtimeScene.background_width());

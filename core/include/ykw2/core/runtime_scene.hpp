@@ -48,6 +48,8 @@ enum class RuntimeCommand {
     BattleDefeated,
     ContinueGame,
     OpenSettings,
+    InspectOpening,
+    OpenBattleCatalog,
 };
 
 struct RuntimeMenuItem {
@@ -133,6 +135,7 @@ public:
                std::uint64_t initial_content_files);
     void start(const RuntimeBootInfo& boot, const InitialContentInfo& content);
     RuntimeTransition handle(RuntimeInput input);
+    RuntimeTransition select_menu_item(std::size_t index);
     void advance(double delta_seconds);
     std::optional<RuntimeSaveState> save_state() const;
     bool restore_state(const RuntimeSaveState& state);
@@ -146,10 +149,9 @@ private:
     RuntimeTransition advance_dialogue();
     void begin_battle();
     RuntimeTransition resolve_battle_action(RuntimeInput input);
-    void trigger_audio(std::string cue);
-    void enter_world();
+    void return_to_menu();
+    void rebuild_menu();
     void select_next(int direction);
-    bool selected_item_enabled() const;
 
     RuntimeBootInfo boot_{};
     bool initial_content_ready_ = false;

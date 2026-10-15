@@ -3,14 +3,14 @@ package com.ykw2.port
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.media.AudioManager
-import android.media.ToneGenerator
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -29,13 +29,13 @@ class RuntimeMenuActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var commandStatus: TextView
     private lateinit var sceneView: RuntimeSceneView
-    private lateinit var dpadControls: LinearLayout
+    private lateinit var menuPanel: LinearLayout
+    private val menuButtons = mutableListOf<Button>()
     private lateinit var confirmButton: Button
     private lateinit var battleControls: LinearLayout
     private lateinit var backButton: Button
     private var backgroundBitmap: Bitmap? = null
-    private var lastAudioSequence = 0L
-    private val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 80)
+    private var lastMenuState = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,20 +45,42 @@ class RuntimeMenuActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(padding, padding, padding, padding)
         }
-        layout.addView(TextView(this).apply {
-            text = "Yo-kai Watch 2"
-            textSize = 26f
-            gravity = Gravity.CENTER
-        })
         status = TextView(this).apply {
             setPadding(0, padding / 2, 0, padding / 2)
             gravity = Gravity.CENTER
         }
         layout.addView(status)
         sceneView = RuntimeSceneView(this)
-        layout.addView(sceneView, LinearLayout.LayoutParams(
+        val sceneFrame = FrameLayout(this)
+        sceneFrame.addView(sceneView, FrameLayout.LayoutParams(-1, -1))
+        menuPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding / 2, padding / 2, padding / 2, padding / 2)
+            background = GradientDrawable().apply {
+                setColor(Color.argb(228, 9, 20, 31))
+                cornerRadius = padding.toFloat()
+            }
+        }
+        for (index in 0 until 4) {
+            val button = Button(this).apply {
+                isAllCaps = false
+                textSize = 15f
+                minHeight = (resources.displayMetrics.density * 48).toInt()
+                setOnClickListener {
+                    render(RomImportBridge.nativeRuntimeMenuSelect(index))
+                }
+            }
+            menuPanel.addView(button, LinearLayout.LayoutParams(-1, -2))
+            menuButtons.add(button)
+        }
+        sceneFrame.addView(menuPanel, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM,
+        ))
+        layout.addView(sceneFrame, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            (resources.displayMetrics.density * 360).toInt(),
+            (resources.displayMetrics.density * 460).toInt(),
         ))
         selectedLabel = TextView(this).apply {
             textSize = 20f
@@ -67,34 +89,16 @@ class RuntimeMenuActivity : Activity() {
         }
         layout.addView(selectedLabel)
 
-        dpadControls = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
-        dpadControls.addView(controlButton("▲", 4), LinearLayout.LayoutParams(-2, -2))
-        val dpadRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        dpadRow.addView(controlButton("◀", 6), LinearLayout.LayoutParams(0, -2, 1f))
-        dpadRow.addView(controlButton("●", 2), LinearLayout.LayoutParams(0, -2, 1f))
-        dpadRow.addView(controlButton("▶", 7), LinearLayout.LayoutParams(0, -2, 1f))
-        dpadControls.addView(dpadRow, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        dpadControls.addView(controlButton("▼", 5), LinearLayout.LayoutParams(-2, -2))
-        layout.addView(dpadControls)
-
-        confirmButton = controlButton("A · Confirmar", 2)
+        confirmButton = controlButton("Siguiente paso", 2)
         layout.addView(confirmButton)
         battleControls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        battleControls.addView(controlButton("Atacar", 8), LinearLayout.LayoutParams(0, -2, 1f))
-        battleControls.addView(controlButton("Habilidad", 9), LinearLayout.LayoutParams(0, -2, 1f))
-        battleControls.addView(controlButton("Huir", 10), LinearLayout.LayoutParams(0, -2, 1f))
+        battleControls.addView(controlButton("Comando 1", 8), LinearLayout.LayoutParams(0, -2, 1f))
+        battleControls.addView(controlButton("Comando 2", 9), LinearLayout.LayoutParams(0, -2, 1f))
         layout.addView(battleControls)
-        backButton = controlButton("B · Volver", 3)
+        backButton = controlButton("Volver al menú", 3)
         layout.addView(backButton)
         commandStatus = TextView(this).apply {
             setPadding(0, padding, 0, padding)
@@ -121,7 +125,6 @@ class RuntimeMenuActivity : Activity() {
 
     override fun onDestroy() {
         frameHandler.removeCallbacks(frameTicker)
-        toneGenerator.release()
         super.onDestroy()
     }
 
@@ -147,13 +150,11 @@ class RuntimeMenuActivity : Activity() {
         status.text = statusLabel(statusKey, screen)
         val selected = value("selected", "0").toIntOrNull() ?: 0
         val items = values.filter { it.first == "item" }.map { it.second.split('|') }
-        val selectedItem = items.getOrNull(selected)
-        val menuItems = items.mapNotNull { it.getOrNull(1)?.let(::labelFor) }
-        selectedLabel.text = selectedItem?.getOrNull(1)?.let(::labelFor) ?: when {
-            screen == "dialogue" -> "A · Avanzar evento"
-            screen == "battle" -> "Comandos reales del catálogo YW2"
-            screen == "world" -> "● · Interactuar"
-            else -> statusLabel(statusKey, screen)
+        updateMenu(items, selected)
+        selectedLabel.text = when (screen) {
+            "dialogue" -> "Avance estructural del evento; todavía no reproduce la escena"
+            "battle" -> "Selecciona un ID del catálogo; no se ejecuta un combate"
+            else -> ""
         }
 
         val meshVertices = values.filter { it.first == "scene_mesh_vertex" }.mapNotNull { entry ->
@@ -169,19 +170,12 @@ class RuntimeMenuActivity : Activity() {
         }
 
         val eventID = value("event_id")
-        val speaker = value("speaker")
         val dialogueText = eventDescription(
             eventID = eventID,
-            symbol = value("event_symbol"),
             instructions = value("event_instructions", "0").toIntOrNull() ?: 0,
-            arguments = value("event_arguments", "0").toIntOrNull() ?: 0,
-            decodedInstructions = value("event_decoded_instructions", "0").toIntOrNull() ?: 0,
             lineIndex = value("line_index", "0").toIntOrNull() ?: 0,
             lineCount = value("line_count", "0").toIntOrNull() ?: 0,
-            operationToken = value("event_exec_operation"),
             operationStatus = value("event_exec_operation_status", "idle"),
-            argumentIndex = value("event_exec_argument_index", "0"),
-            argumentCount = value("event_exec_argument_count", "0"),
         )
         val playerX = value("player_x", "0").toFloatOrNull() ?: 0f
         val playerY = value("player_y", "0").toFloatOrNull() ?: 0f
@@ -190,7 +184,7 @@ class RuntimeMenuActivity : Activity() {
             background = backgroundBitmap,
             playerX = playerX,
             playerY = playerY,
-            speaker = speaker,
+            speaker = "",
             dialogueText = dialogueText,
             enemyId = value("enemy_id"),
             playerHp = value("player_hp", "0").toIntOrNull() ?: 0,
@@ -199,8 +193,6 @@ class RuntimeMenuActivity : Activity() {
             enemyMaxHp = value("enemy_max_hp", "1").toIntOrNull() ?: 1,
             meshVertices = meshVertices,
             meshIndices = meshIndices,
-            menuItems = menuItems,
-            selectedIndex = selected,
             sceneHeightPercent = sceneHeightPercent,
             dialogueTopPercent = dialogueTopPercent,
         )
@@ -208,62 +200,53 @@ class RuntimeMenuActivity : Activity() {
         updateControls(screen)
 
         val command = value("command", "none")
-        val sceneResourceCount = values.count { it.first == "scene_resource" }
         val battleDefinition = value("battle_definition_id", "sin definición")
         val battleCommandCount = value("battle_configured_command_count", "0")
         val battleLastCommand = value("battle_last_command_id", "")
         commandStatus.text = when {
-            screen == "dialogue" -> dialogueText
+            screen == "dialogue" -> "Programa: $eventID\nLa semántica de esta escena sigue pendiente."
             screen == "battle" -> {
                 val selectedCommand = if (battleLastCommand.isEmpty()) {
-                    "Ningún comando seleccionado"
+                    "Ningún ID seleccionado"
                 } else {
-                    "Último comando real: $battleLastCommand"
+                    "ID seleccionado: $battleLastCommand"
                 }
-                "Combate configurado: $battleDefinition\n$battleCommandCount comandos reales detectados.\n$selectedCommand\nFalta interpretar reglas y encuentros para resolver daño, enemigos y victoria."
+                "$battleDefinition · $battleCommandCount IDs indexados\n$selectedCommand"
             }
             command == "request_authorized_import" -> "Selecciona una copia autorizada desde el menú de importación."
-            command == "start_new_game" -> "Nueva partida iniciada."
-            command == "advance_dialogue" -> "Historia avanzada."
-            command == "start_battle" -> "Definición de combate de YW2 cargada."
-            command == "battle_won" -> "¡Victoria!"
-            command == "battle_escaped" -> "Has escapado del combate."
-            command == "battle_defeated" -> "Has sido derrotado."
-            command == "open_settings" -> "Las opciones se conectarán en la siguiente fase."
-            screen == "world" -> {
-                val map = value("world_map", "mapa pendiente")
-                "Mapa YW2: $map\nJugador: (${value("player_x")}, ${value("player_y")})\n$sceneResourceCount recursos indexados."
-            }
+            screen == "title_menu" -> "Nueva partida y Continuar se activarán cuando historia, mapa y guardado funcionen con datos YW2."
             else -> ""
         }
-        playAudioCue(value("audio_sequence", "0").toLongOrNull() ?: 0L, value("audio_cue"))
         if (command == "request_authorized_import") finish()
     }
 
-    private fun updateControls(screen: String) {
-        dpadControls.visibility = if (screen == "title_menu" || screen == "world") {
-            View.VISIBLE
-        } else {
-            View.GONE
+    private fun updateMenu(items: List<List<String>>, selected: Int) {
+        val state = items.joinToString(";") { it.joinToString("|") } + ":$selected"
+        if (state == lastMenuState) return
+        lastMenuState = state
+        menuButtons.forEachIndexed { index, button ->
+            val item = items.getOrNull(index)
+            val enabled = item?.getOrNull(2) == "1"
+            button.text = item?.getOrNull(1)?.let(::labelFor) ?: ""
+            button.isEnabled = enabled
+            button.visibility = if (item == null) View.GONE else View.VISIBLE
+            button.setTextColor(if (enabled) Color.WHITE else Color.rgb(158, 174, 184))
+            button.background = GradientDrawable().apply {
+                setColor(if (index == selected && enabled) Color.rgb(24, 113, 142)
+                    else Color.rgb(22, 40, 53))
+                cornerRadius = resources.displayMetrics.density * 12
+                setStroke((resources.displayMetrics.density * 1).toInt(),
+                    if (enabled) Color.rgb(67, 172, 198) else Color.rgb(58, 75, 85))
+            }
         }
-        confirmButton.visibility = if (screen == "title_menu" || screen == "world" ||
-            screen == "dialogue") View.VISIBLE else View.GONE
-        battleControls.visibility = if (screen == "battle") View.VISIBLE else View.GONE
-        backButton.visibility = if (screen == "world" || screen == "dialogue" ||
-            screen == "battle") View.VISIBLE else View.GONE
     }
 
-    private fun playAudioCue(sequence: Long, cue: String) {
-        if (sequence <= lastAudioSequence) return
-        lastAudioSequence = sequence
-        val tone = when {
-            cue == "victory" -> ToneGenerator.TONE_PROP_ACK
-            cue == "defeat" -> ToneGenerator.TONE_PROP_NACK
-            cue == "battle_start" || cue.startsWith("battle_definition:") ->
-                ToneGenerator.TONE_PROP_PROMPT
-            else -> ToneGenerator.TONE_PROP_BEEP
-        }
-        toneGenerator.startTone(tone, 120)
+    private fun updateControls(screen: String) {
+        menuPanel.visibility = if (screen == "title_menu") View.VISIBLE else View.GONE
+        confirmButton.visibility = if (screen == "dialogue") View.VISIBLE else View.GONE
+        battleControls.visibility = if (screen == "battle") View.VISIBLE else View.GONE
+        backButton.visibility = if (screen == "dialogue" ||
+            screen == "battle") View.VISIBLE else View.GONE
     }
 
     private fun renderBackground() {
@@ -288,16 +271,10 @@ class RuntimeMenuActivity : Activity() {
 
     private fun eventDescription(
         eventID: String,
-        symbol: String,
         instructions: Int,
-        arguments: Int,
-        decodedInstructions: Int,
         lineIndex: Int,
         lineCount: Int,
-        operationToken: String,
         operationStatus: String,
-        argumentIndex: String,
-        argumentCount: String,
     ): String {
         if (eventID.isEmpty()) return "No se encontró un evento de apertura compatible en el dump."
         val total = if (lineCount > 0) lineCount else instructions
@@ -308,21 +285,21 @@ class RuntimeMenuActivity : Activity() {
             "completed" -> "Evento completado"
             else -> "Paso de evento"
         }
-        return "$eventID\n$step\n$operation"
+        return "$step\n$operation"
     }
 
     private fun labelFor(key: String): String = when (key) {
         "menu.new_game" -> "Nueva partida"
         "menu.continue" -> "Continuar"
-        "menu.settings" -> "Opciones"
+        "menu.inspect_opening" -> "Inspeccionar apertura YW2"
+        "menu.battle_catalog" -> "Consultar catálogo de combate"
         else -> key
     }
 
     private fun statusLabel(key: String, screen: String): String = when {
-        screen == "dialogue" -> "Historia"
-        screen == "battle" -> "Combate"
-        key == "runtime.title_menu" -> "Presentación YW2 · contenido indexado"
-        key == "runtime.world" -> "Explorando Yo-kai Watch 2"
+        screen == "dialogue" -> "Evento de apertura · inspección"
+        screen == "battle" -> "Datos de combate · catálogo"
+        key == "runtime.title_menu" -> "Yo-kai Watch 2 · prototipo móvil"
         key == "runtime.content_missing" -> "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
         key == "import.required" -> "Selecciona una copia autorizada para importar."
         key == "import.incomplete" -> "La importación está incompleta; vuelve a seleccionar el dump."

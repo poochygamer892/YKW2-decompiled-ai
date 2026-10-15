@@ -121,26 +121,25 @@ void test_selects_scene_resources_by_role_and_path() {
     };
 
     const auto resources = ykw2::core::select_initial_scene_resources(archive);
-    assert(resources.size() == 3);
+    assert(resources.size() == 2);
     assert(resources[0].role == ykw2::core::InitialSceneResourceRole::Map);
     assert(resources[0].path == "data/map/e100g002/e100g002.xc");
     assert(resources[1].role == ykw2::core::InitialSceneResourceRole::Character);
     assert(resources[1].path == "data/character/c000010/c000010_p00.xc");
-    assert(resources[2].role == ykw2::core::InitialSceneResourceRole::Background);
-    assert(resources[2].path == "data/map/bg/bg01.xi");
 }
 
-void test_prefers_localized_menu_background_when_available() {
+void test_uses_only_title_related_image_for_menu() {
     ykw2::core::Arc0Archive archive;
     archive.files = {
         {"data/menu/img/battle_parts00.xi", 100, 10, 0},
         {"data/menu/img/esus/transfer_image00.xi", 200, 20, 0},
         {"data/menu/img/frca/transfer_image00.xi", 300, 30, 0},
+        {"data/menu/img/title_back.xi", 400, 40, 0},
     };
     const auto resources = ykw2::core::select_initial_scene_resources(archive);
     assert(resources.size() == 1);
     assert(resources[0].role == ykw2::core::InitialSceneResourceRole::Background);
-    assert(resources[0].path == "data/menu/img/esus/transfer_image00.xi");
+    assert(resources[0].path == "data/menu/img/title_back.xi");
 }
 
 void test_selects_runtime_content_manifest() {
@@ -165,7 +164,7 @@ int main() {
     test_loads_canonical_archive_and_fallback_path();
     test_reports_missing_archive();
     test_selects_scene_resources_by_role_and_path();
-    test_prefers_localized_menu_background_when_available();
+    test_uses_only_title_related_image_for_menu();
     test_selects_runtime_content_manifest();
     return 0;
 }

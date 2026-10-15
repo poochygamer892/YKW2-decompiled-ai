@@ -35,14 +35,13 @@ Prioridades:
   índices que usan `ResourceStore`, descomprimen sus tablas y validan offsets
   de archivos anidados sin copiar el archivo completo; ARC0 también ofrece
   lectura por rango de un recurso anidado para el renderer.
-- `ykw2/core/runtime_scene.hpp`: primera escena portable; expone estado de
-  importación, menú inicial y comandos para que cada plataforma dibuje su UI.
+- `ykw2/core/runtime_scene.hpp`: menú portable con inspección XQ32 y catálogo
+  de combate; no habilita partida nueva, continuación ni guardado ficticio.
 - `ykw2/core/mobile_presentation.hpp`: perfil de presentación móvil
   independiente, inspirado en la UX de YW1 pero aplicado al contenido de YW2.
-- `ykw2/core/initial_content.hpp`: localiza y valida el índice ARC0 del
-  archivo inicial antes de habilitar Nueva partida y selecciona metadatos de
-  mapa, personaje y fondo para la primera escena; durante el arranque valida
-  los índices XPCK de mapa/personaje y la cabecera IMGC del fondo.
+- `ykw2/core/initial_content.hpp`: valida el índice ARC0 del archivo inicial,
+  indexa mapa/personaje y busca opcionalmente una imagen IMGC relacionada con
+  el título. No valida jugabilidad ni habilita «Nueva partida».
 - `ykw2/core/import_contract.hpp`: validación acotada de NCSD y plan de
   importación que exige confirmación local de derechos.
 - `ykw2/core/romfs_extract.hpp`: lector NCCH/RomFS para fuentes descifradas y

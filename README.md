@@ -41,25 +41,25 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
 
 ## Estado actual
 
-- El núcleo C++17 valida NCSD/NCCH, extrae la RomFS autorizada a un caché privado,
-  carga `yw2_a.fa`, inspecciona ARC0/XPCK/IMGC y selecciona el primer mapa,
-  personaje y fondo localizado.
+- El núcleo C++17 valida NCSD/NCCH, extrae la RomFS autorizada a un caché privado
+  e inspecciona ARC0/XPCK/IMGC. Los mapas y personajes se indexan, pero aún no
+  forman una escena jugable.
 - El núcleo C++17 identifica un manifiesto de arranque real dentro de YW2:
   secuencias de título/menú, el evento inicial, configuración de combate y sus
   texturas de interfaz. También valida las cabeceras estructurales de las
   tablas de vista/IA de combate y de los catálogos de sonido de mapa/evento.
   Las rutas se resuelven exclusivamente desde el dump importado del usuario.
-- Android e iOS tienen importación, ciclo de actualización y renderizado nativo
-  de los recursos IMGC ya soportados. El núcleo decodifica las tablas XQ32 del
-  evento inicial real y expone sus filas al runtime para trazar la ejecución.
+- Android e iOS tienen importación y un menú táctil nativo. «Nueva partida» y
+  «Continuar» están bloqueados. Solo se puede inspeccionar estructuralmente el
+  evento XQ32 inicial y consultar IDs de combate cuando existen esos datos.
+  El núcleo decodifica las tablas XQ32 y expone sus filas para inspección.
   El snapshot común publica el perfil `ykw2_mobile` con referencia
   `yw1_smartphone`, de modo que ambas plataformas comparten la presentación
   móvil sin cargar el ejecutable de YW1. El lector XMPR/XPVB/XPVI ya extrae
-  una malla acotada del primer mapa y los clientes dibujan esa geometría como
-  previsualización nativa.
+  una malla acotada del primer mapa, aún sin renderizado 3D de juego.
   El runtime de combate ya selecciona comandos desde las filas reales de
   `battle_command` y los clientes táctiles los muestran como comandos
-  seleccionados. Todavía faltan la semántica probada de todos los opcodes,
+  seleccionados en el catálogo, sin iniciar combates. Todavía faltan la semántica probada de todos los opcodes,
   materiales y animaciones 3D, el decoder de audio propietario y las reglas
   completas de combate; esos límites siguen explícitos para no presentar una
   demo como el port jugable terminado.

@@ -536,6 +536,19 @@ Java_com_ykw2_port_RomImportBridge_nativeRuntimeInput(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeRuntimeMenuSelect(
+    JNIEnv* environment, jobject, jint index) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    if (index < 0 || !runtime_started) {
+        return to_java_string(environment, ykw2::core::serialize_runtime_response(
+            {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot()));
+    }
+    const auto transition = runtime_scene.select_menu_item(static_cast<std::size_t>(index));
+    return to_java_string(environment, ykw2::core::serialize_runtime_response(
+        transition, runtime_scene.snapshot()));
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_com_ykw2_port_RomImportBridge_nativeRuntimeAdvance(
     JNIEnv* environment, jobject, jdouble delta_seconds) {
     std::lock_guard<std::mutex> lock(runtime_mutex);

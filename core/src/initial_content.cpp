@@ -74,23 +74,17 @@ bool is_character_resource(std::string_view path) {
 }
 
 bool is_background_resource(std::string_view path) {
-    return (starts_with(path, "data/map/bg/") || starts_with(path, "data/menu/img/")) &&
-           ends_with(path, ".xi");
+    if (!starts_with(path, "data/menu/img/") || !ends_with(path, ".xi")) {
+        return false;
+    }
+    std::string lower(path);
+    std::transform(lower.begin(), lower.end(), lower.begin(), lower_ascii);
+    return lower.find("title") != std::string::npos;
 }
 
 const Arc0File* first_background_match(const Arc0Archive& archive) {
-    // The 3DS dump uses a localized menu image for the first native screen;
-    // keep a deterministic map-background fallback for older/sample archives.
-    if (const auto* preferred = archive.find("data/menu/img/esus/transfer_image00.xi");
-        preferred != nullptr) {
-        return preferred;
-    }
-    if (const auto* map_background = first_path_match(archive, [](std::string_view path) {
-            return starts_with(path, "data/map/bg/") && ends_with(path, ".xi");
-        });
-        map_background != nullptr) {
-        return map_background;
-    }
+    // A transfer image or an arbitrary map backdrop is not the title screen.
+    // If no title-related IMGC is indexed, the mobile shell draws its own background.
     return first_path_match(archive, is_background_resource);
 }
 
@@ -366,14 +360,17 @@ ParseResult<InitialContentInfo> load_initial_content(
         result.opening_event_program = *opening_program.value;
     }
     result.scene_resources = select_initial_scene_resources(*archive.value);
-    for (auto& resource : result.scene_resources) {
+    std::vector<InitialSceneResource> verified_resources;
+    for (auto resource : result.scene_resources) {
         const auto* file = archive.value->find(resource.path);
         if (file == nullptr) {
             return failure<InitialContentInfo>("initial_scene_resource_not_found");
         }
+        const bool optional_background = resource.role == InitialSceneResourceRole::Background;
         const auto inspected = inspect_scene_resource(
             store, result.archive_path, *file, std::move(resource));
         if (!inspected) {
+            if (optional_background) continue;
             return failure<InitialContentInfo>(
                 inspected.error->code, inspected.error->offset);
         }
@@ -383,11 +380,13 @@ ParseResult<InitialContentInfo> load_initial_content(
                 store, result.archive_path, resource.offset, resource.size,
                 resource.path);
             if (!window) {
+                if (optional_background) continue;
                 return failure<InitialContentInfo>(
                     window.error->code, window.error->offset);
             }
             const auto image = decode_imgc_image(*window.value, resource.path);
             if (!image) {
+                if (optional_background) continue;
                 return failure<InitialContentInfo>(
                     image.error->code, image.error->offset);
             }
@@ -396,7 +395,9 @@ ParseResult<InitialContentInfo> load_initial_content(
             result.background_format = image.value->format;
             result.background_rgba = std::move(image.value->rgba);
         }
+        verified_resources.push_back(std::move(resource));
     }
+    result.scene_resources = std::move(verified_resources);
     return ParseResult<InitialContentInfo>::success(std::move(result));
 }
 

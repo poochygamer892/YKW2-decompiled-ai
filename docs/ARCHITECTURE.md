@@ -75,8 +75,8 @@ reconstruyen en el núcleo propio.
 - licencias y procedencia de cada dependencia.
 
 `RuntimeScene` es la frontera lógica actual: las plataformas reciben un
-snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación y
-`runtime_save` persiste sólo el estado de la escena. Android usa JNI y un
+snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación.
+El guardado se rechaza hasta que exista estado de juego real. Android usa JNI y un
 `Handler`; iOS usa Objective-C++ y `CADisplayLink`. `xq32_reader` descomprime y
 expone las filas crudas de los programas reales; `xq32_execution` selecciona
 una función por símbolo y mantiene el cursor dentro de sus límites y
@@ -88,7 +88,7 @@ ahora el prefijo de 16 bytes de cada CFG de combate y sonido seleccionado y
 publica sus palabras crudas, sin afirmar semánticas no demostradas.
 `initial_content` conserva además los registros identificables de
 `battle_config`, `battle_command` y `map_sound`; el runtime usa los IDs reales
-de `battle_command` para responder a Atacar/Habilidad sin inventar daño. El
+de `battle_command` para seleccionar IDs en un catálogo sin inventar daño. El
 siguiente bloque es recuperar esos significados con evidencia del ejecutable y
 de los eventos observables. El renderizado de mapas, el decoder de audio, el
 combate y la traducción completa de recursos siguen siendo trabajo posterior;

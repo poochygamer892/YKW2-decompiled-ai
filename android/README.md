@@ -1,9 +1,8 @@
 # Android
 
-Cliente nativo Android. El núcleo común vive en `../core` y se integrará
-mediante el NDK/CMake cuando se añada la aplicación. El adaptador Android debe
-implementar `ykw2::core::ResourceSource` para `assets/` o almacenamiento local,
-sin copiar ROMs ni recursos al repositorio.
+Cliente nativo Android. El núcleo común se integra mediante NDK/CMake. El
+adaptador lee el caché privado mediante `ResourceSource`, sin copiar ROMs ni
+recursos al repositorio.
 
 El proyecto Gradle está en este directorio (`settings.gradle.kts` y
 `build.gradle.kts`) y usa `src/main/cpp/CMakeLists.txt` para compilar el núcleo
@@ -28,15 +27,13 @@ descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
 mostrar que la caché está lista; contiene el runtime inicial, pero todavía no
 es el juego jugable completo.
 
-`RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
-del núcleo mediante JNI y envía navegación y confirmación al mismo estado C++.
-`RuntimeSceneView.kt` dibuja el fondo IMGC y la malla de mapa que provienen del
-contenido YW2; el menú y el paso del evento XQ32 se presentan dentro de la
-escena. Los controles táctiles son contextuales al menú, evento, mundo o
-catálogo de combate y se mantienen dentro de un `ScrollView`.
+`RuntimeMenuActivity.kt` hospeda el menú táctil nativo: recibe snapshots del
+núcleo mediante JNI y selecciona directamente las opciones disponibles.
+`RuntimeSceneView.kt` puede dibujar una imagen IMGC relacionada con el título.
+Los controles del inspector XQ32 y del catálogo de combate son contextuales.
 Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
-parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
-que ese contenido sea legible.
+parsea el índice ARC0 de `yw2_a.fa`; «Nueva partida» y «Continuar» permanecen
+bloqueadas incluso si los recursos son legibles.
 El núcleo ya identifica eventos, reglas, vista/IA de combate y catálogos de
 sonido reales de YW2. El evento de apertura avanza mediante el cursor XQ32
 acotado y la interfaz muestra su estado estructural sobre el fondo extraído;

@@ -1,4 +1,3 @@
-import AudioToolbox
 import UIKit
 
 /// A lightweight scene renderer shared by the portable runtime on iOS.
@@ -16,8 +15,6 @@ final class RuntimeSceneCanvasView: UIView {
     private var enemyMaxHP = 1
     private var meshVertices: [SIMD3<Float>] = []
     private var meshIndices: [Int] = []
-    private var menuItems: [String] = []
-    private var selectedIndex = 0
     private var sceneHeightPercent: CGFloat = 58
     private var dialogueTopPercent: CGFloat = 55
 
@@ -25,8 +22,7 @@ final class RuntimeSceneCanvasView: UIView {
                 dialogueText: String, enemyID: String, playerHP: Int,
                 playerMaxHP: Int, enemyHP: Int, enemyMaxHP: Int,
                 sceneHeightPercent: CGFloat, dialogueTopPercent: CGFloat,
-                meshVertices: [SIMD3<Float>] = [], meshIndices: [Int] = [],
-                menuItems: [String] = [], selectedIndex: Int = 0) {
+                meshVertices: [SIMD3<Float>] = [], meshIndices: [Int] = []) {
         self.screen = screen
         self.playerX = playerX
         self.playerY = playerY
@@ -39,8 +35,6 @@ final class RuntimeSceneCanvasView: UIView {
         self.enemyMaxHP = max(1, enemyMaxHP)
         self.meshVertices = meshVertices
         self.meshIndices = meshIndices
-        self.menuItems = menuItems
-        self.selectedIndex = selectedIndex
         self.sceneHeightPercent = min(90, max(20, sceneHeightPercent))
         self.dialogueTopPercent = min(90, max(30, dialogueTopPercent))
         setNeedsDisplay()
@@ -69,22 +63,12 @@ final class RuntimeSceneCanvasView: UIView {
     }
 
     private func drawMenu() {
-        let panelTop = bounds.height * 0.58
         UIColor(red: 0.03, green: 0.05, blue: 0.1, alpha: 0.92).setFill()
-        UIBezierPath(roundedRect: CGRect(x: 12, y: panelTop, width: bounds.width - 24,
-                                         height: bounds.height - panelTop - 12), cornerRadius: 16).fill()
-        drawText("Yo-kai Watch 2", at: CGPoint(x: 28, y: panelTop + 18), color: .white, size: 18)
-        for (index, item) in menuItems.enumerated() {
-            let top = panelTop + 52 + CGFloat(index) * 38
-            let selected = index == selectedIndex
-            (selected ? UIColor(red: 0.2, green: 0.67, blue: 0.84, alpha: 1) :
-                UIColor(white: 0.85, alpha: 0.72)).setFill()
-            UIBezierPath(roundedRect: CGRect(x: 22, y: top - 22, width: bounds.width - 44,
-                                             height: 30), cornerRadius: 8).fill()
-            drawText(item, at: CGPoint(x: 34, y: top - 2),
-                     color: selected ? .white : UIColor(red: 0.06, green: 0.1, blue: 0.15, alpha: 1),
-                     size: 16)
-        }
+        UIBezierPath(roundedRect: CGRect(x: 12, y: 12, width: bounds.width - 24,
+                                         height: bounds.height * 0.3), cornerRadius: 16).fill()
+        drawText("Yo-kai Watch 2", at: CGPoint(x: 28, y: 34), color: .white, size: 28)
+        drawText("Cliente móvil · recursos YW2", at: CGPoint(x: 28, y: 72),
+                 color: UIColor(red: 0.52, green: 0.86, blue: 0.94, alpha: 1), size: 14)
     }
 
     private func drawWorld() {
@@ -142,17 +126,19 @@ final class RuntimeSceneCanvasView: UIView {
         UIColor(red: 0.03, green: 0.05, blue: 0.1, alpha: 0.92).setFill()
         UIBezierPath(roundedRect: CGRect(x: 12, y: panelTop, width: bounds.width - 24,
                                          height: bounds.height - panelTop - 10), cornerRadius: 14).fill()
-        drawText(speaker.isEmpty ? "Evento de apertura" : speaker,
+        drawText("Inspección de apertura",
                  at: CGPoint(x: 28, y: panelTop + 14), color: UIColor(
             red: 0.42, green: 0.86, blue: 1, alpha: 1), size: 17)
-        drawText(dialogueText, at: CGPoint(x: 28, y: panelTop + 47), color: .white, size: 16)
+        (dialogueText as NSString).draw(in: CGRect(x: 28, y: panelTop + 47,
+            width: bounds.width - 56, height: bounds.height - panelTop - 55), withAttributes: [
+            .font: UIFont.systemFont(ofSize: 16), .foregroundColor: UIColor.white])
     }
 
     private func drawBattle() {
         UIColor(red: 0.06, green: 0.1, blue: 0.18, alpha: 0.95).setFill()
         UIBezierPath(roundedRect: bounds.insetBy(dx: 12, dy: 12), cornerRadius: 16).fill()
-        drawText("Combate de Yo-kai Watch 2", at: CGPoint(x: 18, y: 28), color: .white, size: 17)
-        drawText("Las reglas y el encuentro se interpretarán desde el dump autorizado.",
+        drawText("Catálogo de combate YW2", at: CGPoint(x: 18, y: 28), color: .white, size: 17)
+        drawText("Comandos leídos del dump. No hay encuentro ni reglas ejecutándose.",
                  at: CGPoint(x: 18, y: 64), color: .white, size: 14)
     }
 
@@ -171,12 +157,13 @@ final class RuntimeViewController: UIViewController {
     private let selectedLabel = UILabel()
     private let commandLabel = UILabel()
     private let sceneView = RuntimeSceneCanvasView()
-    private var dpadControls: UIStackView!
+    private let sceneContainer = UIView()
+    private let menuPanel = UIStackView()
+    private var menuButtons: [UIButton] = []
     private var confirmButton: UIButton!
     private var battleControls: UIStackView!
     private var backButton: UIButton!
     private var displayLink: CADisplayLink?
-    private var lastAudioSequence: UInt64 = 0
 
     init(cacheURL: URL) {
         self.cacheURL = cacheURL
@@ -195,37 +182,53 @@ final class RuntimeViewController: UIViewController {
         statusLabel.textAlignment = .center
         selectedLabel.font = .preferredFont(forTextStyle: .title2)
         selectedLabel.textAlignment = .center
+        selectedLabel.numberOfLines = 0
         commandLabel.numberOfLines = 0
         commandLabel.textAlignment = .center
 
-        let up = button("▲", #selector(moveUp))
-        let down = button("▼", #selector(moveDown))
-        let left = button("◀", #selector(moveLeft))
-        let right = button("▶", #selector(moveRight))
-        let center = button("●", #selector(confirmSelection))
-        let attack = button("Atacar", #selector(attack))
-        let skill = button("Habilidad", #selector(skill))
-        let run = button("Huir", #selector(run))
-        backButton = button("B · Volver", #selector(moveBack))
-        confirmButton = button("A · Confirmar", #selector(confirmSelection))
-
-        let dpadMiddle = UIStackView(arrangedSubviews: [left, center, right])
-        dpadMiddle.axis = .horizontal
-        dpadMiddle.distribution = .fillEqually
-        dpadControls = UIStackView(arrangedSubviews: [up, dpadMiddle, down])
-        dpadControls.axis = .vertical
-        dpadControls.alignment = .center
-        dpadControls.spacing = 2
-        battleControls = UIStackView(arrangedSubviews: [attack, skill, run])
+        let attack = button("Comando 1", #selector(attack))
+        let skill = button("Comando 2", #selector(skill))
+        backButton = button("Volver al menú", #selector(moveBack))
+        confirmButton = button("Siguiente paso", #selector(confirmSelection))
+        battleControls = UIStackView(arrangedSubviews: [attack, skill])
         battleControls.axis = .horizontal
         battleControls.distribution = .fillEqually
 
-        let stack = UIStackView(arrangedSubviews: [statusLabel, sceneView, selectedLabel,
-            dpadControls, confirmButton, battleControls, backButton, commandLabel])
+        sceneContainer.addSubview(sceneView)
+        sceneView.translatesAutoresizingMaskIntoConstraints = false
+        menuPanel.axis = .vertical
+        menuPanel.spacing = 5
+        menuPanel.backgroundColor = UIColor(red: 0.035, green: 0.08, blue: 0.12, alpha: 0.94)
+        menuPanel.layer.cornerRadius = 16
+        menuPanel.layoutMargins = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        menuPanel.isLayoutMarginsRelativeArrangement = true
+        menuPanel.translatesAutoresizingMaskIntoConstraints = false
+        for index in 0..<4 {
+            let item = button("", #selector(selectMenuItem(_:)))
+            item.tag = index
+            item.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+            item.layer.cornerRadius = 11
+            item.heightAnchor.constraint(greaterThanOrEqualToConstant: 45).isActive = true
+            menuPanel.addArrangedSubview(item)
+            menuButtons.append(item)
+        }
+        sceneContainer.addSubview(menuPanel)
+        NSLayoutConstraint.activate([
+            sceneView.leadingAnchor.constraint(equalTo: sceneContainer.leadingAnchor),
+            sceneView.trailingAnchor.constraint(equalTo: sceneContainer.trailingAnchor),
+            sceneView.topAnchor.constraint(equalTo: sceneContainer.topAnchor),
+            sceneView.bottomAnchor.constraint(equalTo: sceneContainer.bottomAnchor),
+            menuPanel.leadingAnchor.constraint(equalTo: sceneContainer.leadingAnchor, constant: 10),
+            menuPanel.trailingAnchor.constraint(equalTo: sceneContainer.trailingAnchor, constant: -10),
+            menuPanel.bottomAnchor.constraint(equalTo: sceneContainer.bottomAnchor, constant: -10),
+        ])
+
+        let stack = UIStackView(arrangedSubviews: [statusLabel, sceneContainer, selectedLabel,
+            confirmButton, battleControls, backButton, commandLabel])
         stack.axis = .vertical
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
-        sceneView.heightAnchor.constraint(equalToConstant: 360).isActive = true
+        sceneContainer.heightAnchor.constraint(equalToConstant: 460).isActive = true
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
@@ -266,10 +269,14 @@ final class RuntimeViewController: UIViewController {
     }
 
     private func updateControls(for screen: String) {
-        dpadControls.isHidden = screen != "title_menu" && screen != "world"
-        confirmButton.isHidden = screen != "title_menu" && screen != "world" && screen != "dialogue"
+        menuPanel.isHidden = screen != "title_menu"
+        confirmButton.isHidden = screen != "dialogue"
         battleControls.isHidden = screen != "battle"
-        backButton.isHidden = screen != "world" && screen != "dialogue" && screen != "battle"
+        backButton.isHidden = screen != "dialogue" && screen != "battle"
+    }
+
+    @objc private func selectMenuItem(_ sender: UIButton) {
+        render(YKW2ImportBridge.selectRuntimeMenuItem(sender.tag))
     }
 
     @objc private func advanceFrame(_ displayLink: CADisplayLink) {
@@ -318,8 +325,6 @@ final class RuntimeViewController: UIViewController {
         var playerMaxHP = 1
         var enemyHP = 0
         var enemyMaxHP = 1
-        var audioSequence: UInt64 = 0
-        var audioCue = ""
         var battleDefinition = "sin definición"
         var battleCommandCount = 0
         var battleLastCommand = ""
@@ -357,8 +362,6 @@ final class RuntimeViewController: UIViewController {
             case "player_max_hp": playerMaxHP = Int(parts[1]) ?? 1
             case "enemy_hp": enemyHP = Int(parts[1]) ?? 0
             case "enemy_max_hp": enemyMaxHP = Int(parts[1]) ?? 1
-            case "audio_sequence": audioSequence = UInt64(parts[1]) ?? 0
-            case "audio_cue": audioCue = parts[1]
             case "battle_definition_id": battleDefinition = parts[1]
             case "battle_configured_command_count": battleCommandCount = Int(parts[1]) ?? 0
             case "battle_last_command_id": battleLastCommand = parts[1]
@@ -374,74 +377,69 @@ final class RuntimeViewController: UIViewController {
         }
         statusLabel.text = statusText(for: status, screen: screen)
         updateControls(for: screen)
-        if items.indices.contains(selected), items[selected].count > 1 {
-            selectedLabel.text = label(for: items[selected][1])
-        } else if screen == "dialogue" {
-            selectedLabel.text = "A · Avanzar evento"
-        } else if screen == "battle" {
-            selectedLabel.text = "Comandos reales del catálogo YW2"
-        } else if screen == "world" {
-            selectedLabel.text = "● · Interactuar"
-        } else {
-            selectedLabel.text = statusText(for: status, screen: screen)
-        }
-        let menuItems = items.compactMap { $0.count > 1 ? label(for: $0[1]) : nil }
-        let dialogue = eventDescription(eventID: eventID, symbol: eventSymbol,
-                                        instructions: eventInstructions, arguments: eventArguments,
-                                        decodedInstructions: eventDecodedInstructions,
+        updateMenu(items: items, selected: selected)
+        selectedLabel.text = screen == "dialogue" ?
+            "Avance estructural del evento; todavía no reproduce la escena" :
+            screen == "battle" ? "Selecciona un ID; no se ejecuta un combate" : ""
+        let dialogue = eventDescription(eventID: eventID,
+                                        instructions: eventInstructions,
                                         lineIndex: lineIndex, lineCount: lineCount,
-                                        operationToken: operationToken,
-                                        operationStatus: operationStatus,
-                                        argumentIndex: argumentIndex, argumentCount: argumentCount)
+                                        operationStatus: operationStatus)
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY,
                          speaker: screen == "dialogue" ? "" : speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
                          playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP,
                          sceneHeightPercent: sceneHeightPercent,
                          dialogueTopPercent: dialogueTopPercent,
-                         meshVertices: meshVertices, meshIndices: meshIndices,
-                         menuItems: menuItems, selectedIndex: selected)
+                         meshVertices: meshVertices, meshIndices: meshIndices)
         commandLabel.text = commandText(command: command, screen: screen, speaker: speaker,
                                         dialogue: dialogue, worldMap: worldMap, playerX: playerX,
                                         playerY: playerY, sceneResourceCount: sceneResourceCount,
                                         enemyID: enemyID, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
         if screen == "battle" {
             let selectedCommand = battleLastCommand.isEmpty
-                ? "Ningún comando seleccionado"
-                : "Último comando real: \(battleLastCommand)"
-            commandLabel.text = "Combate configurado: \(battleDefinition)\n\(battleCommandCount) comandos reales detectados.\n\(selectedCommand)\nFalta interpretar reglas y encuentros para resolver daño, enemigos y victoria."
+                ? "Ningún ID seleccionado"
+                : "ID seleccionado: \(battleLastCommand)"
+            commandLabel.text = "\(battleDefinition) · \(battleCommandCount) IDs indexados\n\(selectedCommand)"
         }
-        playAudioCue(sequence: audioSequence, cue: audioCue)
+    }
+
+    private func updateMenu(items: [[String]], selected: Int) {
+        for (index, button) in menuButtons.enumerated() {
+            guard items.indices.contains(index), items[index].count >= 3 else {
+                button.isHidden = true
+                continue
+            }
+            let item = items[index]
+            let enabled = item[2] == "1"
+            button.isHidden = false
+            button.isEnabled = enabled
+            button.setTitle(label(for: item[1]), for: .normal)
+            button.setTitleColor(enabled ? .white : UIColor(white: 0.65, alpha: 1), for: .normal)
+            button.backgroundColor = index == selected && enabled
+                ? UIColor(red: 0.09, green: 0.44, blue: 0.56, alpha: 1)
+                : UIColor(red: 0.09, green: 0.16, blue: 0.21, alpha: 1)
+            button.layer.borderWidth = 1
+            button.layer.borderColor = enabled
+                ? UIColor(red: 0.26, green: 0.67, blue: 0.78, alpha: 1).cgColor
+                : UIColor(red: 0.23, green: 0.3, blue: 0.34, alpha: 1).cgColor
+        }
     }
 
     private func commandText(command: String, screen: String, speaker: String, dialogue: String,
                              worldMap: String, playerX: Float, playerY: Float,
                              sceneResourceCount: Int, enemyID: String, enemyHP: Int,
                              enemyMaxHP: Int) -> String {
-        if screen == "dialogue" { return "\(speaker)\n\(dialogue)" }
-        if screen == "battle" { return "El intérprete de reglas y encuentros de YW2 aún no está disponible." }
+        if screen == "dialogue" { return "La semántica de esta escena sigue pendiente." }
+        if screen == "battle" { return "Catálogo de datos YW2; no hay encuentro en ejecución." }
         switch command {
         case "request_authorized_import": return "Selecciona una copia autorizada desde el menú de importación."
-        case "start_new_game": return "Nueva partida iniciada."
-        case "advance_dialogue": return "Historia avanzada."
-        case "start_battle": return "Definición de combate de YW2 cargada."
-        case "battle_won": return "¡Victoria!"
-        case "battle_escaped": return "Has escapado del combate."
-        case "battle_defeated": return "Has sido derrotado."
-        case "open_settings": return "Las opciones se conectarán en la siguiente fase."
         default: break
         }
-        if screen == "world" {
-            return "Mapa YW2: \(worldMap)\nJugador: (\(playerX), \(playerY))\n\(sceneResourceCount) recursos indexados."
+        if screen == "title_menu" {
+            return "Nueva partida y Continuar se activarán cuando historia, mapa y guardado funcionen con datos YW2."
         }
         return ""
-    }
-
-    private func playAudioCue(sequence: UInt64, cue: String) {
-        guard sequence > lastAudioSequence else { return }
-        lastAudioSequence = sequence
-        let sound: SystemSoundID = cue == "victory" ? 1057 : cue == "defeat" ? 1073 : 1104
-        AudioServicesPlaySystemSound(sound)
     }
 
     private func renderBackground() {
@@ -462,11 +460,9 @@ final class RuntimeViewController: UIViewController {
         sceneView.setNeedsDisplay()
     }
 
-    private func eventDescription(eventID: String, symbol: String, instructions: Int,
-                                  arguments: Int, decodedInstructions: Int,
-                                  lineIndex: Int, lineCount: Int, operationToken: String,
-                                  operationStatus: String,
-                                  argumentIndex: Int, argumentCount: Int) -> String {
+    private func eventDescription(eventID: String, instructions: Int,
+                                  lineIndex: Int, lineCount: Int,
+                                  operationStatus: String) -> String {
         if eventID.isEmpty { return "No se encontró un evento de apertura compatible en el dump." }
         let total = lineCount > 0 ? lineCount : instructions
         let step = total > 0 ? "Paso \(lineIndex + 1)/\(total)" : "Programa sin pasos"
@@ -477,24 +473,24 @@ final class RuntimeViewController: UIViewController {
         case "completed": operation = "Evento completado"
         default: operation = "Paso de evento"
         }
-        return "\(eventID)\n\(step)\n\(operation)"
+        return "\(step)\n\(operation)"
     }
 
     private func label(for key: String) -> String {
         switch key {
         case "menu.new_game": return "Nueva partida"
         case "menu.continue": return "Continuar"
-        case "menu.settings": return "Opciones"
+        case "menu.inspect_opening": return "Inspeccionar apertura YW2"
+        case "menu.battle_catalog": return "Consultar catálogo de combate"
         default: return key
         }
     }
 
     private func statusText(for key: String, screen: String) -> String {
-        if screen == "dialogue" { return "Historia" }
-        if screen == "battle" { return "Combate" }
+        if screen == "dialogue" { return "Evento de apertura · inspección" }
+        if screen == "battle" { return "Datos de combate · catálogo" }
         switch key {
-        case "runtime.title_menu": return "Presentación YW2 · contenido indexado"
-        case "runtime.world": return "Explorando Yo-kai Watch 2"
+        case "runtime.title_menu": return "Yo-kai Watch 2 · prototipo móvil"
         case "runtime.content_missing": return "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
         case "import.required": return "Selecciona una copia autorizada para importar."
         case "import.incomplete": return "La importación está incompleta; vuelve a seleccionar el dump."

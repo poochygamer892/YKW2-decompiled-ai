@@ -29,8 +29,6 @@ class RuntimeSceneView(context: Context) : View(context) {
     private var enemyMaxHp = 1
     private var meshVertices: List<FloatArray> = emptyList()
     private var meshIndices: List<Int> = emptyList()
-    private var menuItems: List<String> = emptyList()
-    private var selectedIndex = 0
     private var sceneHeightPercent = 58f
     private var dialogueTopPercent = 55f
 
@@ -48,8 +46,6 @@ class RuntimeSceneView(context: Context) : View(context) {
         enemyMaxHp: Int,
         meshVertices: List<FloatArray>,
         meshIndices: List<Int>,
-        menuItems: List<String>,
-        selectedIndex: Int,
         sceneHeightPercent: Float,
         dialogueTopPercent: Float,
     ) {
@@ -66,8 +62,6 @@ class RuntimeSceneView(context: Context) : View(context) {
         this.enemyMaxHp = max(1, enemyMaxHp)
         this.meshVertices = meshVertices
         this.meshIndices = meshIndices
-        this.menuItems = menuItems
-        this.selectedIndex = selectedIndex
         this.sceneHeightPercent = sceneHeightPercent.coerceIn(20f, 90f)
         this.dialogueTopPercent = dialogueTopPercent.coerceIn(30f, 90f)
         invalidate()
@@ -101,22 +95,15 @@ class RuntimeSceneView(context: Context) : View(context) {
     }
 
     private fun drawMenu(canvas: Canvas) {
-        val panelTop = height * 0.58f
         paint.style = Paint.Style.FILL
-        paint.color = Color.argb(225, 8, 14, 25)
-        canvas.drawRoundRect(RectF(12f, panelTop, width - 12f, height - 12f), 16f, 16f, paint)
+        paint.color = Color.argb(210, 8, 14, 25)
+        canvas.drawRoundRect(RectF(12f, 12f, width - 12f, height * 0.35f), 16f, 16f, paint)
         paint.color = Color.WHITE
-        paint.textSize = 18f
-        canvas.drawText("Yo-kai Watch 2", 28f, panelTop + 34f, paint)
-        paint.textSize = 16f
-        menuItems.forEachIndexed { index, item ->
-            val top = panelTop + 52f + index * 38f
-            paint.color = if (index == selectedIndex) Color.rgb(50, 170, 215)
-            else Color.argb(170, 220, 230, 240)
-            canvas.drawRoundRect(RectF(22f, top - 22f, width - 22f, top + 8f), 8f, 8f, paint)
-            paint.color = if (index == selectedIndex) Color.WHITE else Color.rgb(15, 25, 35)
-            canvas.drawText(item, 34f, top, paint)
-        }
+        paint.textSize = 28f
+        canvas.drawText("Yo-kai Watch 2", 28f, 56f, paint)
+        paint.color = Color.rgb(132, 219, 241)
+        paint.textSize = 14f
+        canvas.drawText("Cliente móvil · recursos YW2", 28f, 84f, paint)
     }
 
     private fun drawWorld(canvas: Canvas) {
@@ -182,7 +169,7 @@ class RuntimeSceneView(context: Context) : View(context) {
         canvas.drawRoundRect(RectF(12f, panelTop, width - 12f, height - 10f), 14f, 14f, paint)
         paint.color = Color.rgb(106, 220, 255)
         paint.textSize = 17f
-        canvas.drawText(if (speaker.isEmpty()) "Evento de apertura" else speaker,
+        canvas.drawText("Inspección de apertura",
             28f, panelTop + 30f, paint)
         paint.color = Color.WHITE
         paint.textSize = 16f
@@ -195,24 +182,28 @@ class RuntimeSceneView(context: Context) : View(context) {
         canvas.drawRoundRect(RectF(12f, 12f, width - 12f, height - 12f), 16f, 16f, paint)
         paint.color = Color.WHITE
         paint.textSize = 17f
-        canvas.drawText("Combate de Yo-kai Watch 2", 18f, 42f, paint)
+        canvas.drawText("Catálogo de combate YW2", 18f, 42f, paint)
         paint.textSize = 14f
-        drawWrapped(canvas, "Las reglas, encuentros y comandos se cargarán desde el dump autorizado.", 18f, 76f, width - 36f, 22f)
+        drawWrapped(canvas, "Comandos leídos del dump. No hay encuentro ni reglas ejecutándose.", 18f, 76f, width - 36f, 22f)
     }
 
     private fun drawWrapped(canvas: Canvas, text: String, left: Float, top: Float, maxWidth: Float, lineHeight: Float) {
         var line = ""
         var y = top
-        for (word in text.split(" ")) {
-            val candidate = if (line.isEmpty()) word else "$line $word"
-            if (paint.measureText(candidate) > maxWidth && line.isNotEmpty()) {
-                canvas.drawText(line, left, y, paint)
-                y += lineHeight
-                line = word
-            } else {
-                line = candidate
+        for (paragraph in text.split('\n')) {
+            for (word in paragraph.split(" ")) {
+                val candidate = if (line.isEmpty()) word else "$line $word"
+                if (paint.measureText(candidate) > maxWidth && line.isNotEmpty()) {
+                    canvas.drawText(line, left, y, paint)
+                    y += lineHeight
+                    line = word
+                } else {
+                    line = candidate
+                }
             }
+            if (line.isNotEmpty()) canvas.drawText(line, left, y, paint)
+            line = ""
+            y += lineHeight
         }
-        if (line.isNotEmpty()) canvas.drawText(line, left, y, paint)
     }
 }
