@@ -19,6 +19,7 @@ add_library(ykw2_core STATIC
     src/runtime_save.cpp
     src/runtime_scene.cpp
     src/xpck_reader.cpp
+    src/xq32_dispatch.cpp
     src/xq32_execution.cpp
     src/xq32_reader.cpp
 )
@@ -91,4 +92,8 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_xq32_execution_tests tests/xq32_execution_tests.cpp)
     target_link_libraries(ykw2_xq32_execution_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_xq32_execution_tests COMMAND ykw2_xq32_execution_tests)
+
+    add_executable(ykw2_xq32_dispatch_tests tests/xq32_dispatch_tests.cpp)
+    target_link_libraries(ykw2_xq32_dispatch_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_xq32_dispatch_tests COMMAND ykw2_xq32_dispatch_tests)
 endif()

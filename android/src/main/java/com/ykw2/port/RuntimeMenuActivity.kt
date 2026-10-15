@@ -146,6 +146,7 @@ class RuntimeMenuActivity : Activity() {
             lineIndex = value("line_index", "0").toIntOrNull() ?: 0,
             lineCount = value("line_count", "0").toIntOrNull() ?: 0,
             operationToken = value("event_exec_operation"),
+            operationStatus = value("event_exec_operation_status", "idle"),
             argumentIndex = value("event_exec_argument_index", "0"),
             argumentCount = value("event_exec_argument_count", "0"),
         )
@@ -231,6 +232,7 @@ class RuntimeMenuActivity : Activity() {
         lineIndex: Int,
         lineCount: Int,
         operationToken: String,
+        operationStatus: String,
         argumentIndex: String,
         argumentCount: String,
     ): String {
@@ -239,7 +241,7 @@ class RuntimeMenuActivity : Activity() {
         val total = if (lineCount > 0) lineCount else instructions
         val step = if (total > 0) "Paso ${lineIndex + 1}/$total" else "Programa sin pasos"
         val operation = if (operationToken.isEmpty()) "sin operación actual"
-        else "token $operationToken · argumentos $argumentIndex+$argumentCount"
+        else "token $operationToken · argumentos $argumentIndex+$argumentCount · $operationStatus"
         return "Programa XQ32 de YW2 decodificado\n$eventID\nEntrada: $entry · $decodedInstructions/$instructions instrucciones · $arguments argumentos\n$step · $operation\nLa semántica de los tokens sigue en recuperación."
     }
 

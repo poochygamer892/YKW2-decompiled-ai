@@ -23,6 +23,9 @@ Prioridades:
   símbolo, respeta sus límites y expone el token de operación y su ventana de
   argumentos; también ofrece saltos intra-función con comprobación de límites
   para los handlers que recuperen la semántica de cada operación.
+- `ykw2/core/xq32_dispatch.hpp`: dispatcher extensible de tokens; los tokens
+  aún desconocidos avanzan de forma segura y los handlers recuperados pueden
+  controlar el cursor.
 - `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
   `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
   un backend portable.

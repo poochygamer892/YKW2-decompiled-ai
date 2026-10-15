@@ -18,6 +18,7 @@ void RuntimeScene::start(const RuntimeBootInfo& boot, bool initial_content_ready
     runtime_content_ = {};
     opening_event_program_.reset();
     opening_event_cursor_ = {};
+    opening_event_operation_status_ = Xq32OperationStatus::Idle;
     background_width_ = 0;
     background_height_ = 0;
     background_format_ = 0;
@@ -85,6 +86,7 @@ void RuntimeScene::begin_dialogue() {
     std::string entry_symbol = "XQ32";
     if (opening_event_program_.has_value()) {
         const auto& program = *opening_event_program_;
+        opening_event_operation_status_ = Xq32OperationStatus::Idle;
         if (opening_event_cursor_.start(program, "Main")) {
             const auto execution = opening_event_cursor_.snapshot();
             instruction_count = execution.instruction_end - execution.instruction_index;
@@ -115,6 +117,17 @@ void RuntimeScene::begin_dialogue() {
 RuntimeTransition RuntimeScene::advance_dialogue() {
     if (!dialogue_.active) {
         return {false, RuntimeCommand::None};
+    }
+    if (opening_event_cursor_.running() && opening_event_program_.has_value()) {
+        const auto operation = opening_event_dispatcher_.dispatch(
+            opening_event_cursor_, *opening_event_program_);
+        opening_event_operation_status_ = operation.status;
+        if (operation.progressed) {
+            ++dialogue_.line_index;
+            dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
+            trigger_audio("event_advance");
+            return {true, RuntimeCommand::AdvanceDialogue};
+        }
     }
     if (opening_event_cursor_.running() && opening_event_cursor_.advance()) {
         ++dialogue_.line_index;
@@ -358,6 +371,7 @@ RuntimeSnapshot RuntimeScene::snapshot() const {
     result.runtime_content = runtime_content_;
     result.opening_event_program = opening_event_program_;
     result.opening_event_execution = opening_event_cursor_.snapshot();
+    result.opening_event_operation_status = opening_event_operation_status_;
     result.background_width = background_width_;
     result.background_height = background_height_;
     result.background_format = background_format_;
@@ -483,6 +497,9 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     }
     result += "event_exec_state=" +
               std::string(xq32_execution_state_name(snapshot.opening_event_execution.state)) +
+              "\n";
+    result += "event_exec_operation_status=" +
+              std::string(xq32_operation_status_name(snapshot.opening_event_operation_status)) +
               "\n";
     result += "event_exec_entry=" + snapshot.opening_event_execution.entry_symbol + "\n";
     result += "event_exec_instruction=" +

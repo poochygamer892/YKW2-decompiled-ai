@@ -236,6 +236,7 @@ final class RuntimeViewController: UIViewController {
         var lineIndex = 0
         var lineCount = 0
         var operationToken = ""
+        var operationStatus = "idle"
         var argumentIndex = 0
         var argumentCount = 0
         var enemyID = ""
@@ -269,6 +270,7 @@ final class RuntimeViewController: UIViewController {
             case "line_index": lineIndex = Int(parts[1]) ?? 0
             case "line_count": lineCount = Int(parts[1]) ?? 0
             case "event_exec_operation": operationToken = parts[1]
+            case "event_exec_operation_status": operationStatus = parts[1]
             case "event_exec_argument_index": argumentIndex = Int(parts[1]) ?? 0
             case "event_exec_argument_count": argumentCount = Int(parts[1]) ?? 0
             case "enemy_id": enemyID = parts[1]
@@ -296,6 +298,7 @@ final class RuntimeViewController: UIViewController {
                                         decodedInstructions: eventDecodedInstructions,
                                         lineIndex: lineIndex, lineCount: lineCount,
                                         operationToken: operationToken,
+                                        operationStatus: operationStatus,
                                         argumentIndex: argumentIndex, argumentCount: argumentCount)
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
@@ -360,12 +363,13 @@ final class RuntimeViewController: UIViewController {
     private func eventDescription(eventID: String, symbol: String, instructions: Int,
                                   arguments: Int, decodedInstructions: Int,
                                   lineIndex: Int, lineCount: Int, operationToken: String,
+                                  operationStatus: String,
                                   argumentIndex: Int, argumentCount: Int) -> String {
         if eventID.isEmpty { return "No se encontró un evento de apertura compatible en el dump." }
         let entry = symbol.isEmpty ? "sin símbolo recuperado" : symbol
         let total = lineCount > 0 ? lineCount : instructions
         let step = total > 0 ? "Paso \(lineIndex + 1)/\(total)" : "Programa sin pasos"
-        let operation = operationToken.isEmpty ? "sin operación actual" : "token \(operationToken) · argumentos \(argumentIndex)+\(argumentCount)"
+        let operation = operationToken.isEmpty ? "sin operación actual" : "token \(operationToken) · argumentos \(argumentIndex)+\(argumentCount) · \(operationStatus)"
         return "Programa XQ32 de YW2 decodificado\n\(eventID)\nEntrada: \(entry) · \(decodedInstructions)/\(instructions) instrucciones · \(arguments) argumentos\n\(step) · \(operation)\nLa semántica de los tokens sigue en recuperación."
     }
 
