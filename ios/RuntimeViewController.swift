@@ -349,9 +349,9 @@ final class RuntimeViewController: UIViewController {
         sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
                          playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP,
-                         meshVertices: meshVertices, meshIndices: meshIndices,
                          sceneHeightPercent: sceneHeightPercent,
-                         dialogueTopPercent: dialogueTopPercent)
+                         dialogueTopPercent: dialogueTopPercent,
+                         meshVertices: meshVertices, meshIndices: meshIndices)
         commandLabel.text = commandText(command: command, screen: screen, speaker: speaker,
                                         dialogue: dialogue, worldMap: worldMap, playerX: playerX,
                                         playerY: playerY, sceneResourceCount: sceneResourceCount,
