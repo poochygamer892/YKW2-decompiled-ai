@@ -80,7 +80,26 @@ void RuntimeScene::begin_dialogue() {
     screen_ = RuntimeScreen::Dialogue;
     selected_index_ = 0;
     items_.clear();
-    dialogue_ = {true, runtime_content_.opening_event_path, "", "", 0, 0};
+    std::size_t instruction_count = 0;
+    std::string entry_symbol = "XQ32";
+    if (opening_event_program_.has_value()) {
+        const auto& program = *opening_event_program_;
+        instruction_count = program.instruction_records.size();
+        if (instruction_count == 0) {
+            // Keep synthetic/partially decoded programs navigable while the
+            // ABI recovery is in progress. Real YW2 programs use the decoded
+            // row count above; a metadata-only fixture gets one checkpoint.
+            instruction_count = 1;
+        }
+        if (!program.symbols.empty()) {
+            entry_symbol = program.symbols.front();
+        }
+    }
+    if (instruction_count == 0) {
+        instruction_count = 1;
+    }
+    dialogue_ = {true, runtime_content_.opening_event_path, entry_symbol,
+                 "xq32.step.1", 0, instruction_count};
     trigger_audio("event_begin");
 }
 
@@ -90,7 +109,7 @@ RuntimeTransition RuntimeScene::advance_dialogue() {
     }
     if (dialogue_.line_count != 0 && dialogue_.line_index + 1 < dialogue_.line_count) {
         ++dialogue_.line_index;
-        dialogue_.text_key = "story.intro." + std::to_string(dialogue_.line_index + 1);
+        dialogue_.text_key = "xq32.step." + std::to_string(dialogue_.line_index + 1);
         trigger_audio("event_advance");
         return {true, RuntimeCommand::AdvanceDialogue};
     }
@@ -415,6 +434,21 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
         result += "event_instructions=" + std::to_string(program.header.instruction_count) + "\n";
         result += "event_arguments=" + std::to_string(program.header.argument_count) + "\n";
         result += "event_globals=" + std::to_string(program.header.global_variable_count) + "\n";
+        result += "event_decoded_functions=" +
+                  std::to_string(program.function_records.size()) + "\n";
+        result += "event_decoded_jumps=" + std::to_string(program.jump_records.size()) + "\n";
+        result += "event_decoded_instructions=" +
+                  std::to_string(program.instruction_records.size()) + "\n";
+        result += "event_decoded_arguments=" +
+                  std::to_string(program.argument_records.size()) + "\n";
+        const auto trace_count = std::min<std::size_t>(program.instruction_records.size(), 8);
+        for (std::size_t index = 0; index < trace_count; ++index) {
+            result += "event_instruction_row=" + std::to_string(index);
+            for (const auto word : program.instruction_records[index].words) {
+                result += "|" + std::to_string(word);
+            }
+            result += "\n";
+        }
         for (const auto& symbol : program.symbols) {
             result += "event_symbol=" + symbol + "\n";
         }

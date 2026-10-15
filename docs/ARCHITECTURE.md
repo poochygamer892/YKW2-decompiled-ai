@@ -1,9 +1,10 @@
 # Arquitectura propuesta
 
-La arquitectura usa un núcleo C++17 pequeño y una capa de overlay sobre el
-host móvil de Yo-kai Watch 1. El ejecutable y la presentación móvil de YW1
-son el destino privado; los recursos y la lógica de contenido que se intentan
-adaptar son los de Yo-kai Watch 2 autorizados por el usuario.
+La arquitectura usa un núcleo C++17 pequeño y clientes nativos Android/iOS.
+La aplicación móvil de Yo-kai Watch 1 solo sirve como referencia privada de
+presentación y controles; el ejecutable del port no depende de su motor.
+Los recursos y la lógica de contenido proceden del dump autorizado de Yo-kai
+Watch 2 y se reimplementan por capas verificables.
 
 ## Capas
 
@@ -47,13 +48,13 @@ Aplicación nativa con integración Kotlin/Android. El cliente debe consumir el 
 
 Aplicación nativa con integración Swift/iOS. El cliente debe reutilizar las mismas especificaciones de comportamiento sin asumir APIs de Android.
 
-### Overlay de contenido
+### Compatibilidad de datos (diagnóstico)
 
 `tools/build_yw1_yw2_overlay.py` conserva el paquete host de YW1 y escribe los
-recursos de YW2 en sus rutas móviles equivalentes. El overlay es una prueba de
-compatibilidad de datos, no un parche mágico del ejecutable: eventos XQ32,
-tablas de IDs, modelos, shaders y reglas deben validarse antes de afirmar que
-el contenido de YW2 funciona dentro del host.
+recursos de YW2 en sus rutas móviles equivalentes. Se mantiene solo para
+comparar formatos y comprobar hipótesis; no es un port ni la ruta de ejecución
+del cliente nativo. Eventos XQ32, tablas de IDs, modelos, shaders y reglas se
+reconstruyen en el núcleo propio.
 
 ## Decisiones pendientes
 
@@ -66,10 +67,10 @@ el contenido de YW2 funciona dentro del host.
 `RuntimeScene` es la frontera lógica actual: las plataformas reciben un
 snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación y
 `runtime_save` persiste sólo el estado de la escena. Android usa JNI y un
-`Handler`; iOS usa Objective-C++ y `CADisplayLink`. La capa de presentación no
-contiene la lógica de formatos. `xq32_reader` ya recupera metadatos y símbolos de los programas de evento
-verificados, pero no ejecuta sus instrucciones: antes de habilitar historia
-deben recuperarse y probarse sus opcodes. El renderizado de mapas, audio, combate,
-eventos y la
-traducción completa de recursos siguen siendo trabajo posterior; no se deben
-confundir estos cimientos con un port jugable completo.
+`Handler`; iOS usa Objective-C++ y `CADisplayLink`. `xq32_reader` descomprime y
+expone las filas crudas de los programas reales; `RuntimeScene` las usa como
+puntos de traza, sin inventar significados para los opcodes. El siguiente
+bloque es recuperar esos significados con evidencia del ejecutable y de los
+eventos observables. El renderizado de mapas, audio, combate y la traducción
+completa de recursos siguen siendo trabajo posterior; estos cimientos aún no
+son un port jugable completo.

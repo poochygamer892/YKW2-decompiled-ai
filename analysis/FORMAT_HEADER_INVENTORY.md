@@ -102,6 +102,13 @@ la tabla. El lector [`tools/inspect_xq32.py`](../tools/inspect_xq32.py) valida
 cabeceras, regiones y tamaños, pero no publica nombres, instrucciones ni
 bytecode.
 
+El lector nativo de `core/` comparte esa validación, descomprime las cinco
+regiones y conserva las filas decodificadas como palabras de 32 bits. El
+runtime usa esas filas como puntos de traza del evento inicial; todavía no
+asigna semántica a ningún opcode. Esta separación permite recuperar el ABI con
+pruebas reproducibles sin convertir una hipótesis sobre el bytecode en lógica
+de juego.
+
 ## Comparación con las versiones móviles de referencia
 
 Se compararon las 2.495 rutas que existen simultáneamente en `yw2_a.fa`, el APK y el IPA. Para cada ruta se compararon los primeros 4 bytes y el tamaño declarado en el ZIP.

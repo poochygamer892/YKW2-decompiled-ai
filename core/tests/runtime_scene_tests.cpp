@@ -129,6 +129,44 @@ void test_new_game_enters_world_and_moves_player() {
     assert(scene.snapshot().screen == ykw2::core::RuntimeScreen::TitleMenu);
 }
 
+void test_dialogue_traces_decoded_xq32_rows() {
+    ykw2::core::InitialContentInfo content;
+    content.archive_files = 1;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 1});
+    content.runtime_content.opening_event_path = "seq/event/ev01_0100.xq";
+    content.opening_event_program = ykw2::core::Xq32ProgramInfo{};
+    content.opening_event_program->header.instruction_count = 2;
+    content.opening_event_program->symbols = {"Main"};
+    content.opening_event_program->instruction_records = {
+        {{0x00020000u, 0x00140689u, 0u}},
+        {{0x00020002u, 0x00140689u, 0u}},
+    };
+
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    assert(scene.handle(ykw2::core::RuntimeInput::Confirm).command ==
+           ykw2::core::RuntimeCommand::StartNewGame);
+    auto snapshot = scene.snapshot();
+    assert(snapshot.dialogue.line_count == 2);
+    assert(snapshot.dialogue.speaker == "Main");
+    assert(snapshot.dialogue.text_key == "xq32.step.1");
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
+               "event_decoded_instructions=2\n") != std::string::npos);
+    assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
+               "event_instruction_row=0|131072|1312393|0\n") != std::string::npos);
+
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    snapshot = scene.snapshot();
+    assert(snapshot.screen == ykw2::core::RuntimeScreen::Dialogue);
+    assert(snapshot.dialogue.line_index == 1);
+    assert(snapshot.dialogue.text_key == "xq32.step.2");
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    assert(scene.snapshot().screen == ykw2::core::RuntimeScreen::World);
+}
+
 void test_world_state_can_be_saved_and_restored() {
     ykw2::core::InitialContentInfo content;
     content.archive_files = 3;
@@ -189,6 +227,7 @@ int main() {
     test_title_menu_waits_for_initial_content();
     test_title_menu_exposes_scene_resource_plan();
     test_new_game_enters_world_and_moves_player();
+    test_dialogue_traces_decoded_xq32_rows();
     test_world_state_can_be_saved_and_restored();
     test_world_does_not_fabricate_a_battle();
     return 0;

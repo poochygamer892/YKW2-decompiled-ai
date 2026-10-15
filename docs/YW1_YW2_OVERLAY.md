@@ -1,5 +1,10 @@
 # Overlay privado YW1 Mobile → YW2
 
+> Esta herramienta es únicamente un experimento de compatibilidad de datos.
+> No es el port nativo y no debe usarse para ejecutar YW2: el motor de YW1 no
+> entiende automáticamente los programas, modelos ni reglas de YW2. El cliente
+> principal del proyecto ahora usa el núcleo nativo de `core/`.
+
 El nuevo objetivo es conservar el ejecutable, la presentación y la entrada
 táctil de Yo-kai Watch 1 Mobile, sustituyendo su contenido por recursos de
 Yo-kai Watch 2. El repositorio no incluye ninguno de los paquetes ni recursos;

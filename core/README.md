@@ -16,6 +16,9 @@ Prioridades:
 - `ykw2/core/byte_view.hpp`: lectura little-endian acotada y no propietaria.
 - `ykw2/core/formats.hpp`: metadatos de Level-5 y parsers de cabeceras
   `ARC0`, `XPCK`, `XQ32` e `IMGC`.
+- `ykw2/core/xq32_reader.hpp`: lector acotado de programas XQ32 que descomprime
+  las tablas de funciones, saltos, instrucciones y argumentos y conserva sus
+  filas como palabras crudas para la recuperación verificable del ABI.
 - `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
   `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
   un backend portable.
@@ -40,9 +43,9 @@ Prioridades:
   expone ventanas de un recurso ARC0 para reutilizar los lectores XPCK/IMGC.
 - `tests/formats_tests.cpp`: fixtures sintéticos; no necesita ROM ni assets.
 
-Los parsers no descomprimen ni interpretan payloads. Devuelven offsets y
-regiones validadas para que la siguiente capa implemente los decodificadores
-Level-5 y los lectores de tablas sin acoplarse a Android o iOS. El extractor
+Los parsers de cabecera no interpretan payloads. El lector XQ32 sí descomprime
+sus tablas con el decodificador Level-5 y entrega filas crudas, pero todavía no
+ejecuta opcodes ni les asigna significados no demostrados. El extractor
 RomFS ya tiene una prueba sintética de recorrido y escritura; no implementa
 descifrado ni extrae ExeFS.
 

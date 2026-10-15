@@ -63,6 +63,48 @@ std::vector<std::uint8_t> program() {
     return bytes;
 }
 
+std::vector<std::uint8_t> decoded_tables_program() {
+    // One row per table is enough to prove that the reader exposes decoded
+    // XQ32 data without assigning unverified meanings to its words.
+    std::vector<std::uint8_t> bytes(0x4d, 0);
+    bytes[0] = 'X'; bytes[1] = 'Q'; bytes[2] = '3'; bytes[3] = '2';
+    put16(bytes, 0x04, 1);    // functions
+    put16(bytes, 0x06, 6);    // functions: 0x18..0x30 (24 bytes)
+    put16(bytes, 0x08, 12);   // jumps: 0x30..0x30
+    put16(bytes, 0x0a, 0);    // no jumps
+    put16(bytes, 0x0c, 12);   // instructions: 0x30..0x3c (12 bytes)
+    put16(bytes, 0x0e, 1);
+    put16(bytes, 0x10, 15);   // arguments: 0x3c..0x44 (8 bytes)
+    put16(bytes, 0x12, 1);
+    put16(bytes, 0x14, 1);    // one global
+    put16(bytes, 0x16, 17);   // symbols: 0x44
+
+    for (std::size_t offset = 0x18; offset < 0x30; offset += 4) {
+        const auto word = static_cast<std::uint32_t>(offset * 0x101u + 7u);
+        bytes[offset] = static_cast<std::uint8_t>(word & 0xffu);
+        bytes[offset + 1] = static_cast<std::uint8_t>((word >> 8) & 0xffu);
+        bytes[offset + 2] = static_cast<std::uint8_t>((word >> 16) & 0xffu);
+        bytes[offset + 3] = static_cast<std::uint8_t>(word >> 24);
+    }
+    const std::uint32_t instruction_words[] = {0x00020000u, 0x00140689u, 0u};
+    for (std::size_t index = 0; index < 3; ++index) {
+        const auto word = instruction_words[index];
+        const auto offset = 0x30 + index * 4;
+        bytes[offset] = static_cast<std::uint8_t>(word & 0xffu);
+        bytes[offset + 1] = static_cast<std::uint8_t>((word >> 8) & 0xffu);
+        bytes[offset + 2] = static_cast<std::uint8_t>((word >> 16) & 0xffu);
+        bytes[offset + 3] = static_cast<std::uint8_t>(word >> 24);
+    }
+    put16(bytes, 0x3c, 4);
+    put16(bytes, 0x3e, 9);
+    // Strings are also allowed to be Level-5 wrapped; method 0 is the
+    // smallest fixture for exercising that path.
+    bytes[0x44] = 0x28; // decoded size 5, method none
+    bytes[0x48] = 'M'; bytes[0x49] = 'a'; bytes[0x4a] = 'i'; bytes[0x4b] = 'n';
+    bytes[0x4c] = 0;
+    return bytes;
+}
+
 void test_reads_metadata_and_symbols() {
     MemoryStore store(program());
     const auto result = ykw2::core::read_xq32_program(store, "opening.xq");
@@ -83,10 +125,27 @@ void test_rejects_non_printable_symbol_data() {
     assert(result.error->code == "xq32_symbol_not_printable");
 }
 
+void test_exposes_decoded_table_rows() {
+    MemoryStore store(decoded_tables_program());
+    const auto result = ykw2::core::read_xq32_program(store, "opening.xq");
+    assert(result);
+    assert(result.value->function_records.size() == 1);
+    assert(result.value->function_records[0].words.size() == 6);
+    assert(result.value->jump_records.empty());
+    assert(result.value->instruction_records.size() == 1);
+    assert(result.value->instruction_records[0].words.size() == 3);
+    assert(result.value->instruction_records[0].words[0] == 0x00020000u);
+    assert(result.value->instruction_records[0].words[1] == 0x00140689u);
+    assert(result.value->argument_records.size() == 1);
+    assert(result.value->argument_records[0].words.size() == 2);
+    assert((result.value->symbols == std::vector<std::string>{"Main"}));
+}
+
 }  // namespace
 
 int main() {
     test_reads_metadata_and_symbols();
     test_rejects_non_printable_symbol_data();
+    test_exposes_decoded_table_rows();
     return 0;
 }
