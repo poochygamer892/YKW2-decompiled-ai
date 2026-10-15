@@ -29,6 +29,7 @@
 		310018 /* mobile_presentation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210018 /* mobile_presentation.cpp */; };
 		310019 /* xq32_dispatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210019 /* xq32_dispatch.cpp */; };
 		310020 /* cfg_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210020 /* cfg_reader.cpp */; };
+		310021 /* model_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210021 /* model_reader.cpp */; };
 		320001 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220001 /* Foundation.framework */; };
 		320002 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220002 /* UIKit.framework */; };
 		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
@@ -62,6 +63,7 @@
 		210018 /* mobile_presentation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mobile_presentation.cpp; sourceTree = "<group>"; };
 		210019 /* xq32_dispatch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = xq32_dispatch.cpp; sourceTree = "<group>"; };
 		210020 /* cfg_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cfg_reader.cpp; sourceTree = "<group>"; };
+		210021 /* model_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = model_reader.cpp; sourceTree = "<group>"; };
 		220001 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
@@ -139,6 +141,7 @@
 				210018 /* mobile_presentation.cpp */,
 				210019 /* xq32_dispatch.cpp */,
 				210020 /* cfg_reader.cpp */,
+				210021 /* model_reader.cpp */,
 			);
 			name = core;
 			path = ../core/src;
@@ -231,6 +234,7 @@
 				310018 /* mobile_presentation.cpp in Sources */,
 				310019 /* xq32_dispatch.cpp in Sources */,
 				310020 /* cfg_reader.cpp in Sources */,
+				310021 /* model_reader.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
