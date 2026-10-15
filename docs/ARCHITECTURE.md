@@ -80,7 +80,8 @@ snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación 
 `Handler`; iOS usa Objective-C++ y `CADisplayLink`. `xq32_reader` descomprime y
 expone las filas crudas de los programas reales; `xq32_execution` selecciona
 una función por símbolo y mantiene el cursor dentro de sus límites y
-argumentos. `RuntimeScene` lo usa como punto de traza, sin inventar
+argumentos, y ofrece saltos acotados para los handlers futuros. `RuntimeScene`
+lo usa como punto de traza, sin inventar
 significados para los tokens. El siguiente bloque es recuperar esos
 significados con evidencia del ejecutable y de los eventos observables. El
 renderizado de mapas, audio, combate y la traducción completa de recursos

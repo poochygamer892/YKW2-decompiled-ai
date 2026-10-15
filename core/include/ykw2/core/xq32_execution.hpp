@@ -32,6 +32,9 @@ class Xq32ExecutionCursor {
 public:
     bool start(const Xq32ProgramInfo& program, std::string_view entry_symbol = "Main");
     bool advance();
+    // Performs only a bounds-checked intra-function jump. The caller must
+    // supply the target after decoding the operation's verified semantics.
+    bool jump_to(std::size_t instruction_index);
     bool running() const { return state_ == Xq32ExecutionState::Running; }
     Xq32ExecutionSnapshot snapshot() const;
 

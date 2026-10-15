@@ -21,7 +21,8 @@ Prioridades:
   filas como palabras crudas para la recuperación verificable del ABI.
 - `ykw2/core/xq32_execution.hpp`: cursor seguro que selecciona una función por
   símbolo, respeta sus límites y expone el token de operación y su ventana de
-  argumentos sin ejecutar todavía semántica no demostrada.
+  argumentos; también ofrece saltos intra-función con comprobación de límites
+  para los handlers que recuperen la semántica de cada operación.
 - `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
   `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
   un backend portable.

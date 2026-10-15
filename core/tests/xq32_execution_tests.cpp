@@ -27,6 +27,11 @@ void test_cursor_stays_inside_selected_function() {
     assert(snapshot.instruction_index == 0);
     assert(snapshot.instruction_end == 2);
     assert(snapshot.instruction.operation_token == 100);
+    assert(cursor.jump_to(1));
+    assert(cursor.snapshot().instruction_index == 1);
+    assert(!cursor.jump_to(2));
+    assert(cursor.snapshot().instruction_index == 1);
+    assert(cursor.jump_to(0));
     assert(cursor.advance());
     assert(cursor.snapshot().instruction.operation_token == 200);
     assert(!cursor.advance());

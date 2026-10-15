@@ -64,6 +64,15 @@ bool Xq32ExecutionCursor::advance() {
     return true;
 }
 
+bool Xq32ExecutionCursor::jump_to(std::size_t instruction_index) {
+    if (!running() || program_ == nullptr || instruction_index >= instruction_end_ ||
+        instruction_index >= program_->instructions.size()) {
+        return false;
+    }
+    instruction_index_ = instruction_index;
+    return true;
+}
+
 Xq32ExecutionSnapshot Xq32ExecutionCursor::snapshot() const {
     Xq32ExecutionSnapshot result;
     result.state = state_;
