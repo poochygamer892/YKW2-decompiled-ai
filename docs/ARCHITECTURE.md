@@ -83,8 +83,10 @@ una función por símbolo y mantiene el cursor dentro de sus límites y
 argumentos, y ofrece saltos acotados para los handlers futuros. `RuntimeScene`
 lo usa mediante `xq32_dispatch` para registrar si cada token fue manejado,
 desconocido o inválido. Los tokens desconocidos avanzan de forma segura y se
-exponen al cliente móvil para no ocultar qué parte falta. El siguiente bloque
-es recuperar esos significados con evidencia del ejecutable y de los eventos observables. El
-renderizado de mapas, audio, combate y la traducción completa de recursos
-siguen siendo trabajo posterior; estos cimientos aún no son un port jugable
-completo.
+exponen al cliente móvil para no ocultar qué parte falta. `cfg_reader` valida
+ahora el prefijo de 16 bytes de cada CFG de combate y sonido seleccionado y
+publica sus palabras crudas, sin afirmar semánticas no demostradas. El siguiente
+bloque es recuperar esos significados con evidencia del ejecutable y de los
+eventos observables. El renderizado de mapas, el decoder de audio, el combate y
+la traducción completa de recursos siguen siendo trabajo posterior; estos
+cimientos aún no son un port jugable completo.

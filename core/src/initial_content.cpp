@@ -133,6 +133,18 @@ ParseResult<InitialSceneResource> inspect_scene_resource(
     return ParseResult<InitialSceneResource>::success(std::move(resource));
 }
 
+ParseResult<CfgBinaryInfo> inspect_cfg_resource(
+    const ResourceStore& store, std::string_view archive_path,
+    const Arc0File& file, std::string_view path) {
+    const auto window = ResourceWindowStore::create(
+        store, archive_path, file.offset, file.size, std::string(path));
+    if (!window) {
+        return ParseResult<CfgBinaryInfo>::failure(
+            window.error->code, window.error->offset);
+    }
+    return read_cfg_binary_info(*window.value, path);
+}
+
 std::string_view basename(std::string_view path) {
     const auto separator = path.find_last_of('/');
     return separator == std::string_view::npos ? path : path.substr(separator + 1);
@@ -212,6 +224,39 @@ ParseResult<InitialContentInfo> load_initial_content(
     result.first_file_path = first_file.path;
     result.first_file_size = first_file.size;
     result.runtime_content = select_runtime_content_manifest(*archive.value);
+    const auto inspect_manifest_cfg = [&](std::string_view path,
+                                          std::optional<CfgBinaryInfo>& destination)
+        -> bool {
+        if (path.empty()) {
+            return true;
+        }
+        const auto* file = archive.value->find(path);
+        if (file == nullptr) {
+            return false;
+        }
+        const auto parsed = inspect_cfg_resource(store, result.archive_path, *file, path);
+        if (!parsed) {
+            return false;
+        }
+        destination = *parsed.value;
+        return true;
+    };
+    if (!inspect_manifest_cfg(result.runtime_content.battle_config_path,
+                              result.battle_config_header) ||
+        !inspect_manifest_cfg(result.runtime_content.battle_rule_path,
+                              result.battle_rule_header) ||
+        !inspect_manifest_cfg(result.runtime_content.battle_command_path,
+                              result.battle_command_header) ||
+        !inspect_manifest_cfg(result.runtime_content.battle_view_config_path,
+                              result.battle_view_config_header) ||
+        !inspect_manifest_cfg(result.runtime_content.battle_ai_path,
+                              result.battle_ai_header) ||
+        !inspect_manifest_cfg(result.runtime_content.map_sound_config_path,
+                              result.map_sound_config_header) ||
+        !inspect_manifest_cfg(result.runtime_content.opening_event_sound_config_path,
+                              result.opening_event_sound_config_header)) {
+        return failure<InitialContentInfo>("initial_runtime_config_invalid");
+    }
     if (result.runtime_content.has_opening_event()) {
         const auto* opening_file = archive.value->find(result.runtime_content.opening_event_path);
         if (opening_file == nullptr) {

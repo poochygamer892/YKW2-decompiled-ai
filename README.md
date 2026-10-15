@@ -46,8 +46,9 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
   personaje y fondo localizado.
 - El núcleo C++17 identifica un manifiesto de arranque real dentro de YW2:
   secuencias de título/menú, el evento inicial, configuración de combate y sus
-  texturas de interfaz. Las rutas se resuelven exclusivamente desde el dump
-  importado del usuario.
+  texturas de interfaz. También valida las cabeceras estructurales de las
+  tablas de vista/IA de combate y de los catálogos de sonido de mapa/evento.
+  Las rutas se resuelven exclusivamente desde el dump importado del usuario.
 - Android e iOS tienen importación, ciclo de actualización y renderizado nativo
   de los recursos IMGC ya soportados. El núcleo decodifica las tablas XQ32 del
   evento inicial real y expone sus filas al runtime para trazar la ejecución.
@@ -55,8 +56,8 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
   `yw1_smartphone`, de modo que ambas plataformas comparten la presentación
   móvil sin cargar el ejecutable de YW1.
   Todavía faltan la semántica probada de los opcodes, mapas/modelos 3D,
-  animaciones, audio, reglas reales de combate y la reproducción completa de
-  eventos antes de que pueda describirse como un port jugable.
+  animaciones, el decoder de audio, reglas reales de combate y la reproducción
+  completa de eventos antes de que pueda describirse como un port jugable.
 - `tools/build_yw1_yw2_overlay.py` queda como herramienta de diagnóstico
   privada y no es la ruta de ejecución del port nativo.
 

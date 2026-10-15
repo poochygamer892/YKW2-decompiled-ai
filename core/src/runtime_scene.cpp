@@ -464,6 +464,17 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     result += "battle_config=" + snapshot.runtime_content.battle_config_path + "\n";
     result += "battle_rule=" + snapshot.runtime_content.battle_rule_path + "\n";
     result += "battle_command=" + snapshot.runtime_content.battle_command_path + "\n";
+    result += "battle_view_config=" +
+              snapshot.runtime_content.battle_view_config_path + "\n";
+    result += "battle_ai=" + snapshot.runtime_content.battle_ai_path + "\n";
+    result += "map_sound_config=" +
+              snapshot.runtime_content.map_sound_config_path + "\n";
+    result += "opening_event_sound_config=" +
+              snapshot.runtime_content.opening_event_sound_config_path + "\n";
+    result += "battle_presentation_ready=" +
+              std::string(snapshot.runtime_content.has_battle_presentation() ? "1\n" : "0\n");
+    result += "audio_definition_ready=" +
+              std::string(snapshot.runtime_content.has_audio_definition() ? "1\n" : "0\n");
     for (const auto& path : snapshot.runtime_content.battle_texture_paths) {
         result += "battle_texture=" + path + "\n";
     }

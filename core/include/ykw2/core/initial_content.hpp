@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ykw2/core/arc0_reader.hpp"
+#include "ykw2/core/cfg_reader.hpp"
 #include "ykw2/core/resource_store.hpp"
 #include "ykw2/core/runtime_content.hpp"
 #include "ykw2/core/xq32_reader.hpp"
@@ -50,6 +51,13 @@ struct InitialContentInfo {
     std::string first_file_path;
     std::uint32_t first_file_size = 0;
     RuntimeContentManifest runtime_content;
+    std::optional<CfgBinaryInfo> battle_config_header;
+    std::optional<CfgBinaryInfo> battle_rule_header;
+    std::optional<CfgBinaryInfo> battle_command_header;
+    std::optional<CfgBinaryInfo> battle_view_config_header;
+    std::optional<CfgBinaryInfo> battle_ai_header;
+    std::optional<CfgBinaryInfo> map_sound_config_header;
+    std::optional<CfgBinaryInfo> opening_event_sound_config_header;
     // Metadata from the verified opening program. This is not an interpreter.
     std::optional<Xq32ProgramInfo> opening_event_program;
     std::vector<InitialSceneResource> scene_resources;

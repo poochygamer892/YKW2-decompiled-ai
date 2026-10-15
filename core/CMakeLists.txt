@@ -4,6 +4,7 @@ project(ykw2_core VERSION 0.1.0 LANGUAGES CXX)
 
 add_library(ykw2_core STATIC
     src/byte_view.cpp
+    src/cfg_reader.cpp
     src/formats.cpp
     src/imgc_reader.cpp
     src/import_contract.cpp
@@ -96,4 +97,8 @@ if (YKW2_BUILD_TESTS)
     add_executable(ykw2_xq32_dispatch_tests tests/xq32_dispatch_tests.cpp)
     target_link_libraries(ykw2_xq32_dispatch_tests PRIVATE ykw2_core)
     add_test(NAME ykw2_xq32_dispatch_tests COMMAND ykw2_xq32_dispatch_tests)
+
+    add_executable(ykw2_cfg_reader_tests tests/cfg_reader_tests.cpp)
+    target_link_libraries(ykw2_cfg_reader_tests PRIVATE ykw2_core)
+    add_test(NAME ykw2_cfg_reader_tests COMMAND ykw2_cfg_reader_tests)
 endif()

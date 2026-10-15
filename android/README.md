@@ -34,8 +34,9 @@ botones táctiles se mantienen dentro de un `ScrollView`.
 Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
 parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
 que ese contenido sea legible.
-El núcleo ya identifica eventos y configuración de combate reales de YW2, pero
-no simula todavía su bytecode ni sus reglas. La interfaz no debe sustituirlos
-por diálogos, enemigos o estadísticas inventadas.
+El núcleo ya identifica eventos, reglas, vista/IA de combate y catálogos de
+sonido reales de YW2. Lee únicamente sus cabeceras CFG con límites comprobados;
+no simula todavía su bytecode, audio ni sus reglas. La interfaz no debe
+sustituirlos por diálogos, enemigos o estadísticas inventadas.
 
 No incluyas APKs, AABs, dumps ni recursos propietarios en Git.

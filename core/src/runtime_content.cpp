@@ -34,6 +34,20 @@ RuntimeContentManifest select_runtime_content_manifest(const Arc0Archive& archiv
     if (contains(archive, "data/res/battle/battle_command_0.04d.cfg.bin")) {
         manifest.battle_command_path = "data/res/battle/battle_command_0.04d.cfg.bin";
     }
+    if (contains(archive, "data/res/battle/battle_view_config_0.01n.cfg.bin")) {
+        manifest.battle_view_config_path =
+            "data/res/battle/battle_view_config_0.01n.cfg.bin";
+    }
+    if (contains(archive, "data/res/battle/battle_ai_0.01.cfg.bin")) {
+        manifest.battle_ai_path = "data/res/battle/battle_ai_0.01.cfg.bin";
+    }
+    if (contains(archive, "data/res/map/map_sound_0.03c.cfg.bin")) {
+        manifest.map_sound_config_path = "data/res/map/map_sound_0.03c.cfg.bin";
+    }
+    if (contains(archive, "data/snd/cfg/event/ev01_0100.cfg.bin")) {
+        manifest.opening_event_sound_config_path =
+            "data/snd/cfg/event/ev01_0100.cfg.bin";
+    }
     constexpr std::array<std::string_view, 5> kBattleTextures = {
         "data/menu/img/battle_parts00.xi",
         "data/menu/img/battle_parts01.xi",

@@ -14,6 +14,10 @@ ykw2::core::Arc0Archive make_archive() {
              "data/res/battle/battle_config_0.09k.cfg.bin",
              "data/res/battle/battle_rule_config_0.03g.cfg.bin",
              "data/res/battle/battle_command_0.04d.cfg.bin",
+             "data/res/battle/battle_view_config_0.01n.cfg.bin",
+             "data/res/battle/battle_ai_0.01.cfg.bin",
+             "data/res/map/map_sound_0.03c.cfg.bin",
+             "data/snd/cfg/event/ev01_0100.cfg.bin",
              "data/menu/img/battle_parts00.xi",
              "data/menu/img/battle_parts02.xi",
              "data/menu/img/mm_hpbar.xi",
@@ -30,6 +34,14 @@ void test_selects_verified_yw2_bootstrap_paths() {
     assert(manifest.opening_event_path == "seq/event/ev01_0100.xq");
     assert(manifest.has_opening_event());
     assert(manifest.has_battle_definition());
+    assert(manifest.has_battle_presentation());
+    assert(manifest.has_audio_definition());
+    assert(manifest.battle_view_config_path ==
+           "data/res/battle/battle_view_config_0.01n.cfg.bin");
+    assert(manifest.battle_ai_path == "data/res/battle/battle_ai_0.01.cfg.bin");
+    assert(manifest.map_sound_config_path == "data/res/map/map_sound_0.03c.cfg.bin");
+    assert(manifest.opening_event_sound_config_path ==
+           "data/snd/cfg/event/ev01_0100.cfg.bin");
     assert(manifest.battle_texture_paths.size() == 3);
 }
 
@@ -38,6 +50,8 @@ void test_does_not_fabricate_missing_paths() {
     const auto manifest = ykw2::core::select_runtime_content_manifest(archive);
     assert(!manifest.has_opening_event());
     assert(!manifest.has_battle_definition());
+    assert(!manifest.has_battle_presentation());
+    assert(!manifest.has_audio_definition());
     assert(manifest.battle_texture_paths.empty());
 }
 

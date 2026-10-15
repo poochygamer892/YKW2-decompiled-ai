@@ -16,12 +16,23 @@ struct RuntimeContentManifest {
     std::string battle_config_path;
     std::string battle_rule_path;
     std::string battle_command_path;
+    std::string battle_view_config_path;
+    std::string battle_ai_path;
+    std::string map_sound_config_path;
+    std::string opening_event_sound_config_path;
     std::vector<std::string> battle_texture_paths;
 
     bool has_opening_event() const { return !opening_event_path.empty(); }
     bool has_battle_definition() const {
         return !battle_config_path.empty() && !battle_rule_path.empty() &&
                !battle_command_path.empty();
+    }
+    bool has_battle_presentation() const {
+        return !battle_view_config_path.empty() && !battle_texture_paths.empty();
+    }
+    bool has_audio_definition() const {
+        return !map_sound_config_path.empty() ||
+               !opening_event_sound_config_path.empty();
     }
 };
 

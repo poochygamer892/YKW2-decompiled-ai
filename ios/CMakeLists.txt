@@ -7,6 +7,7 @@ set(YKW2_CORE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../core")
 add_library(ykw2_core STATIC
     "${YKW2_CORE_ROOT}/src/arc0_reader.cpp"
     "${YKW2_CORE_ROOT}/src/byte_view.cpp"
+    "${YKW2_CORE_ROOT}/src/cfg_reader.cpp"
     "${YKW2_CORE_ROOT}/src/formats.cpp"
     "${YKW2_CORE_ROOT}/src/imgc_reader.cpp"
     "${YKW2_CORE_ROOT}/src/import_contract.cpp"
