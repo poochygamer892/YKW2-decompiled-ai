@@ -1,8 +1,7 @@
 import UIKit
 import UniformTypeIdentifiers
 
-/// First-launch menu for importing a user-selected, authorized 3DS image.
-/// The NCCH/RomFS extractor is provided by the Objective-C++ bridge.
+/// Imports a user-selected 3DS image into the app sandbox and starts Zakuro.
 final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
     private let rightsSwitch = UISwitch()
     private let statusLabel = UILabel()
@@ -31,7 +30,7 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         button.setTitle("Seleccionar ROM", for: .normal)
         button.addTarget(self, action: #selector(selectRom), for: .touchUpInside)
 
-        runtimeButton.setTitle("Abrir menú inicial", for: .normal)
+        runtimeButton.setTitle("Iniciar Yo-kai Watch 2", for: .normal)
         runtimeButton.addTarget(self, action: #selector(openRuntime), for: .touchUpInside)
         runtimeButton.isHidden = true
 
@@ -50,26 +49,20 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             stack.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
         ])
 
-        if let cacheURL = try? FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        ).appendingPathComponent("ykw2-cache", isDirectory: true),
-           YKW2ImportBridge.hasReadyImport(at: cacheURL) {
+        if let romURL = try? romURL(), FileManager.default.fileExists(atPath: romURL.path) {
             runtimeButton.isHidden = false
-            statusLabel.text = "Recursos importados y verificados. El runtime del juego aún está en desarrollo."
+            statusLabel.text = "ROM guardada en este iPhone. Zakuro la abrirá desde el almacenamiento privado."
         }
     }
 
     @objc private func openRuntime() {
-        guard let cacheURL = try? FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        ).appendingPathComponent("ykw2-cache", isDirectory: true) else { return }
-        let controller = RuntimeViewController(cacheURL: cacheURL)
+        guard let romURL = try? romURL(),
+              let dataURL = try? dataDirectoryURL(),
+              FileManager.default.fileExists(atPath: romURL.path) else {
+            statusLabel.text = "Selecciona primero tu copia autorizada de la ROM."
+            return
+        }
+        let controller = ZakuroViewController(romURL: romURL, dataURL: dataURL)
         if let navigationController {
             navigationController.pushViewController(controller, animated: true)
         } else {
@@ -118,30 +111,33 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                 return
             }
             try? handle.close()
-            statusLabel.text = "NCSD válido. Extrayendo recursos en el almacenamiento privado..."
-            let cacheURL = try FileManager.default.url(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask,
-                appropriateFor: nil,
-                create: true
-            ).appendingPathComponent("ykw2-cache", isDirectory: true)
+            statusLabel.text = "NCSD válido. Copiando la ROM al almacenamiento privado del iPhone…"
+            let destinationURL = try romURL()
+            let directoryURL = try dataDirectoryURL()
             DispatchQueue.global(qos: .userInitiated).async {
-                var importError: Error?
-                let success: Bool
+                var copyError: Error?
                 do {
-                    try YKW2ImportBridge.importDocument(at: url, cacheURL: cacheURL)
-                    success = true
+                    try FileManager.default.createDirectory(
+                        at: directoryURL,
+                        withIntermediateDirectories: true
+                    )
+                    let temporaryURL = destinationURL.appendingPathExtension("part")
+                    try? FileManager.default.removeItem(at: temporaryURL)
+                    try FileManager.default.copyItem(at: url, to: temporaryURL)
+                    if FileManager.default.fileExists(atPath: destinationURL.path) {
+                        try FileManager.default.removeItem(at: destinationURL)
+                    }
+                    try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
                 } catch {
-                    success = false
-                    importError = error
+                    copyError = error
                 }
                 DispatchQueue.main.async {
                     if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
-                    if success {
+                    if copyError == nil {
                         self.runtimeButton.isHidden = false
-                        self.statusLabel.text = "Importación completada. Recursos guardados en el caché privado."
+                        self.statusLabel.text = "ROM copiada al almacenamiento privado. Pulsa Iniciar para abrirla con Zakuro."
                     } else {
-                        self.statusLabel.text = "No se pudo extraer la RomFS: \(importError?.localizedDescription ?? "error desconocido")"
+                        self.statusLabel.text = "No se pudo copiar la ROM: \(copyError!.localizedDescription)"
                     }
                 }
             }
@@ -149,5 +145,18 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
             statusLabel.text = "No se pudo leer la imagen: \(error.localizedDescription)"
         }
+    }
+
+    private func dataDirectoryURL() throws -> URL {
+        try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ).appendingPathComponent("ykw2-data", isDirectory: true)
+    }
+
+    private func romURL() throws -> URL {
+        try dataDirectoryURL().appendingPathComponent("authorized-rom.3ds")
     }
 }

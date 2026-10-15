@@ -29,4 +29,6 @@ add_library(ykw2_core STATIC
 )
 target_compile_features(ykw2_core PUBLIC cxx_std_17)
 target_include_directories(ykw2_core PUBLIC "${YKW2_CORE_ROOT}/include")
+find_library(z-lib z REQUIRED)
+target_link_libraries(ykw2_core PUBLIC ${z-lib})
 set_target_properties(ykw2_core PROPERTIES POSITION_INDEPENDENT_CODE ON)

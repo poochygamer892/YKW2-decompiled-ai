@@ -1,0 +1,18 @@
+[package]
+name = "ykw2-mobile-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+zakuro-core = { git = "https://github.com/fearkov/zakuro", rev = "0ce36eeb64adf8969c5d94bc907ccb68b9e73f35" }
+zakuro-common = { git = "https://github.com/fearkov/zakuro", rev = "0ce36eeb64adf8969c5d94bc907ccb68b9e73f35" }
+
+[profile.release]
+debug = 0
+strip = "symbols"
+lto = false
+codegen-units = 16

@@ -9,6 +9,7 @@
 		300002 /* ImportViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200002 /* ImportViewController.swift */; };
 		300003 /* RuntimeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200003 /* RuntimeViewController.swift */; };
 		300004 /* YKW2ImportBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 200004 /* YKW2ImportBridge.mm */; };
+		300005 /* ZakuroViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200008 /* ZakuroViewController.swift */; };
 		310001 /* arc0_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210001 /* arc0_reader.cpp */; };
 		310002 /* byte_view.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210002 /* byte_view.cpp */; };
 		310003 /* formats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 210003 /* formats.cpp */; };
@@ -33,6 +34,7 @@
 		320001 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220001 /* Foundation.framework */; };
 		320002 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220002 /* UIKit.framework */; };
 		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
+		320004 /* libykw2_mobile_host.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 220004 /* libykw2_mobile_host.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +45,7 @@
 		200005 /* YKW2ImportBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YKW2ImportBridge.h; sourceTree = "<group>"; };
 		200006 /* YKW2Port-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YKW2Port-Bridging-Header.h; sourceTree = "<group>"; };
 		200007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		200008 /* ZakuroViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZakuroViewController.swift; sourceTree = "<group>"; };
 		210001 /* arc0_reader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = arc0_reader.cpp; sourceTree = "<group>"; };
 		210002 /* byte_view.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = byte_view.cpp; sourceTree = "<group>"; };
 		210003 /* formats.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = formats.cpp; sourceTree = "<group>"; };
@@ -67,6 +70,7 @@
 		220001 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		220004 /* libykw2_mobile_host.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "../build/ios-cargo/aarch64-apple-ios/release/libykw2_mobile_host.a"; sourceTree = SOURCE_ROOT; };
 		230001 /* YKW2Port.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YKW2Port.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -78,6 +82,7 @@
 				320001 /* Foundation.framework in Frameworks */,
 				320002 /* UIKit.framework in Frameworks */,
 				320003 /* UniformTypeIdentifiers.framework in Frameworks */,
+				320004 /* libykw2_mobile_host.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,6 +99,7 @@
 				200005 /* YKW2ImportBridge.h */,
 				200006 /* YKW2Port-Bridging-Header.h */,
 				200007 /* Info.plist */,
+				200008 /* ZakuroViewController.swift */,
 				100006 /* core sources */,
 				100003 /* Products */,
 				100004 /* Frameworks */,
@@ -114,6 +120,7 @@
 				220001 /* Foundation.framework */,
 				220002 /* UIKit.framework */,
 				220003 /* UniformTypeIdentifiers.framework */,
+				220004 /* libykw2_mobile_host.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -154,6 +161,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 500002 /* Build configuration list for PBXNativeTarget "YKW2Port" */;
 			buildPhases = (
+				400004 /* Build Zakuro iOS static library */,
 				400002 /* Sources */,
 				400001 /* Frameworks */,
 				400003 /* Resources */,
@@ -205,6 +213,26 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		400004 /* Build Zakuro iOS static library */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = (
+				"$(SRCROOT)/../mobile-host/Cargo.toml",
+				"$(SRCROOT)/../mobile-host/Cargo.lock",
+				"$(SRCROOT)/../mobile-host/src/lib.rs",
+			);
+			name = "Build Zakuro iOS static library";
+			outputPaths = (
+				"$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release/libykw2_mobile_host.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -euo pipefail\ncd \"$SRCROOT/..\"\nexport CARGO_TARGET_DIR=\"$SRCROOT/../build/ios-cargo\"\nexport RUSTUP_TOOLCHAIN=stable\ncargo build --locked --release --target aarch64-apple-ios --manifest-path mobile-host/Cargo.toml\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		400002 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -214,6 +242,7 @@
 				300002 /* ImportViewController.swift in Sources */,
 				300003 /* RuntimeViewController.swift in Sources */,
 				300004 /* YKW2ImportBridge.mm in Sources */,
+				300005 /* ZakuroViewController.swift in Sources */,
 				310001 /* arc0_reader.cpp in Sources */,
 				310002 /* byte_view.cpp in Sources */,
 				310003 /* formats.cpp in Sources */,
@@ -249,7 +278,9 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release";
+				OTHER_LDFLAGS = "-lz -lykw2_mobile_host";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -265,7 +296,9 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release";
+				OTHER_LDFLAGS = "-lz -lykw2_mobile_host";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;

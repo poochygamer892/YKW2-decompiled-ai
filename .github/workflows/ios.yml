@@ -7,6 +7,7 @@ on:
     paths:
       - "ios/**"
       - "core/**"
+      - "mobile-host/**"
       - ".github/workflows/ios.yml"
 
 jobs:
@@ -27,6 +28,11 @@ jobs:
           xcode-select -p
           xcodebuild -version
           swift --version
+
+      - name: Install Rust iOS target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
 
       - name: Import signing certificate and provisioning profile
         id: signing

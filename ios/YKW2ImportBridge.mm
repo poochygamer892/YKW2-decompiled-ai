@@ -21,6 +21,7 @@
 #include "ykw2/core/runtime_save.hpp"
 #include "ykw2/core/runtime_scene.hpp"
 #include "ykw2/core/resource_store.hpp"
+#include "ykw2_mobile_host.h"
 
 namespace {
 
@@ -78,6 +79,9 @@ ykw2::core::RuntimeBootInfo loadRuntimeBoot(
 std::mutex runtimeMutex;
 ykw2::core::RuntimeScene runtimeScene;
 bool runtimeStarted = false;
+MobileRuntime *zakuroRuntime = nullptr;
+std::array<std::uint8_t, YKW2_TOP_RGBA_BYTES> zakuroTopFrame{};
+std::array<std::uint8_t, YKW2_BOTTOM_RGBA_BYTES> zakuroBottomFrame{};
 
 NSString *runtimeString(const std::string& value) {
     return [NSString stringWithUTF8String:value.c_str()] ?: @"";
@@ -427,6 +431,94 @@ private:
     std::lock_guard<std::mutex> lock(runtimeMutex);
     const auto& rgba = runtimeScene.background_rgba();
     return [NSData dataWithBytes:rgba.data() length:rgba.size()];
+}
+
++ (NSString *)openZakuroROMAtURL:(NSURL *)romURL dataDirectoryURL:(NSURL *)dataURL {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (!romURL.isFileURL || !dataURL.isFileURL) {
+        return @"La ROM y el directorio de datos deben ser archivos locales.";
+    }
+    NSError *directoryError = nil;
+    if (![[NSFileManager defaultManager] createDirectoryAtURL:dataURL
+                                  withIntermediateDirectories:YES
+                                                   attributes:nil
+                                                        error:&directoryError]) {
+        return directoryError.localizedDescription ?: @"No se pudo crear el directorio de datos.";
+    }
+    if (zakuroRuntime != nullptr) {
+        ykw2_mobile_close(zakuroRuntime);
+        zakuroRuntime = nullptr;
+    }
+    std::array<char, 2048> error{};
+    zakuroRuntime = ykw2_mobile_open(
+        romURL.fileSystemRepresentation, nullptr, dataURL.fileSystemRepresentation,
+        error.data(), error.size());
+    return zakuroRuntime == nullptr
+        ? (runtimeString(std::string(error.data())).length > 0
+            ? runtimeString(std::string(error.data()))
+            : @"Zakuro no pudo abrir la ROM.")
+        : @"";
+}
+
++ (NSInteger)runZakuroFrames:(NSInteger)frames {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (zakuroRuntime == nullptr || frames <= 0 || frames > 8) {
+        return -1;
+    }
+    const auto result = ykw2_mobile_run_frames(
+        zakuroRuntime, static_cast<std::uint32_t>(frames));
+    if (result <= 0) {
+        return result;
+    }
+    const auto copied = ykw2_mobile_copy_screens(
+        zakuroRuntime, zakuroTopFrame.data(), zakuroTopFrame.size(),
+        zakuroBottomFrame.data(), zakuroBottomFrame.size());
+    return copied == 0 ? result : -2;
+}
+
++ (NSInteger)setZakuroButtons:(uint32_t)buttons
+                      touchX:(NSInteger)touchX
+                      touchY:(NSInteger)touchY {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (zakuroRuntime == nullptr) {
+        return -1;
+    }
+    return ykw2_mobile_set_input(
+        zakuroRuntime, buttons, 0.0f, 0.0f,
+        static_cast<std::int32_t>(touchX), static_cast<std::int32_t>(touchY));
+}
+
++ (NSData *)zakuroTopScreenRGBA {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    return [NSData dataWithBytes:zakuroTopFrame.data() length:zakuroTopFrame.size()];
+}
+
++ (NSData *)zakuroBottomScreenRGBA {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    return [NSData dataWithBytes:zakuroBottomFrame.data() length:zakuroBottomFrame.size()];
+}
+
++ (NSData *)takeZakuroAudioFrames:(NSInteger)maximumFrames {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (zakuroRuntime == nullptr || maximumFrames <= 0 || maximumFrames > 8192) {
+        return [NSData data];
+    }
+    std::vector<std::int16_t> samples(static_cast<std::size_t>(maximumFrames) * 2);
+    const auto frames = ykw2_mobile_take_audio(
+        zakuroRuntime, samples.data(), static_cast<std::size_t>(maximumFrames));
+    if (frames <= 0) {
+        return [NSData data];
+    }
+    return [NSData dataWithBytes:samples.data()
+                          length:static_cast<std::size_t>(frames) * 2 * sizeof(std::int16_t)];
+}
+
++ (void)closeZakuro {
+    std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (zakuroRuntime != nullptr) {
+        ykw2_mobile_close(zakuroRuntime);
+        zakuroRuntime = nullptr;
+    }
 }
 
 + (BOOL)importDocumentAtURL:(NSURL *)sourceURL
