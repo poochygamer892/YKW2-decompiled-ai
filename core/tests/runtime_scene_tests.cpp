@@ -250,8 +250,53 @@ void test_world_enters_data_backed_battle_catalog() {
     assert(snapshot.battle.definition_loaded);
     assert(snapshot.battle.definition_id == "N40_norm_battle_intro");
     assert(snapshot.battle.configured_command_count == 2);
+    assert(snapshot.battle.active);
+    assert(snapshot.battle.result == "awaiting_rule_interpreter");
+    const auto action = scene.handle(ykw2::core::RuntimeInput::Attack);
+    assert(action.handled);
+    assert(action.command == ykw2::core::RuntimeCommand::None);
+    const auto after_action = scene.snapshot();
+    assert(after_action.battle.active);
+    assert(after_action.battle.last_command_id == "sp_101000");
+    assert(after_action.battle.turn == 1);
+    assert(after_action.battle.result == "command_selected");
+    assert(after_action.battle.player_hp == 0);
+    assert(after_action.battle.enemy_hp == 0);
     assert(ykw2::core::serialize_runtime_snapshot(snapshot).find(
                "battle_sequence_id=N40_norm_battle_intro\n") != std::string::npos);
+}
+
+void test_battle_uses_decoded_catalog_records() {
+    ykw2::core::InitialContentInfo content;
+    content.scene_resources.push_back({
+        ykw2::core::InitialSceneResourceRole::Map,
+        "data/map/e100g002/e100g002.xc", 100, 30,
+        ykw2::core::ResourceKind::Xpck, 12});
+    content.runtime_content.opening_event_path = "seq/event/ev01_0100.xq";
+    content.runtime_content.battle_config_path = "battle.cfg";
+    content.runtime_content.battle_rule_path = "rule.cfg";
+    content.runtime_content.battle_command_path = "command.cfg";
+    content.battle_content.ready = true;
+    content.battle_content.battle_sequence_ids = {"N40_norm_battle_intro"};
+    content.battle_content.command_catalog = {
+        {17, 0x11111111u, "sp_101000", {1, 2, 3}},
+        {18, 0x22222222u, "sp_102000", {4, 5}},
+    };
+
+    ykw2::core::RuntimeScene scene;
+    scene.start(boot(ykw2::core::RuntimeBootState::Ready), content);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    scene.handle(ykw2::core::RuntimeInput::Confirm);
+    assert(scene.handle(ykw2::core::RuntimeInput::Confirm).handled);
+    assert(scene.snapshot().battle.configured_command_count == 2);
+    assert(scene.handle(ykw2::core::RuntimeInput::Skill).handled);
+    const auto snapshot = scene.snapshot();
+    assert(snapshot.battle.last_command_id == "sp_102000");
+    assert(snapshot.battle.turn == 1);
+    const auto serialized = ykw2::core::serialize_runtime_snapshot(snapshot);
+    assert(serialized.find("battle_command_catalog_records=2\n") != std::string::npos);
+    assert(serialized.find("battle_command_record=sp_101000|17|286331153|3\n") !=
+           std::string::npos);
 }
 
 }  // namespace
@@ -267,5 +312,6 @@ int main() {
     test_world_state_can_be_saved_and_restored();
     test_world_does_not_fabricate_a_battle();
     test_world_enters_data_backed_battle_catalog();
+    test_battle_uses_decoded_catalog_records();
     return 0;
 }

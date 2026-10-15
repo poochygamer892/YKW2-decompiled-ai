@@ -25,7 +25,8 @@ NCCH/RomFS del núcleo y escribe los recursos en `filesDir/ykw2-cache`. Tras
 extraerlos genera `.catalog` y después `.import-complete`; una extracción
 parcial no se considera arrancable. El importador actual requiere una imagen
 descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
-mostrar que la caché está lista; todavía no contiene el runtime jugable.
+mostrar que la caché está lista; contiene el runtime inicial, pero todavía no
+es el juego jugable completo.
 
 `RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
 del núcleo mediante JNI y envía navegación y confirmación al mismo estado C++.
@@ -35,8 +36,9 @@ Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
 parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
 que ese contenido sea legible.
 El núcleo ya identifica eventos, reglas, vista/IA de combate y catálogos de
-sonido reales de YW2. Lee únicamente sus cabeceras CFG con límites comprobados;
-no simula todavía su bytecode, audio ni sus reglas. La interfaz no debe
-sustituirlos por diálogos, enemigos o estadísticas inventadas.
+sonido reales de YW2. El runtime de combate selecciona comandos desde las
+filas reales de `battle_command` y los botones táctiles muestran el ID elegido.
+Todavía no simula el bytecode, el audio ni las reglas de daño/encuentro; la
+interfaz no debe sustituirlos por enemigos o estadísticas inventadas.
 
 No incluyas APKs, AABs, dumps ni recursos propietarios en Git.

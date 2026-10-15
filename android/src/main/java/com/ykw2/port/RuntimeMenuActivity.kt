@@ -186,9 +186,17 @@ class RuntimeMenuActivity : Activity() {
         val sceneResourceCount = values.count { it.first == "scene_resource" }
         val battleDefinition = value("battle_definition_id", "sin definición")
         val battleCommandCount = value("battle_configured_command_count", "0")
+        val battleLastCommand = value("battle_last_command_id", "")
         commandStatus.text = when {
             screen == "dialogue" -> dialogueText
-            screen == "battle" -> "Combate configurado: $battleDefinition\n$battleCommandCount comandos detectados. Falta interpretar las reglas y el encuentro para activar el combate real."
+            screen == "battle" -> {
+                val selectedCommand = if (battleLastCommand.isEmpty()) {
+                    "Ningún comando seleccionado"
+                } else {
+                    "Último comando real: $battleLastCommand"
+                }
+                "Combate configurado: $battleDefinition\n$battleCommandCount comandos reales detectados.\n$selectedCommand\nFalta interpretar reglas y encuentros para resolver daño, enemigos y victoria."
+            }
             command == "request_authorized_import" -> "Selecciona una copia autorizada desde el menú de importación."
             command == "start_new_game" -> "Nueva partida iniciada."
             command == "advance_dialogue" -> "Historia avanzada."

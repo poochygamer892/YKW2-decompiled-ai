@@ -51,15 +51,18 @@ documento seleccionado con `ResourceSource` y un `ResourceSink` sobre el
 contenedor privado. Tras extraerlos genera `.catalog` y después
 `.import-complete`. La primera versión también requerirá una imagen
 descifrada. Al abrirse, el menú vuelve a validar ambos archivos antes de
-mostrar que la caché está lista; todavía no contiene el runtime jugable.
+mostrar que la caché está lista; contiene el runtime inicial, pero todavía no
+es el juego jugable completo.
 
 `RuntimeViewController.swift` hospeda la primera escena portable y dibuja el
 fondo IMGC corregido. Los controles están dentro de un `UIScrollView` para que
 sean táctiles también en pantallas pequeñas. Al arrancar el puente valida el
 catálogo y parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece
 bloqueada hasta que ese contenido sea legible.
-El núcleo identifica eventos y configuración de combate reales de YW2, pero no
-simula todavía su bytecode ni sus reglas. La interfaz no debe sustituirlos por
-diálogos, enemigos o estadísticas inventadas.
+El núcleo identifica eventos y configuración de combate reales de YW2. El
+runtime de combate selecciona comandos desde las filas reales de
+`battle_command` y los botones táctiles muestran el ID elegido. Todavía no
+simula el bytecode, el audio ni las reglas de daño/encuentro; la interfaz no
+debe sustituirlos por enemigos o estadísticas inventadas.
 
 No incluyas IPA, símbolos de distribución ni recursos propietarios en Git.

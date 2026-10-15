@@ -268,7 +268,8 @@ ParseResult<InitialContentInfo> load_initial_content(
     result.runtime_content = select_runtime_content_manifest(*archive.value);
     const auto inspect_manifest_cfg = [&](std::string_view path,
                                           std::optional<CfgBinaryInfo>& destination,
-                                          std::vector<std::string>* strings)
+                                          std::vector<std::string>* strings,
+                                          std::vector<BattleCatalogRecord>* catalog)
         -> bool {
         if (path.empty()) {
             return true;
@@ -282,13 +283,27 @@ ParseResult<InitialContentInfo> load_initial_content(
             return false;
         }
         destination = parsed.value->header;
-        if (strings != nullptr) {
-            for (const auto& entry : parsed.value->entries) {
+        if (strings != nullptr || catalog != nullptr) {
+            for (std::size_t entry_index = 0;
+                 entry_index < parsed.value->entries.size(); ++entry_index) {
+                const auto& entry = parsed.value->entries[entry_index];
+                BattleCatalogRecord record;
+                record.entry_index = static_cast<std::uint32_t>(entry_index);
+                record.hash = entry.hash;
                 for (const auto& value : entry.values) {
+                    record.raw_values.push_back(value.raw_value);
                     if (value.type == CfgValueType::String &&
                         is_catalog_identifier(value.string_bytes)) {
-                        strings->push_back(value.string_bytes);
+                        if (strings != nullptr) {
+                            strings->push_back(value.string_bytes);
+                        }
+                        if (record.id.empty()) {
+                            record.id = value.string_bytes;
+                        }
                     }
+                }
+                if (catalog != nullptr && !record.id.empty()) {
+                    catalog->push_back(std::move(record));
                 }
             }
         }
@@ -296,21 +311,24 @@ ParseResult<InitialContentInfo> load_initial_content(
     };
     if (!inspect_manifest_cfg(result.runtime_content.battle_config_path,
                               result.battle_config_header,
-                              &result.battle_content.battle_sequence_ids) ||
+                              &result.battle_content.battle_sequence_ids,
+                              &result.battle_content.battle_sequence_catalog) ||
         !inspect_manifest_cfg(result.runtime_content.battle_rule_path,
-                              result.battle_rule_header, nullptr) ||
+                              result.battle_rule_header, nullptr, nullptr) ||
         !inspect_manifest_cfg(result.runtime_content.battle_command_path,
                               result.battle_command_header,
-                              &result.battle_content.command_ids) ||
+                              &result.battle_content.command_ids,
+                              &result.battle_content.command_catalog) ||
         !inspect_manifest_cfg(result.runtime_content.battle_view_config_path,
-                              result.battle_view_config_header, nullptr) ||
+                              result.battle_view_config_header, nullptr, nullptr) ||
         !inspect_manifest_cfg(result.runtime_content.battle_ai_path,
-                              result.battle_ai_header, nullptr) ||
+                              result.battle_ai_header, nullptr, nullptr) ||
         !inspect_manifest_cfg(result.runtime_content.map_sound_config_path,
                               result.map_sound_config_header,
-                              &result.battle_content.sound_ids) ||
+                              &result.battle_content.sound_ids,
+                              &result.battle_content.sound_catalog) ||
         !inspect_manifest_cfg(result.runtime_content.opening_event_sound_config_path,
-                              result.opening_event_sound_config_header, nullptr)) {
+                              result.opening_event_sound_config_header, nullptr, nullptr)) {
         return failure<InitialContentInfo>("initial_runtime_config_invalid");
     }
     result.battle_content.battle_config_entries =

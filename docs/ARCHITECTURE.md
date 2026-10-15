@@ -85,8 +85,11 @@ lo usa mediante `xq32_dispatch` para registrar si cada token fue manejado,
 desconocido o inválido. Los tokens desconocidos avanzan de forma segura y se
 exponen al cliente móvil para no ocultar qué parte falta. `cfg_reader` valida
 ahora el prefijo de 16 bytes de cada CFG de combate y sonido seleccionado y
-publica sus palabras crudas, sin afirmar semánticas no demostradas. El siguiente
-bloque es recuperar esos significados con evidencia del ejecutable y de los
-eventos observables. El renderizado de mapas, el decoder de audio, el combate y
-la traducción completa de recursos siguen siendo trabajo posterior; estos
-cimientos aún no son un port jugable completo.
+publica sus palabras crudas, sin afirmar semánticas no demostradas.
+`initial_content` conserva además los registros identificables de
+`battle_config`, `battle_command` y `map_sound`; el runtime usa los IDs reales
+de `battle_command` para responder a Atacar/Habilidad sin inventar daño. El
+siguiente bloque es recuperar esos significados con evidencia del ejecutable y
+de los eventos observables. El renderizado de mapas, el decoder de audio, el
+combate y la traducción completa de recursos siguen siendo trabajo posterior;
+estos cimientos aún no son un port jugable completo.

@@ -57,10 +57,12 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
   móvil sin cargar el ejecutable de YW1. El lector XMPR/XPVB/XPVI ya extrae
   una malla acotada del primer mapa y los clientes dibujan esa geometría como
   previsualización nativa.
-  Todavía faltan la semántica probada de todos los opcodes, materiales y
-  animaciones 3D, el decoder de audio propietario y las reglas completas de
-  combate; esos límites siguen explícitos para no presentar una demo como el
-  port jugable terminado.
+  El runtime de combate ya selecciona comandos desde las filas reales de
+  `battle_command` y los clientes táctiles los muestran como comandos
+  seleccionados. Todavía faltan la semántica probada de todos los opcodes,
+  materiales y animaciones 3D, el decoder de audio propietario y las reglas
+  completas de combate; esos límites siguen explícitos para no presentar una
+  demo como el port jugable terminado.
 - `tools/build_yw1_yw2_overlay.py` queda como herramienta de diagnóstico
   privada y no es la ruta de ejecución del port nativo.
 

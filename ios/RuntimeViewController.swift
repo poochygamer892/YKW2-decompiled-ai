@@ -279,6 +279,7 @@ final class RuntimeViewController: UIViewController {
         var audioCue = ""
         var battleDefinition = "sin definición"
         var battleCommandCount = 0
+        var battleLastCommand = ""
         var meshVertices: [SIMD3<Float>] = []
         var meshIndices: [Int] = []
         for line in lines {
@@ -317,6 +318,7 @@ final class RuntimeViewController: UIViewController {
             case "audio_cue": audioCue = parts[1]
             case "battle_definition_id": battleDefinition = parts[1]
             case "battle_configured_command_count": battleCommandCount = Int(parts[1]) ?? 0
+            case "battle_last_command_id": battleLastCommand = parts[1]
             case "scene_mesh_vertex":
                 let values = parts[1].split(separator: "|").compactMap { Float(String($0)) }
                 if values.count == 3 {
@@ -355,7 +357,10 @@ final class RuntimeViewController: UIViewController {
                                         playerY: playerY, sceneResourceCount: sceneResourceCount,
                                         enemyID: enemyID, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP)
         if screen == "battle" {
-            commandLabel.text = "Combate configurado: \(battleDefinition)\n\(battleCommandCount) comandos detectados. Falta interpretar las reglas y el encuentro para activar el combate real."
+            let selectedCommand = battleLastCommand.isEmpty
+                ? "Ningún comando seleccionado"
+                : "Último comando real: \(battleLastCommand)"
+            commandLabel.text = "Combate configurado: \(battleDefinition)\n\(battleCommandCount) comandos reales detectados.\n\(selectedCommand)\nFalta interpretar reglas y encuentros para resolver daño, enemigos y victoria."
         }
         playAudioCue(sequence: audioSequence, cue: audioCue)
     }

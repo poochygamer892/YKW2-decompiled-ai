@@ -154,7 +154,9 @@ void RuntimeScene::begin_battle() {
     battle_ = {};
     battle_.definition_loaded = battle_content_.ready;
     battle_.configured_command_count =
-        static_cast<std::uint32_t>(battle_content_.command_ids.size());
+        static_cast<std::uint32_t>(battle_content_.command_catalog.empty()
+                                       ? battle_content_.command_ids.size()
+                                       : battle_content_.command_catalog.size());
     if (!battle_content_.ready) {
         return;
     }
@@ -163,7 +165,8 @@ void RuntimeScene::begin_battle() {
     if (!battle_content_.battle_sequence_ids.empty()) {
         battle_.definition_id = battle_content_.battle_sequence_ids.front();
     }
-    battle_.result = "rules_pending";
+    battle_.active = battle_.configured_command_count != 0;
+    battle_.result = battle_.active ? "awaiting_rule_interpreter" : "no_commands";
     trigger_audio("battle_definition:" + battle_.definition_id);
 }
 
@@ -183,27 +186,22 @@ RuntimeTransition RuntimeScene::resolve_battle_action(RuntimeInput input) {
         input != RuntimeInput::Skill) {
         return {false, RuntimeCommand::None};
     }
-    const int damage = input == RuntimeInput::Skill ? 35 : 18;
-    battle_.enemy_hp = std::max(0, battle_.enemy_hp - damage);
+    const auto command_count = battle_.configured_command_count;
+    if (command_count == 0) {
+        return {false, RuntimeCommand::None};
+    }
+    std::size_t command_index = input == RuntimeInput::Skill ? 1u : 0u;
+    if (command_index >= command_count) {
+        command_index = 0;
+    }
+    if (!battle_content_.command_catalog.empty()) {
+        battle_.last_command_id = battle_content_.command_catalog[command_index].id;
+    } else {
+        battle_.last_command_id = battle_content_.command_ids[command_index];
+    }
     ++battle_.turn;
-    trigger_audio(input == RuntimeInput::Skill ? "skill" : "attack");
-    if (battle_.enemy_hp == 0) {
-        battle_.active = false;
-        battle_.result = "won";
-        screen_ = RuntimeScreen::World;
-        world_.active = true;
-        trigger_audio("victory");
-        return {true, RuntimeCommand::BattleWon};
-    }
-    battle_.player_hp = std::max(0, battle_.player_hp - (input == RuntimeInput::Skill ? 8 : 5));
-    if (battle_.player_hp == 0) {
-        battle_.active = false;
-        battle_.result = "defeated";
-        screen_ = RuntimeScreen::World;
-        world_.active = true;
-        trigger_audio("defeat");
-        return {true, RuntimeCommand::BattleDefeated};
-    }
+    battle_.result = "command_selected";
+    trigger_audio("battle_command:" + battle_.last_command_id);
     return {true, RuntimeCommand::None};
 }
 
@@ -500,6 +498,26 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
               std::to_string(snapshot.battle_content.battle_view_entries) + "\n";
     result += "battle_ai_entries=" +
               std::to_string(snapshot.battle_content.battle_ai_entries) + "\n";
+    result += "battle_sequence_catalog_records=" +
+              std::to_string(snapshot.battle_content.battle_sequence_catalog.size()) + "\n";
+    result += "battle_command_catalog_records=" +
+              std::to_string(snapshot.battle_content.command_catalog.size()) + "\n";
+    result += "sound_catalog_records=" +
+              std::to_string(snapshot.battle_content.sound_catalog.size()) + "\n";
+    const auto append_catalog = [&result](const char* key,
+                                           const std::vector<BattleCatalogRecord>& catalog) {
+        const auto limit = std::min<std::size_t>(catalog.size(), 32);
+        for (std::size_t index = 0; index < limit; ++index) {
+            const auto& record = catalog[index];
+            result += std::string(key) + "_record=" + record.id + "|" +
+                      std::to_string(record.entry_index) + "|" +
+                      std::to_string(record.hash) + "|" +
+                      std::to_string(record.raw_values.size()) + "\n";
+        }
+    };
+    append_catalog("battle_sequence", snapshot.battle_content.battle_sequence_catalog);
+    append_catalog("battle_command", snapshot.battle_content.command_catalog);
+    append_catalog("sound", snapshot.battle_content.sound_catalog);
     const auto sequence_limit = std::min<std::size_t>(
         snapshot.battle_content.battle_sequence_ids.size(), 32);
     for (std::size_t index = 0; index < sequence_limit; ++index) {
@@ -590,6 +608,7 @@ std::string serialize_runtime_snapshot(const RuntimeSnapshot& snapshot) {
     result += "battle_definition_id=" + snapshot.battle.definition_id + "\n";
     result += "battle_configured_command_count=" +
               std::to_string(snapshot.battle.configured_command_count) + "\n";
+    result += "battle_last_command_id=" + snapshot.battle.last_command_id + "\n";
     result += "enemy_id=" + snapshot.battle.enemy_id + "\n";
     result += "player_hp=" + std::to_string(snapshot.battle.player_hp) + "\n";
     result += "player_max_hp=" + std::to_string(snapshot.battle.player_max_hp) + "\n";

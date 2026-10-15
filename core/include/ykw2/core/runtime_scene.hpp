@@ -82,6 +82,7 @@ struct RuntimeBattleSnapshot {
     bool definition_loaded = false;
     std::string definition_id;
     std::uint32_t configured_command_count = 0;
+    std::string last_command_id;
     std::string enemy_id;
     int player_hp = 0;
     int player_max_hp = 0;

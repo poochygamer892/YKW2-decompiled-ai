@@ -41,6 +41,16 @@ struct InitialSceneResource {
     std::vector<std::uint16_t> mesh_preview_indices;
 };
 
+// One row from a decoded YW2 battle catalog. The numeric fields intentionally
+// remain raw until the table's field hashes are mapped; the identifier is the
+// only value currently proven to be a symbolic command/sequence name.
+struct BattleCatalogRecord {
+    std::uint32_t entry_index = 0;
+    std::uint32_t hash = 0;
+    std::string id;
+    std::vector<std::uint32_t> raw_values;
+};
+
 struct InitialBattleContent {
     bool ready = false;
     std::uint32_t battle_config_entries = 0;
@@ -51,6 +61,9 @@ struct InitialBattleContent {
     std::vector<std::string> battle_sequence_ids;
     std::vector<std::string> command_ids;
     std::vector<std::string> sound_ids;
+    std::vector<BattleCatalogRecord> battle_sequence_catalog;
+    std::vector<BattleCatalogRecord> command_catalog;
+    std::vector<BattleCatalogRecord> sound_catalog;
 };
 
 const char* initial_scene_resource_role_name(InitialSceneResourceRole role);
