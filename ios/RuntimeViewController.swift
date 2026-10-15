@@ -16,6 +16,8 @@ final class RuntimeSceneCanvasView: UIView {
     private var enemyMaxHP = 1
     private var meshVertices: [SIMD3<Float>] = []
     private var meshIndices: [Int] = []
+    private var menuItems: [String] = []
+    private var selectedIndex = 0
     private var sceneHeightPercent: CGFloat = 58
     private var dialogueTopPercent: CGFloat = 55
 
@@ -23,7 +25,8 @@ final class RuntimeSceneCanvasView: UIView {
                 dialogueText: String, enemyID: String, playerHP: Int,
                 playerMaxHP: Int, enemyHP: Int, enemyMaxHP: Int,
                 sceneHeightPercent: CGFloat, dialogueTopPercent: CGFloat,
-                meshVertices: [SIMD3<Float>] = [], meshIndices: [Int] = []) {
+                meshVertices: [SIMD3<Float>] = [], meshIndices: [Int] = [],
+                menuItems: [String] = [], selectedIndex: Int = 0) {
         self.screen = screen
         self.playerX = playerX
         self.playerY = playerY
@@ -36,6 +39,8 @@ final class RuntimeSceneCanvasView: UIView {
         self.enemyMaxHP = max(1, enemyMaxHP)
         self.meshVertices = meshVertices
         self.meshIndices = meshIndices
+        self.menuItems = menuItems
+        self.selectedIndex = selectedIndex
         self.sceneHeightPercent = min(90, max(20, sceneHeightPercent))
         self.dialogueTopPercent = min(90, max(30, dialogueTopPercent))
         setNeedsDisplay()
@@ -55,10 +60,30 @@ final class RuntimeSceneCanvasView: UIView {
             image.draw(in: imageRect)
         }
         switch screen {
+        case "title_menu": drawMenu()
         case "world": drawWorld()
         case "dialogue": drawDialogue()
         case "battle": drawBattle()
-        default: drawMenuHint()
+        default: drawMenu()
+        }
+    }
+
+    private func drawMenu() {
+        let panelTop = bounds.height * 0.58
+        UIColor(red: 0.03, green: 0.05, blue: 0.1, alpha: 0.92).setFill()
+        UIBezierPath(roundedRect: CGRect(x: 12, y: panelTop, width: bounds.width - 24,
+                                         height: bounds.height - panelTop - 12), cornerRadius: 16).fill()
+        drawText("Yo-kai Watch 2", at: CGPoint(x: 28, y: panelTop + 18), color: .white, size: 18)
+        for (index, item) in menuItems.enumerated() {
+            let top = panelTop + 52 + CGFloat(index) * 38
+            let selected = index == selectedIndex
+            (selected ? UIColor(red: 0.2, green: 0.67, blue: 0.84, alpha: 1) :
+                UIColor(white: 0.85, alpha: 0.72)).setFill()
+            UIBezierPath(roundedRect: CGRect(x: 22, y: top - 22, width: bounds.width - 44,
+                                             height: 30), cornerRadius: 8).fill()
+            drawText(item, at: CGPoint(x: 34, y: top - 2),
+                     color: selected ? .white : UIColor(red: 0.06, green: 0.1, blue: 0.15, alpha: 1),
+                     size: 16)
         }
     }
 
@@ -117,7 +142,8 @@ final class RuntimeSceneCanvasView: UIView {
         UIColor(red: 0.03, green: 0.05, blue: 0.1, alpha: 0.92).setFill()
         UIBezierPath(roundedRect: CGRect(x: 12, y: panelTop, width: bounds.width - 24,
                                          height: bounds.height - panelTop - 10), cornerRadius: 14).fill()
-        drawText(speaker, at: CGPoint(x: 28, y: panelTop + 14), color: UIColor(
+        drawText(speaker.isEmpty ? "Evento de apertura" : speaker,
+                 at: CGPoint(x: 28, y: panelTop + 14), color: UIColor(
             red: 0.42, green: 0.86, blue: 1, alpha: 1), size: 17)
         drawText(dialogueText, at: CGPoint(x: 28, y: panelTop + 47), color: .white, size: 16)
     }
@@ -128,10 +154,6 @@ final class RuntimeSceneCanvasView: UIView {
         drawText("Combate de Yo-kai Watch 2", at: CGPoint(x: 18, y: 28), color: .white, size: 17)
         drawText("Las reglas y el encuentro se interpretarán desde el dump autorizado.",
                  at: CGPoint(x: 18, y: 64), color: .white, size: 14)
-    }
-
-    private func drawMenuHint() {
-        drawText("Selecciona una opción", at: CGPoint(x: 16, y: bounds.height * 0.72), color: .white, size: 15)
     }
 
     private func drawText(_ text: String, at point: CGPoint, color: UIColor, size: CGFloat) {
@@ -149,6 +171,10 @@ final class RuntimeViewController: UIViewController {
     private let selectedLabel = UILabel()
     private let commandLabel = UILabel()
     private let sceneView = RuntimeSceneCanvasView()
+    private var dpadControls: UIStackView!
+    private var confirmButton: UIButton!
+    private var battleControls: UIStackView!
+    private var backButton: UIButton!
     private var displayLink: CADisplayLink?
     private var lastAudioSequence: UInt64 = 0
 
@@ -172,24 +198,34 @@ final class RuntimeViewController: UIViewController {
         commandLabel.numberOfLines = 0
         commandLabel.textAlignment = .center
 
-        let previous = button("Anterior", #selector(movePrevious))
-        let next = button("Siguiente", #selector(moveNext))
-        let confirm = button("Confirmar / Interactuar", #selector(confirmSelection))
-        let up = button("Arriba", #selector(moveUp))
-        let down = button("Abajo", #selector(moveDown))
-        let left = button("Izquierda", #selector(moveLeft))
-        let right = button("Derecha", #selector(moveRight))
+        let up = button("▲", #selector(moveUp))
+        let down = button("▼", #selector(moveDown))
+        let left = button("◀", #selector(moveLeft))
+        let right = button("▶", #selector(moveRight))
+        let center = button("●", #selector(confirmSelection))
         let attack = button("Atacar", #selector(attack))
         let skill = button("Habilidad", #selector(skill))
         let run = button("Huir", #selector(run))
-        let back = button("Volver", #selector(moveBack))
+        backButton = button("B · Volver", #selector(moveBack))
+        confirmButton = button("A · Confirmar", #selector(confirmSelection))
+
+        let dpadMiddle = UIStackView(arrangedSubviews: [left, center, right])
+        dpadMiddle.axis = .horizontal
+        dpadMiddle.distribution = .fillEqually
+        dpadControls = UIStackView(arrangedSubviews: [up, dpadMiddle, down])
+        dpadControls.axis = .vertical
+        dpadControls.alignment = .center
+        dpadControls.spacing = 2
+        battleControls = UIStackView(arrangedSubviews: [attack, skill, run])
+        battleControls.axis = .horizontal
+        battleControls.distribution = .fillEqually
 
         let stack = UIStackView(arrangedSubviews: [statusLabel, sceneView, selectedLabel,
-            previous, next, up, down, left, right, confirm, attack, skill, run, back, commandLabel])
+            dpadControls, confirmButton, battleControls, backButton, commandLabel])
         stack.axis = .vertical
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
-        sceneView.heightAnchor.constraint(equalToConstant: 280).isActive = true
+        sceneView.heightAnchor.constraint(equalToConstant: 360).isActive = true
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
@@ -227,6 +263,13 @@ final class RuntimeViewController: UIViewController {
         result.setTitle(title, for: .normal)
         result.addTarget(self, action: action, for: .touchUpInside)
         return result
+    }
+
+    private func updateControls(for screen: String) {
+        dpadControls.isHidden = screen != "title_menu" && screen != "world"
+        confirmButton.isHidden = screen != "title_menu" && screen != "world" && screen != "dialogue"
+        battleControls.isHidden = screen != "battle"
+        backButton.isHidden = screen != "world" && screen != "dialogue" && screen != "battle"
     }
 
     @objc private func advanceFrame(_ displayLink: CADisplayLink) {
@@ -330,15 +373,19 @@ final class RuntimeViewController: UIViewController {
             }
         }
         statusLabel.text = statusText(for: status, screen: screen)
+        updateControls(for: screen)
         if items.indices.contains(selected), items[selected].count > 1 {
             selectedLabel.text = label(for: items[selected][1])
         } else if screen == "dialogue" {
-            selectedLabel.text = "Pulsa Confirmar para continuar"
+            selectedLabel.text = "A · Avanzar evento"
         } else if screen == "battle" {
-            selectedLabel.text = "Elige una acción"
+            selectedLabel.text = "Comandos reales del catálogo YW2"
+        } else if screen == "world" {
+            selectedLabel.text = "● · Interactuar"
         } else {
             selectedLabel.text = statusText(for: status, screen: screen)
         }
+        let menuItems = items.compactMap { $0.count > 1 ? label(for: $0[1]) : nil }
         let dialogue = eventDescription(eventID: eventID, symbol: eventSymbol,
                                         instructions: eventInstructions, arguments: eventArguments,
                                         decodedInstructions: eventDecodedInstructions,
@@ -346,12 +393,14 @@ final class RuntimeViewController: UIViewController {
                                         operationToken: operationToken,
                                         operationStatus: operationStatus,
                                         argumentIndex: argumentIndex, argumentCount: argumentCount)
-        sceneView.render(screen: screen, playerX: playerX, playerY: playerY, speaker: speaker,
+        sceneView.render(screen: screen, playerX: playerX, playerY: playerY,
+                         speaker: screen == "dialogue" ? "" : speaker,
                          dialogueText: dialogue, enemyID: enemyID, playerHP: playerHP,
                          playerMaxHP: playerMaxHP, enemyHP: enemyHP, enemyMaxHP: enemyMaxHP,
                          sceneHeightPercent: sceneHeightPercent,
                          dialogueTopPercent: dialogueTopPercent,
-                         meshVertices: meshVertices, meshIndices: meshIndices)
+                         meshVertices: meshVertices, meshIndices: meshIndices,
+                         menuItems: menuItems, selectedIndex: selected)
         commandLabel.text = commandText(command: command, screen: screen, speaker: speaker,
                                         dialogue: dialogue, worldMap: worldMap, playerX: playerX,
                                         playerY: playerY, sceneResourceCount: sceneResourceCount,
@@ -383,7 +432,7 @@ final class RuntimeViewController: UIViewController {
         default: break
         }
         if screen == "world" {
-            return "Mapa: \(worldMap)\nJugador: (\(playerX), \(playerY))\n\(sceneResourceCount) recursos cargados. Pulsa Confirmar para combatir."
+            return "Mapa YW2: \(worldMap)\nJugador: (\(playerX), \(playerY))\n\(sceneResourceCount) recursos indexados."
         }
         return ""
     }
@@ -419,11 +468,16 @@ final class RuntimeViewController: UIViewController {
                                   operationStatus: String,
                                   argumentIndex: Int, argumentCount: Int) -> String {
         if eventID.isEmpty { return "No se encontró un evento de apertura compatible en el dump." }
-        let entry = symbol.isEmpty ? "sin símbolo recuperado" : symbol
         let total = lineCount > 0 ? lineCount : instructions
         let step = total > 0 ? "Paso \(lineIndex + 1)/\(total)" : "Programa sin pasos"
-        let operation = operationToken.isEmpty ? "sin operación actual" : "token \(operationToken) · argumentos \(argumentIndex)+\(argumentCount) · \(operationStatus)"
-        return "Programa XQ32 de YW2 decodificado\n\(eventID)\nEntrada: \(entry) · \(decodedInstructions)/\(instructions) instrucciones · \(arguments) argumentos\n\(step) · \(operation)\nLa semántica de los tokens sigue en recuperación."
+        let operation: String
+        switch operationStatus {
+        case "unknown_operation": operation = "Paso estructural; operación aún no traducida"
+        case "invalid_arguments": operation = "Paso detenido: argumentos no validados"
+        case "completed": operation = "Evento completado"
+        default: operation = "Paso de evento"
+        }
+        return "\(eventID)\n\(step)\n\(operation)"
     }
 
     private func label(for key: String) -> String {
@@ -439,7 +493,7 @@ final class RuntimeViewController: UIViewController {
         if screen == "dialogue" { return "Historia" }
         if screen == "battle" { return "Combate" }
         switch key {
-        case "runtime.title_menu": return "Contenido inicial validado"
+        case "runtime.title_menu": return "Presentación YW2 · contenido indexado"
         case "runtime.world": return "Explorando Yo-kai Watch 2"
         case "runtime.content_missing": return "Falta el archivo inicial yw2_a.fa o su índice ARC0 no es válido."
         case "import.required": return "Selecciona una copia autorizada para importar."

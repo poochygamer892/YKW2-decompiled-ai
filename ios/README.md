@@ -55,13 +55,19 @@ mostrar que la caché está lista; contiene el runtime inicial, pero todavía no
 es el juego jugable completo.
 
 `RuntimeViewController.swift` hospeda la primera escena portable y dibuja el
-fondo IMGC corregido. Los controles están dentro de un `UIScrollView` para que
-sean táctiles también en pantallas pequeñas. Al arrancar el puente valida el
+fondo IMGC y la malla de mapa que provienen del contenido YW2. El menú y el
+paso del evento XQ32 se presentan dentro de la escena; los controles son
+contextuales al menú, evento, mundo o catálogo de combate y están dentro de
+un `UIScrollView` para que sean táctiles también en pantallas pequeñas. Al
+arrancar el puente valida el
 catálogo y parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece
 bloqueada hasta que ese contenido sea legible.
 El núcleo identifica eventos y configuración de combate reales de YW2. El
-runtime de combate selecciona comandos desde las filas reales de
-`battle_command` y los botones táctiles muestran el ID elegido. Todavía no
+evento de apertura avanza mediante el cursor XQ32 acotado y la interfaz
+muestra su estado estructural sobre el fondo extraído; los tokens sin
+semántica probada no se convierten en diálogo ficticio. El runtime de combate
+selecciona comandos desde las filas reales de `battle_command` y los botones
+táctiles muestran el ID elegido. Todavía no
 simula el bytecode, el audio ni las reglas de daño/encuentro; la interfaz no
 debe sustituirlos por enemigos o estadísticas inventadas.
 

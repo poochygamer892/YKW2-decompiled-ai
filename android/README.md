@@ -30,14 +30,19 @@ es el juego jugable completo.
 
 `RuntimeMenuActivity.kt` hospeda la primera escena portable: recibe snapshots
 del núcleo mediante JNI y envía navegación y confirmación al mismo estado C++.
-`RuntimeSceneView.kt` dibuja el fondo IMGC corregido y el estado de escena; los
-botones táctiles se mantienen dentro de un `ScrollView`.
+`RuntimeSceneView.kt` dibuja el fondo IMGC y la malla de mapa que provienen del
+contenido YW2; el menú y el paso del evento XQ32 se presentan dentro de la
+escena. Los controles táctiles son contextuales al menú, evento, mundo o
+catálogo de combate y se mantienen dentro de un `ScrollView`.
 Al arrancar construye un `ResourceStore` sobre el caché, valida el catálogo y
 parsea el índice ARC0 de `yw2_a.fa`; Nueva partida permanece bloqueada hasta
 que ese contenido sea legible.
 El núcleo ya identifica eventos, reglas, vista/IA de combate y catálogos de
-sonido reales de YW2. El runtime de combate selecciona comandos desde las
-filas reales de `battle_command` y los botones táctiles muestran el ID elegido.
+sonido reales de YW2. El evento de apertura avanza mediante el cursor XQ32
+acotado y la interfaz muestra su estado estructural sobre el fondo extraído;
+los tokens sin semántica probada no se convierten en diálogo ficticio. El
+runtime de combate selecciona comandos desde las filas reales de
+`battle_command` y los botones táctiles muestran el ID elegido.
 Todavía no simula el bytecode, el audio ni las reglas de daño/encuentro; la
 interfaz no debe sustituirlos por enemigos o estadísticas inventadas.
 
