@@ -124,7 +124,7 @@ final class ZakuroViewController: UIViewController {
         audioEngine.attach(audioPlayer)
         audioEngine.connect(audioPlayer, to: audioEngine.mainMixerNode, format: audioFormat)
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .game)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
             try audioEngine.start()
             audioPlayer.play()
