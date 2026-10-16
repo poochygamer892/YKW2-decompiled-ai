@@ -139,7 +139,7 @@ jobs:
           set -euo pipefail
           APP="$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app"
           test -x "$APP/YKW2Port"
-          DEPENDENCIES="$(xcrun --sdk iphoneos otool -L "$APP/YKW2Port")"
+          DEPENDENCIES="$(xcrun --sdk iphoneos otool -L "$APP/YKW2Port" | tail -n +2)"
           echo "$DEPENDENCIES"
           if echo "$DEPENDENCIES" | grep -E '/Users/runner/work|libykw2_mobile_host\.dylib'; then
             echo "::error::The app links a dynamic library that is not bundled in the IPA."
