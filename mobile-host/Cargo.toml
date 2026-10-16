@@ -14,5 +14,5 @@ zakuro-common = { git = "https://github.com/fearkov/zakuro", rev = "0ce36eeb64ad
 [profile.release]
 debug = 0
 strip = "symbols"
-lto = false
-codegen-units = 16
+lto = "thin"
+codegen-units = 1

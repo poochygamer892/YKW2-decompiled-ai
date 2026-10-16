@@ -15,6 +15,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".RuntimeMenuActivity" />
+        <activity
+            android:name=".ZakuroRuntimeActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize" />
+        <activity
+            android:name=".TouchControlsActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
+            android:exported="false" />
     </application>
 </manifest>

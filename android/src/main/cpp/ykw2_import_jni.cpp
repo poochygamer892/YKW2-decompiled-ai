@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "ykw2_mobile_host.h"
 #include "ykw2/core/import_contract.hpp"
 #include "ykw2/core/initial_content.hpp"
 #include "ykw2/core/resource_catalog.hpp"
@@ -354,6 +355,7 @@ std::mutex runtime_mutex;
 ykw2::core::RuntimeScene runtime_scene;
 bool runtime_started = false;
 std::string runtime_cache_path;
+MobileRuntime* zakuro_runtime = nullptr;
 
 void restore_runtime_save(const std::string& cache_path) {
     std::vector<std::uint8_t> bytes;
@@ -572,6 +574,118 @@ Java_com_ykw2_port_RomImportBridge_nativeRuntimeBackgroundRgba(
         array, 0, static_cast<jsize>(rgba.size()),
         reinterpret_cast<const jbyte*>(rgba.data()));
     return array;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorOpen(
+    JNIEnv* environment, jobject, jstring rom_file,
+    jstring recompiled_library, jstring data_directory) {
+    if (rom_file == nullptr || data_directory == nullptr) {
+        return to_java_string(environment, "Invalid ROM path or data directory.");
+    }
+    const auto* rom_chars = environment->GetStringUTFChars(rom_file, nullptr);
+    if (rom_chars == nullptr) {
+        return to_java_string(environment, "Could not read the ROM path.");
+    }
+    const auto* data_chars = environment->GetStringUTFChars(data_directory, nullptr);
+    if (data_chars == nullptr) {
+        environment->ReleaseStringUTFChars(rom_file, rom_chars);
+        return to_java_string(environment, "Could not read the app data directory.");
+    }
+    const std::string rom_path(rom_chars);
+    environment->ReleaseStringUTFChars(rom_file, rom_chars);
+    const std::string data_path(data_chars);
+    environment->ReleaseStringUTFChars(data_directory, data_chars);
+
+    std::string library_path;
+    if (recompiled_library != nullptr) {
+        const auto* library_chars = environment->GetStringUTFChars(recompiled_library, nullptr);
+        if (library_chars == nullptr) {
+            return to_java_string(environment, "Could not read the recompiled library path.");
+        }
+        library_path.assign(library_chars);
+        environment->ReleaseStringUTFChars(recompiled_library, library_chars);
+    }
+
+    std::array<char, 1024> error{};
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    if (zakuro_runtime != nullptr) {
+        ykw2_mobile_close(zakuro_runtime);
+        zakuro_runtime = nullptr;
+    }
+    zakuro_runtime = ykw2_mobile_open(
+        rom_path.c_str(), library_path.empty() ? nullptr : library_path.c_str(),
+        data_path.c_str(), error.data(), error.size());
+    return to_java_string(environment, zakuro_runtime == nullptr
+        ? std::string(error.data())
+        : std::string());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorRunFrames(
+    JNIEnv*, jobject, jint frames) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    if (zakuro_runtime == nullptr || frames <= 0 || frames > 8) return -1;
+    return ykw2_mobile_run_frames(zakuro_runtime, static_cast<std::uint32_t>(frames));
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorSetInput(
+    JNIEnv*, jobject, jint buttons, jfloat circle_x, jfloat circle_y,
+    jint touch_x, jint touch_y) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    if (zakuro_runtime == nullptr) return -1;
+    return ykw2_mobile_set_input(zakuro_runtime, static_cast<std::uint32_t>(buttons),
+                                 circle_x, circle_y, touch_x, touch_y);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorCopyScreens(
+    JNIEnv* environment, jobject, jbyteArray top, jbyteArray bottom) {
+    if (top == nullptr || bottom == nullptr) return -1;
+    if (environment->GetArrayLength(top) < YKW2_TOP_RGBA_BYTES ||
+        environment->GetArrayLength(bottom) < YKW2_BOTTOM_RGBA_BYTES) return -1;
+    auto* top_bytes = environment->GetByteArrayElements(top, nullptr);
+    auto* bottom_bytes = environment->GetByteArrayElements(bottom, nullptr);
+    if (top_bytes == nullptr || bottom_bytes == nullptr) {
+        if (top_bytes != nullptr) environment->ReleaseByteArrayElements(top, top_bytes, JNI_ABORT);
+        if (bottom_bytes != nullptr) environment->ReleaseByteArrayElements(bottom, bottom_bytes, JNI_ABORT);
+        return -1;
+    }
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    const auto result = zakuro_runtime == nullptr ? -1 : ykw2_mobile_copy_screens(
+        zakuro_runtime, reinterpret_cast<std::uint8_t*>(top_bytes),
+        static_cast<std::size_t>(environment->GetArrayLength(top)),
+        reinterpret_cast<std::uint8_t*>(bottom_bytes),
+        static_cast<std::size_t>(environment->GetArrayLength(bottom)));
+    environment->ReleaseByteArrayElements(top, top_bytes, result == 0 ? 0 : JNI_ABORT);
+    environment->ReleaseByteArrayElements(bottom, bottom_bytes, result == 0 ? 0 : JNI_ABORT);
+    return result;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorTakeAudio(
+    JNIEnv* environment, jobject, jshortArray samples) {
+    if (samples == nullptr) return -1;
+    const auto length = environment->GetArrayLength(samples);
+    if (length < 0 || (length % 2) != 0) return -1;
+    auto* audio = environment->GetShortArrayElements(samples, nullptr);
+    if (audio == nullptr) return -1;
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    const auto count = zakuro_runtime == nullptr ? -1 : ykw2_mobile_take_audio(
+        zakuro_runtime, reinterpret_cast<std::int16_t*>(audio),
+        static_cast<std::size_t>(length / 2));
+    environment->ReleaseShortArrayElements(samples, audio, count >= 0 ? 0 : JNI_ABORT);
+    return count;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorClose(JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(runtime_mutex);
+    if (zakuro_runtime != nullptr) {
+        ykw2_mobile_close(zakuro_runtime);
+        zakuro_runtime = nullptr;
+    }
 }
 
 extern "C" JNIEXPORT jint JNICALL

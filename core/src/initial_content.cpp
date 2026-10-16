@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -78,9 +79,22 @@ bool is_background_resource(std::string_view path) {
            ends_with(path, ".xi");
 }
 
+bool is_title_archive(std::string_view path) {
+    return starts_with(path, "data/menu/title_u00_") && ends_with(path, ".xa");
+}
+
 const Arc0File* first_background_match(const Arc0Archive& archive) {
-    // The 3DS dump uses a localized menu image for the first native screen;
-    // keep a deterministic map-background fallback for older/sample archives.
+    // TitleMenu.xq loads title_u00_<ROM>_<LG>.xa. Its 000.xi is the actual
+    // upper-screen title image; transfer_image00.xi belongs to data migration.
+    if (const auto* preferred = archive.find("data/menu/title_u00_c_esus.xa");
+        preferred != nullptr) {
+        return preferred;
+    }
+    if (const auto* title = first_path_match(archive, is_title_archive);
+        title != nullptr) {
+        return title;
+    }
+    // Older/sample archives may not contain the title package.
     if (const auto* preferred = archive.find("data/menu/img/esus/transfer_image00.xi");
         preferred != nullptr) {
         return preferred;
@@ -102,7 +116,7 @@ ParseResult<T> inspect_failure(std::string_view code, std::size_t offset = 0) {
 ParseResult<InitialSceneResource> inspect_scene_resource(
     const ResourceStore& store, std::string_view archive_path,
     const Arc0File& file, InitialSceneResource resource) {
-    const auto window = ResourceWindowStore::create(
+    auto window = ResourceWindowStore::create(
         store, archive_path, file.offset, file.size);
     if (!window) {
         return inspect_failure<InitialSceneResource>(
@@ -144,6 +158,31 @@ ParseResult<InitialSceneResource> inspect_scene_resource(
             break;
         }
         return ParseResult<InitialSceneResource>::success(std::move(resource));
+    }
+
+    if (ends_with(file.path, ".xa")) {
+        const auto package = read_xpck_archive(*window.value, window.value->virtual_path());
+        if (!package) {
+            return inspect_failure<InitialSceneResource>(
+                package.error->code, package.error->offset);
+        }
+        // This is the base image layer named by the title-screen package.
+        const auto* image_file = package.value->find("000.xi");
+        if (image_file == nullptr || image_file->offset > file.size ||
+            image_file->size > file.size - image_file->offset ||
+            file.offset > std::numeric_limits<std::uint64_t>::max() - image_file->offset) {
+            return inspect_failure<InitialSceneResource>(
+                "initial_title_image_not_found");
+        }
+        resource.offset = file.offset + image_file->offset;
+        resource.size = image_file->size;
+        resource.path = file.path + "/" + image_file->name;
+        window = ResourceWindowStore::create(
+            store, archive_path, resource.offset, resource.size, resource.path);
+        if (!window) {
+            return inspect_failure<InitialSceneResource>(
+                window.error->code, window.error->offset);
+        }
     }
 
     std::array<std::uint8_t, 0x40> header{};
@@ -367,7 +406,8 @@ ParseResult<InitialContentInfo> load_initial_content(
     }
     result.scene_resources = select_initial_scene_resources(*archive.value);
     for (auto& resource : result.scene_resources) {
-        const auto* file = archive.value->find(resource.path);
+        const auto source_path = resource.path;
+        const auto* file = archive.value->find(source_path);
         if (file == nullptr) {
             return failure<InitialContentInfo>("initial_scene_resource_not_found");
         }
@@ -380,8 +420,7 @@ ParseResult<InitialContentInfo> load_initial_content(
         resource = std::move(*inspected.value);
         if (resource.role == InitialSceneResourceRole::Background) {
             const auto window = ResourceWindowStore::create(
-                store, result.archive_path, resource.offset, resource.size,
-                resource.path);
+                store, result.archive_path, resource.offset, resource.size, resource.path);
             if (!window) {
                 return failure<InitialContentInfo>(
                     window.error->code, window.error->offset);

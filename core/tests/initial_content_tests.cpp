@@ -136,10 +136,21 @@ void test_prefers_localized_menu_background_when_available() {
         {"data/menu/img/battle_parts00.xi", 100, 10, 0},
         {"data/menu/img/esus/transfer_image00.xi", 200, 20, 0},
         {"data/menu/img/frca/transfer_image00.xi", 300, 30, 0},
+        {"data/menu/title_u00_c_esus.xa", 400, 40, 0},
     };
     const auto resources = ykw2::core::select_initial_scene_resources(archive);
     assert(resources.size() == 1);
     assert(resources[0].role == ykw2::core::InitialSceneResourceRole::Background);
+    assert(resources[0].path == "data/menu/title_u00_c_esus.xa");
+}
+
+void test_uses_transfer_image_only_as_legacy_fallback() {
+    ykw2::core::Arc0Archive archive;
+    archive.files = {
+        {"data/menu/img/esus/transfer_image00.xi", 200, 20, 0},
+    };
+    const auto resources = ykw2::core::select_initial_scene_resources(archive);
+    assert(resources.size() == 1);
     assert(resources[0].path == "data/menu/img/esus/transfer_image00.xi");
 }
 
@@ -166,6 +177,7 @@ int main() {
     test_reports_missing_archive();
     test_selects_scene_resources_by_role_and_path();
     test_prefers_localized_menu_background_when_available();
+    test_uses_transfer_image_only_as_legacy_fallback();
     test_selects_runtime_content_manifest();
     return 0;
 }

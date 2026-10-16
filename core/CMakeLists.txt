@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.18)
 
 project(ykw2_core VERSION 0.1.0 LANGUAGES CXX)
 
+find_package(ZLIB REQUIRED)
+
 add_library(ykw2_core STATIC
     src/byte_view.cpp
     src/cfg_reader.cpp
@@ -28,6 +30,7 @@ add_library(ykw2_core STATIC
 
 target_compile_features(ykw2_core PUBLIC cxx_std_17)
 target_include_directories(ykw2_core PUBLIC include)
+target_link_libraries(ykw2_core PUBLIC ZLIB::ZLIB)
 set_target_properties(ykw2_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if (MSVC)

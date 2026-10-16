@@ -30,6 +30,8 @@ renderizado y controles; no se utiliza como ejecutable anfitrión del port.
 La evaluación de `3dsrecomp` está documentada en
 [`docs/3DSRECOMP.md`](docs/3DSRECOMP.md). Se usa como herramienta externa de
 análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
+La evaluación de `decomp.me`, `decomp.wtf` y `ninfs` y sus límites para este
+proyecto están en [`docs/EXTERNAL_RE_TOOLS.md`](docs/EXTERNAL_RE_TOOLS.md).
 
 ## Flujo inicial
 
@@ -43,11 +45,14 @@ análisis del ejecutable 3DS, no como dependencia distribuida del APK/IPA.
 
 - El núcleo C++17 valida NCSD/NCCH, extrae la RomFS autorizada a un caché privado,
   carga `yw2_a.fa`, inspecciona ARC0/XPCK/IMGC y selecciona el primer mapa,
-  personaje y fondo localizado.
+  personaje e imagen de título.
 - El núcleo C++17 identifica un manifiesto de arranque real dentro de YW2:
   secuencias de título/menú, el evento inicial, configuración de combate y sus
-  texturas de interfaz. También valida las cabeceras estructurales de las
-  tablas de vista/IA de combate y de los catálogos de sonido de mapa/evento.
+  texturas de interfaz. El menú ya toma su imagen superior del `000.xi` anidado
+  en el paquete de título `title_u00_*.xa` indicado por `TitleMenu.xq`, en vez
+  de mostrar la ilustración de migración de datos. También valida las cabeceras
+  estructurales de las tablas de vista/IA de combate y de los catálogos de
+  sonido de mapa/evento.
   Las rutas se resuelven exclusivamente desde el dump importado del usuario.
 - Android e iOS tienen importación, ciclo de actualización y renderizado nativo
   de los recursos IMGC ya soportados. El núcleo decodifica las tablas XQ32 del

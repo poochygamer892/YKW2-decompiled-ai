@@ -29,6 +29,10 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Read app version
+        id: app_version
+        run: echo "version=$(/usr/libexec/PlistBuddy -c 'Print:CFBundleShortVersionString' ios/Info.plist)" >> "$GITHUB_OUTPUT"
+
       - name: Install Rust iOS target
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -95,7 +99,8 @@ jobs:
             -archivePath "$RUNNER_TEMP/YKW2Port.xcarchive" \
             -exportOptionsPlist "$EXPORT_OPTIONS" \
             -exportPath "$RUNNER_TEMP/exported"
-          cp "$RUNNER_TEMP/exported/YKW2Port.ipa" "$GITHUB_WORKSPACE/YKW2Port-signed.ipa"
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print:CFBundleShortVersionString' ios/Info.plist)
+          cp "$RUNNER_TEMP/exported/YKW2Port.ipa" "$GITHUB_WORKSPACE/YKW2Port-v${VERSION}-signed.ipa"
 
       - name: Archive unsigned validation build
         if: ${{ steps.signing.outcome != 'success' }}
@@ -126,12 +131,13 @@ jobs:
           test -x "$APP/YKW2Port"
           mkdir -p "$RUNNER_TEMP/unsigned/Payload"
           cp -R "$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app" "$RUNNER_TEMP/unsigned/Payload/"
-          (cd "$RUNNER_TEMP/unsigned" && zip -qry "$GITHUB_WORKSPACE/YKW2Port-unsigned.ipa" Payload)
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print:CFBundleShortVersionString' ios/Info.plist)
+          (cd "$RUNNER_TEMP/unsigned" && zip -qry "$GITHUB_WORKSPACE/YKW2Port-v${VERSION}-unsigned.ipa" Payload)
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.signing.outcome == 'success' && 'YKW2Port-signed-ipa' || 'YKW2Port-unsigned-validation-ipa' }}
+          name: YKW2Port-v${{ steps.app_version.outputs.version }}-${{ steps.signing.outcome == 'success' && 'signed-ipa' || 'unsigned-validation-ipa' }}
           path: YKW2Port-*.ipa
           if-no-files-found: error
           retention-days: 14

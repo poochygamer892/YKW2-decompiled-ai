@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)openZakuroROMAtURL:(NSURL *)romURL dataDirectoryURL:(NSURL *)dataURL;
 + (NSInteger)runZakuroFrames:(NSInteger)frames;
 + (NSInteger)setZakuroButtons:(uint32_t)buttons
+                       circleX:(float)circleX
+                       circleY:(float)circleY
                       touchX:(NSInteger)touchX
                       touchY:(NSInteger)touchY;
 + (NSData *)zakuroTopScreenRGBA;

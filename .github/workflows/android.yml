@@ -36,6 +36,10 @@ jobs:
         with:
           gradle-version: 8.11.1
 
+      - name: Read app version
+        id: app_version
+        run: echo "version=$(sed -n 's/.*versionName = \"\([^\"]*\)\".*/\1/p' android/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
         working-directory: android
         run: gradle assembleDebug --no-daemon
@@ -43,7 +47,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: YKW2Port-debug-apk
-          path: android/build/outputs/apk/debug/YKW2Port-debug.apk
+          name: YKW2Port-v${{ steps.app_version.outputs.version }}-debug-apk
+          path: android/build/outputs/apk/versioned/YKW2Port-v*-debug.apk
           if-no-files-found: error
           retention-days: 14

@@ -1,16 +1,37 @@
-# Arquitectura propuesta
+# Arquitectura del port
 
-La arquitectura usa un núcleo C++17 pequeño y clientes nativos Android/iOS.
-La aplicación móvil de Yo-kai Watch 1 solo sirve como referencia privada de
-presentación y controles; el ejecutable del port no depende de su motor. El
-perfil `ykw2_mobile` expresa esa referencia en datos del snapshot y mantiene
-el contenido YW2 separado de la capa visual.
-Los recursos y la lógica de contenido proceden del dump autorizado de Yo-kai
-Watch 2 y se reimplementan por capas verificables.
+El objetivo es ejecutar Yo-kai Watch 2 en móviles con una presentación y unos
+controles inspirados en Yo-kai Watch 1 Smartphone. El juego que se ejecuta es
+YW2; no se intercambia contenido dentro del APK/binario privado de YW1. La
+base de ejecución elegida es el núcleo HLE de Zakuro junto con el código ARM
+recompilado por 3dsrecomp. Zakuro declara YW2: Psychic Specters jugable en
+escritorio y una prueba local ejecutó el dump durante 1.800 fotogramas. Se ha
+añadido `mobile-host/`, una frontera C estable sobre `zakuro-core`, y Android
+ya conecta carga, fotogramas, entrada táctil, pantallas RGBA y audio PCM por
+JNI. El host/JNI compilan para Android ARM64 y el APK debug se generó y firmó
+con la clave debug local. iOS aún requiere su adaptador/build propios.
+
+El núcleo C++17 del repositorio conserva lectores, validadores y prototipos de
+recursos para investigar formatos de Level-5. `RuntimeScene` no es el motor
+3DS ni debe presentarse como un port jugable. Las pantallas de maqueta no
+sustituyen la ejecución de Zakuro.
 
 ## Capas
 
-### Núcleo
+### Runtime del juego
+
+`3dsrecomp` recompila funciones ARM del ejecutable de YW2. Zakuro aporta la
+máquina 3DS: CPU/interprete de respaldo, memoria, kernel/servicios HLE, carga
+de títulos, GPU, audio y sistema de archivos. La biblioteca recompilada es
+específica de arquitectura y permanece fuera de Git.
+
+`mobile-host/` carga la ROM elegida, avanza hasta ocho fotogramas, acepta HID,
+devuelve ambas pantallas RGBA y drena audio PCM. Android lo enlaza con JNI y
+`ZakuroRuntimeActivity`; la biblioteca recompilada `3dsrecomp` es opcional y
+requiere instalarse aparte. iOS aún necesita un enlace estático compatible
+con sus restricciones. La UI no depende de detalles internos de Zakuro.
+
+### Núcleo de análisis de recursos
 
 Lógica de formatos, estado del juego, reglas, simulación y pruebas. No depende
 de APIs de Android o iOS. La entrada de recursos se hace mediante
@@ -31,16 +52,15 @@ recurso completo está en memoria.
 
 ### Perfil de presentación móvil
 
-`mobile_yw1_smartphone_profile()` no reutiliza código ni archivos del juego
-original. Solo publica una configuración común para el aspecto móvil: escena
-superior, panel de diálogo, orientación preferida y controles táctiles. El
-cliente sigue siendo `ykw2_mobile`; el contenido, los eventos y los recursos
-se resuelven desde el dump autorizado de YW2.
+`mobile_yw1_smartphone_profile()` solo describe la referencia de interfaz:
+orientación y controles táctiles. El runtime de YW2 produce las imágenes,
+eventos, historia, mapas y combate; no se convierten archivos de YW2 al
+formato de datos de YW1.
 
-La importación inicial está descrita en
-[`docs/IMPORT_FLOW.md`](IMPORT_FLOW.md). El usuario selecciona su documento en
-la plataforma, el núcleo valida el NCSD y el extractor futuro escribe el
-catálogo en el almacenamiento privado de la app.
+El usuario selecciona su documento con el selector del sistema y la app
+conserva el permiso SAF; Zakuro abre la imagen elegida directamente. La
+extracción RomFS experimental queda fuera del camino de arranque, para que sus
+limitaciones NCSD no impidan abrir un título compatible.
 
 ### Adaptadores
 
@@ -52,11 +72,14 @@ reglas de formatos del núcleo.
 
 ### Cliente Android
 
-Aplicación nativa con integración Kotlin/Android. El cliente debe consumir el núcleo mediante una frontera estable y mantener su código de ciclo de vida separado.
+Aplicación Kotlin/Android con JNI hacia el host móvil de Zakuro. El cliente
+mantiene el selector SAF, ciclo de vida, presentación, audio y controles fuera
+del emulador.
 
 ### Cliente iOS
 
-Aplicación nativa con integración Swift/iOS. El cliente debe reutilizar las mismas especificaciones de comportamiento sin asumir APIs de Android.
+Aplicación Swift/iOS con una frontera C/Objective-C++ equivalente y las mismas
+especificaciones de comportamiento, sin asumir APIs de Android.
 
 ### Compatibilidad de datos (diagnóstico)
 
@@ -74,10 +97,9 @@ reconstruyen en el núcleo propio.
 - requisitos mínimos de Android e iOS;
 - licencias y procedencia de cada dependencia.
 
-`RuntimeScene` es la frontera lógica actual: las plataformas reciben un
-snapshot y envían `RuntimeInput`; `advance()` mantiene el reloj de simulación y
-`runtime_save` persiste sólo el estado de la escena. Android usa JNI y un
-`Handler`; iOS usa Objective-C++ y `CADisplayLink`. `xq32_reader` descomprime y
+`RuntimeScene` es un prototipo de lectura de recursos, no la frontera de
+ejecución del juego. Android ya usa JNI para el host Zakuro; iOS Objective-C++
+sigue pendiente. `xq32_reader` descomprime y
 expone las filas crudas de los programas reales; `xq32_execution` selecciona
 una función por símbolo y mantiene el cursor dentro de sus límites y
 argumentos, y ofrece saltos acotados para los handlers futuros. `RuntimeScene`
@@ -89,7 +111,10 @@ publica sus palabras crudas, sin afirmar semánticas no demostradas.
 `initial_content` conserva además los registros identificables de
 `battle_config`, `battle_command` y `map_sound`; el runtime usa los IDs reales
 de `battle_command` para responder a Atacar/Habilidad sin inventar daño. El
-siguiente bloque es recuperar esos significados con evidencia del ejecutable y
-de los eventos observables. El renderizado de mapas, el decoder de audio, el
-combate y la traducción completa de recursos siguen siendo trabajo posterior;
-estos cimientos aún no son un port jugable completo.
+trabajo futuro es ampliar la cobertura de eventos, historia y sistemas del
+juego con evidencia del ejecutable. La pantalla inicial ya resuelve `TitleMenu.xq` a su
+paquete real `title_u00_*.xa` y decodifica la imagen base `000.xi`; no usa la
+ilustración de transferencia de datos como fondo. Zakuro aporta el renderizado
+3D y audio del runtime. El APK se verificó como ARM64, con ambos `.so` y firma
+debug válida, pero no había un dispositivo conectado para probar instalación
+ni ejecución; por tanto, aún no hay confirmación de una partida jugable.

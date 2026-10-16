@@ -477,6 +477,8 @@ private:
 }
 
 + (NSInteger)setZakuroButtons:(uint32_t)buttons
+                      circleX:(float)circleX
+                      circleY:(float)circleY
                       touchX:(NSInteger)touchX
                       touchY:(NSInteger)touchY {
     std::lock_guard<std::mutex> lock(runtimeMutex);
@@ -484,7 +486,7 @@ private:
         return -1;
     }
     return ykw2_mobile_set_input(
-        zakuroRuntime, buttons, 0.0f, 0.0f,
+        zakuroRuntime, buttons, circleX, circleY,
         static_cast<std::int32_t>(touchX), static_cast<std::int32_t>(touchY));
 }
 

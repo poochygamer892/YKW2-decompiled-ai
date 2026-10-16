@@ -29,8 +29,8 @@ Prioridades:
   aún desconocidos avanzan de forma segura y los handlers recuperados pueden
   controlar el cursor.
 - `ykw2/core/level5_decode.hpp`: decodificación acotada de Level-5 `none`,
-  `LZ10`, `Huffman4/8` y `RLE`; `Zlib` devuelve un error explícito hasta tener
-  un backend portable.
+  `LZ10`, `Huffman4/8`, `RLE` y `Zlib` (zlib del sistema/SDK); la salida debe
+  coincidir exactamente con el tamaño declarado y está sujeta al límite global.
 - `ykw2/core/arc0_reader.hpp` y `ykw2/core/xpck_reader.hpp`: lectores de
   índices que usan `ResourceStore`, descomprimen sus tablas y validan offsets
   de archivos anidados sin copiar el archivo completo; ARC0 también ofrece
@@ -78,7 +78,6 @@ el entorno de Android/iOS aporte CMake. Los lectores ARC0/XPCK operan sobre
 rangos del `ResourceStore`, así que no necesitan mapear en memoria el `.fa` o
 el contenedor anidado completo.
 
-El decodificador Level-5 no incorpora todavía una dependencia de Zlib: los
-streams `none`, `LZ10`, `Huffman4/8` y `RLE` quedan disponibles en el núcleo,
-que devuelve `level5_zlib_backend_unavailable` para el método 5. Los índices
-observados de YKW2 usan los cuatro primeros métodos en sus tablas documentadas.
+El decodificador Level-5 usa Zlib del sistema (`zlib` en Android/iOS) para el
+método 5 y limita su salida al tamaño declarado por el bloque y a
+`max_output_size`.

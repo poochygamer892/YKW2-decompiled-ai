@@ -5,6 +5,8 @@
 #include <limits>
 #include <utility>
 
+#include <zlib.h>
+
 #include "ykw2/core/formats.hpp"
 
 namespace ykw2::core {
@@ -225,6 +227,39 @@ ParseResult<std::vector<std::uint8_t>> decode_rle(Cursor& cursor,
     return ParseResult<std::vector<std::uint8_t>>::success(std::move(output));
 }
 
+ParseResult<std::vector<std::uint8_t>> decode_zlib(Cursor& cursor,
+                                                  std::uint32_t size,
+                                                  ByteView compressed) {
+    const auto input_size = compressed.size() - cursor.offset();
+    if (input_size > std::numeric_limits<uInt>::max() ||
+        size >= std::numeric_limits<uInt>::max()) {
+        return failure<std::vector<std::uint8_t>>("level5_zlib_size_unsupported", 0);
+    }
+
+    // One extra byte lets us detect a stream whose real output exceeds the
+    // size declared by the Level-5 header without allocating unbounded memory.
+    std::vector<std::uint8_t> output(static_cast<std::size_t>(size) + 1);
+    z_stream stream{};
+    stream.next_in = const_cast<Bytef*>(compressed.data() + cursor.offset());
+    stream.avail_in = static_cast<uInt>(input_size);
+    stream.next_out = output.data();
+    stream.avail_out = static_cast<uInt>(output.size());
+    if (inflateInit(&stream) != Z_OK) {
+        return failure<std::vector<std::uint8_t>>("level5_zlib_init_failed", 0);
+    }
+    const auto status = inflate(&stream, Z_FINISH);
+    const auto actual_size = stream.total_out;
+    inflateEnd(&stream);
+    if (status != Z_STREAM_END) {
+        return failure<std::vector<std::uint8_t>>("level5_zlib_invalid_stream", 0);
+    }
+    if (actual_size != size) {
+        return failure<std::vector<std::uint8_t>>("level5_zlib_output_size_mismatch", 0);
+    }
+    output.resize(size);
+    return ParseResult<std::vector<std::uint8_t>>::success(std::move(output));
+}
+
 }  // namespace
 
 ParseResult<std::vector<std::uint8_t>> decode_level5(
@@ -257,7 +292,9 @@ ParseResult<std::vector<std::uint8_t>> decode_level5(
             decoded = decode_rle(cursor, header.value->decoded_size);
             break;
         case Level5Method::Zlib:
-            return failure<std::vector<std::uint8_t>>("level5_zlib_backend_unavailable", 0);
+            decoded = decode_zlib(cursor, header.value->decoded_size,
+                                  compressed.subview(4, compressed.size() - 4));
+            break;
         default:
             return failure<std::vector<std::uint8_t>>("level5_unknown_method", 0);
     }

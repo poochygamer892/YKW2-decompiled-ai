@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include <zlib.h>
+
 namespace {
 
 void put32(std::vector<std::uint8_t>& bytes, std::uint32_t value) {
@@ -63,6 +65,25 @@ void test_huffman8_and_huffman4() {
     assert((*decoded4.value)[0] == 0x21);
 }
 
+void test_zlib() {
+    const std::string input = "YW2 real resource decoder";
+    uLongf compressed_size = compressBound(input.size());
+    std::vector<std::uint8_t> payload(compressed_size);
+    const auto status = compress2(payload.data(), &compressed_size,
+                                  reinterpret_cast<const Bytef*>(input.data()),
+                                  input.size(), Z_BEST_COMPRESSION);
+    assert(status == Z_OK);
+    payload.resize(compressed_size);
+
+    std::vector<std::uint8_t> compressed;
+    put32(compressed, (static_cast<std::uint32_t>(input.size()) << 3) | 5u);
+    compressed.insert(compressed.end(), payload.begin(), payload.end());
+    const auto decoded = ykw2::core::decode_level5(
+        {compressed.data(), compressed.size()});
+    assert(decoded);
+    assert(std::string(decoded.value->begin(), decoded.value->end()) == input);
+}
+
 void test_rejects_corrupt_streams() {
     std::vector<std::uint8_t> bad_lz;
     put32(bad_lz, (3u << 3) | 1u);
@@ -78,7 +99,7 @@ void test_rejects_corrupt_streams() {
     const auto zlib_result = ykw2::core::decode_level5(
         {zlib.data(), zlib.size()});
     assert(!zlib_result);
-    assert(zlib_result.error->code == "level5_zlib_backend_unavailable");
+    assert(zlib_result.error->code == "level5_zlib_invalid_stream");
 }
 
 }  // namespace
@@ -88,6 +109,7 @@ int main() {
     test_lz10();
     test_rle();
     test_huffman8_and_huffman4();
+    test_zlib();
     test_rejects_corrupt_streams();
     return 0;
 }
