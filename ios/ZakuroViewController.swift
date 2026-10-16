@@ -348,8 +348,18 @@ final class ZakuroViewController: UIViewController {
         let prefix = "ykw2.controls.v3.\(layoutProfile)."
         let legacySizePrefix = "ykw2.controls.v2.\(layoutProfile)."
         controlPositions = defaults.mapValues { $0 }
-        // v2 positions were saved from a broken layout and could put controls
-        // on top of one another or at the edge. Start with the corrected layout.
+        // Restore the actual saved center for every control. The previous
+        // implementation wrote these values but always replaced them with
+        // defaults on load, so dragging appeared to work only until leaving
+        // the editor.
+        for key in defaults.keys {
+            guard let storedX = preferences.object(forKey: prefix + key + ".x") as? NSNumber,
+                  let storedY = preferences.object(forKey: prefix + key + ".y") as? NSNumber else { continue }
+            let x = storedX.doubleValue
+            let y = storedY.doubleValue
+            guard x.isFinite, y.isFinite else { continue }
+            controlPositions[key] = CGPoint(x: min(1, max(0, x)), y: min(1, max(0, y)))
+        }
         controlSizes = Dictionary(uniqueKeysWithValues: defaults.keys.map { key in
             let currentSize = preferences.object(forKey: prefix + key + ".size") as? Double
             let previousSize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
@@ -627,7 +637,9 @@ final class ZakuroViewController: UIViewController {
     }
 
     @objc private func resetControls() {
-        let prefixes = ["ykw2.controls.v2.\(layoutProfile).", "ykw2.controls.v3.\(layoutProfile)."]
+        let prefixes = ["portrait", "landscape"].flatMap { profile in
+            ["ykw2.controls.v2.\(profile).", "ykw2.controls.v3.\(profile)."]
+        }
         for key in UserDefaults.standard.dictionaryRepresentation().keys {
             if prefixes.contains(where: { key.hasPrefix($0) }) {
                 UserDefaults.standard.removeObject(forKey: key)
@@ -637,6 +649,7 @@ final class ZakuroViewController: UIViewController {
         selectedControl = "ALL"
         updateEditorSelectionUI()
         layoutTouchControls()
+        saveControlLayout(forceSynchronize: true)
     }
 }
 
