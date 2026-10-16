@@ -3,8 +3,9 @@ import UIKit
 
 /// Full-screen iOS host for Zakuro, with a configurable on-screen 3DS gamepad.
 final class ZakuroViewController: UIViewController {
-    private let romURL: URL
-    private let dataURL: URL
+    private let romURL: URL?
+    private let dataURL: URL?
+    private let configurationOnly: Bool
     private let statusLabel = UILabel()
     private let topScreen = UIImageView()
     private let bottomScreen = UIImageView()
@@ -44,9 +45,10 @@ final class ZakuroViewController: UIViewController {
         ("L", "L", 1 << 9), ("R", "R", 1 << 8),
     ]
 
-    init(romURL: URL, dataURL: URL) {
+    init(romURL: URL? = nil, dataURL: URL? = nil, configurationOnly: Bool = false) {
         self.romURL = romURL
         self.dataURL = dataURL
+        self.configurationOnly = configurationOnly
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -80,13 +82,32 @@ final class ZakuroViewController: UIViewController {
         title = "Yo-kai Watch 2"
         view.backgroundColor = .black
         buildInterface()
-        configureAudio()
-        statusLabel.text = "Abriendo la ROM con Zakuro…"
+        if configurationOnly {
+            statusLabel.isHidden = true
+            editorMode = true
+            editorPanel.isHidden = false
+            controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }
+                .forEach { $0.isEditingControls = true }
+        } else {
+            configureAudio()
+            statusLabel.text = "Abriendo la ROM con Zakuro…"
+            startZakuro()
+        }
+    }
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+    private func startZakuro() {
+        guard let romURL = self.romURL, let dataURL = self.dataURL else {
+            statusLabel.text = "No se proporcionó una ROM local. Vuelve al menú e impórtala de nuevo."
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self, romURL, dataURL] in
             guard let self else { return }
-            let error = YKW2ImportBridge.openZakuroROM(at: self.romURL, dataDirectoryURL: self.dataURL)
+            let error = YKW2ImportBridge.openZakuroROM(at: romURL, dataDirectoryURL: dataURL)
             DispatchQueue.main.async {
+                guard self.viewIfLoaded?.window != nil else {
+                    YKW2ImportBridge.closeZakuro()
+                    return
+                }
                 if error.isEmpty {
                     self.statusLabel.text = ""
                     self.startFrameLoop()
@@ -275,6 +296,8 @@ final class ZakuroViewController: UIViewController {
         content.spacing = 4
         content.translatesAutoresizingMaskIntoConstraints = false
         editorPanel.contentView.addSubview(content)
+        let panelWidth = editorPanel.widthAnchor.constraint(equalTo: controlsOverlay.widthAnchor, multiplier: 0.82)
+        panelWidth.priority = .defaultHigh
         NSLayoutConstraint.activate([
             content.leadingAnchor.constraint(equalTo: editorPanel.contentView.leadingAnchor, constant: 10),
             content.trailingAnchor.constraint(equalTo: editorPanel.contentView.trailingAnchor, constant: -10),
@@ -282,8 +305,8 @@ final class ZakuroViewController: UIViewController {
             content.bottomAnchor.constraint(equalTo: editorPanel.contentView.bottomAnchor, constant: -6),
             editorPanel.centerXAnchor.constraint(equalTo: controlsOverlay.centerXAnchor),
             editorPanel.topAnchor.constraint(equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 8),
-            editorPanel.widthAnchor.constraint(lessThanOrEqualTo: controlsOverlay.widthAnchor, multiplier: 0.78),
-            editorPanel.widthAnchor.constraint(greaterThanOrEqualToConstant: 230),
+            panelWidth,
+            editorPanel.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
         ])
         editorPanel.isHidden = true
     }
@@ -291,16 +314,16 @@ final class ZakuroViewController: UIViewController {
     private func loadControlLayout() {
         guard !layoutProfile.isEmpty else { return }
         let defaults: [String: CGPoint] = [
-            "UP": CGPoint(x: 0.115, y: 0.51), "DOWN": CGPoint(x: 0.115, y: 0.67),
-            "LEFT": CGPoint(x: 0.085, y: 0.59), "RIGHT": CGPoint(x: 0.185, y: 0.59),
-            "STICK": CGPoint(x: 0.15, y: 0.84),
-            "X": CGPoint(x: 0.88, y: 0.56), "Y": CGPoint(x: 0.80, y: 0.65),
-            "A": CGPoint(x: 0.92, y: 0.65), "B": CGPoint(x: 0.88, y: 0.74),
-            "SELECT": CGPoint(x: 0.80, y: 0.45), "START": CGPoint(x: 0.93, y: 0.45),
+            "UP": CGPoint(x: 0.14, y: 0.48), "DOWN": CGPoint(x: 0.14, y: 0.62),
+            "LEFT": CGPoint(x: 0.07, y: 0.55), "RIGHT": CGPoint(x: 0.21, y: 0.55),
+            "STICK": CGPoint(x: 0.17, y: 0.83),
+            "X": CGPoint(x: 0.72, y: 0.57), "Y": CGPoint(x: 0.53, y: 0.68),
+            "A": CGPoint(x: 0.91, y: 0.68), "B": CGPoint(x: 0.72, y: 0.79),
+            "SELECT": CGPoint(x: 0.62, y: 0.43), "START": CGPoint(x: 0.86, y: 0.43),
             "L": CGPoint(x: 0.09, y: 0.11), "R": CGPoint(x: 0.91, y: 0.11),
         ]
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.\(layoutProfile)."
+        let prefix = "ykw2.controls.v2.\(layoutProfile)."
         controlPositions = defaults.mapValues { $0 }
         for key in defaults.keys {
             let x = preferences.object(forKey: prefix + key + ".x") as? Double
@@ -316,7 +339,7 @@ final class ZakuroViewController: UIViewController {
 
     private func saveControlLayout() {
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.\(layoutProfile)."
+        let prefix = "ykw2.controls.v2.\(layoutProfile)."
         for (key, point) in controlPositions {
             preferences.set(Double(point.x), forKey: prefix + key + ".x")
             preferences.set(Double(point.y), forKey: prefix + key + ".y")
@@ -327,9 +350,16 @@ final class ZakuroViewController: UIViewController {
 
     private func layoutTouchControls() {
         guard controlsOverlay.bounds.width > 0, controlsOverlay.bounds.height > 0 else { return }
-        let width = controlsOverlay.bounds.width
-        let height = controlsOverlay.bounds.height
-        let base = min(56, max(40, min(width, height) * 0.14)) * globalControlScale
+        let safeFrame = controlsOverlay.bounds.inset(by: UIEdgeInsets(
+            top: controlsOverlay.safeAreaInsets.top + 8,
+            left: 8,
+            bottom: controlsOverlay.safeAreaInsets.bottom + 8,
+            right: 8
+        ))
+        guard safeFrame.width > 0, safeFrame.height > 0 else { return }
+        let width = safeFrame.width
+        let height = safeFrame.height
+        let base = min(54, max(34, min(width * 0.15, height * 0.075))) * globalControlScale
         for definition in controlDefinitions {
             guard let button = controlButtons[definition.key] else { continue }
             let center = controlPositions[definition.key] ?? CGPoint(x: 0.85, y: 0.7)
@@ -338,15 +368,21 @@ final class ZakuroViewController: UIViewController {
             let isUtility = definition.key == "SELECT" || definition.key == "START"
             let frameSize = isShoulder || isUtility ? CGSize(width: size * (definition.key == "START" ? 1.65 : 1.2), height: size * 0.74) : CGSize(width: size, height: size)
             button.bounds = CGRect(origin: .zero, size: frameSize)
-            button.center = CGPoint(x: width * center.x, y: height * center.y)
+            button.center = CGPoint(
+                x: min(safeFrame.maxX - frameSize.width / 2, max(safeFrame.minX + frameSize.width / 2, safeFrame.minX + width * center.x)),
+                y: min(safeFrame.maxY - frameSize.height / 2, max(safeFrame.minY + frameSize.height / 2, safeFrame.minY + height * center.y))
+            )
             button.layer.cornerRadius = isShoulder || isUtility ? frameSize.height / 2 : frameSize.width / 2
             button.titleLabel?.font = .systemFont(ofSize: min(20, max(11, frameSize.height * 0.35)), weight: .bold)
         }
         if let stick = controlsOverlay.subviews.compactMap({ $0 as? AnalogStickControl }).first {
             let p = controlPositions["STICK"] ?? CGPoint(x: 0.15, y: 0.84)
-            let diameter = base * 3.4 * (controlSizes["STICK"] ?? 1)
+            let diameter = min(min(width * 0.48, height * 0.28), base * 3.2 * (controlSizes["STICK"] ?? 1))
             stick.bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
-            stick.center = CGPoint(x: width * p.x, y: height * p.y)
+            stick.center = CGPoint(
+                x: min(safeFrame.maxX - diameter / 2, max(safeFrame.minX + diameter / 2, safeFrame.minX + width * p.x)),
+                y: min(safeFrame.maxY - diameter / 2, max(safeFrame.minY + diameter / 2, safeFrame.minY + height * p.y))
+            )
             stick.setNeedsDisplay()
         }
         for button in controlsOverlay.subviews.compactMap({ $0 as? UIButton }) {
@@ -354,7 +390,7 @@ final class ZakuroViewController: UIViewController {
             case "BACK":
                 button.frame = CGRect(x: 12, y: controlsOverlay.safeAreaInsets.top + 8, width: 42, height: 36)
             case "EDITOR":
-                button.frame = CGRect(x: width - 54, y: controlsOverlay.safeAreaInsets.top + 8, width: 42, height: 36)
+                button.isHidden = true
             default: break
             }
         }
@@ -421,7 +457,9 @@ final class ZakuroViewController: UIViewController {
                 guard self.isViewLoaded, self.view.window != nil else { return }
                 guard outcome == 2 else {
                     self.displayLink?.invalidate()
-                    self.statusLabel.text = "Zakuro detuvo la emulación (estado \(outcome))."
+                    self.statusLabel.text = outcome == -3
+                        ? "Zakuro encontró un error interno al ejecutar la ROM. Revisa que sea una copia descifrada compatible."
+                        : "Zakuro detuvo la emulación (estado \(outcome))."
                     return
                 }
                 self.topScreen.image = topImage
@@ -475,10 +513,14 @@ final class ZakuroViewController: UIViewController {
         guard editorMode, let control = recognizer.view else { return }
         let key = (control as? UIButton)?.accessibilityLabel ?? "STICK"
         let translation = recognizer.translation(in: controlsOverlay)
+        let safeFrame = controlsOverlay.bounds.inset(by: UIEdgeInsets(
+            top: controlsOverlay.safeAreaInsets.top + 8, left: 8,
+            bottom: controlsOverlay.safeAreaInsets.bottom + 8, right: 8
+        ))
         let start = controlPositions[key] ?? CGPoint(x: 0.5, y: 0.5)
         controlPositions[key] = CGPoint(
-            x: min(0.98, max(0.02, start.x + translation.x / controlsOverlay.bounds.width)),
-            y: min(0.98, max(0.02, start.y + translation.y / controlsOverlay.bounds.height))
+            x: min(1, max(0, start.x + translation.x / safeFrame.width)),
+            y: min(1, max(0, start.y + translation.y / safeFrame.height))
         )
         recognizer.setTranslation(.zero, in: controlsOverlay)
         layoutTouchControls()
@@ -490,6 +532,11 @@ final class ZakuroViewController: UIViewController {
     }
 
     @objc private func toggleEditor() {
+        if configurationOnly && editorMode {
+            saveControlLayout()
+            navigationController?.popViewController(animated: true)
+            return
+        }
         editorMode.toggle()
         editorPanel.isHidden = !editorMode
         controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }.forEach { $0.isEditingControls = editorMode }
@@ -541,7 +588,7 @@ final class ZakuroViewController: UIViewController {
     }
 
     @objc private func resetControls() {
-        let prefix = "ykw2.controls.\(layoutProfile)."
+        let prefix = "ykw2.controls.v2.\(layoutProfile)."
         for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
             UserDefaults.standard.removeObject(forKey: key)
         }

@@ -5,6 +5,7 @@
 
 use std::collections::VecDeque;
 use std::ffi::{c_char, CStr};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 use zakuro_common::Screen;
 use zakuro_core::services::hid::{InputState, PadState};
@@ -21,6 +22,7 @@ pub const BOTTOM_BYTES: usize = BOTTOM_WIDTH * SCREEN_HEIGHT * RGBA_BYTES;
 pub struct MobileRuntime {
     system: System,
     audio: VecDeque<[i16; 2]>,
+    faulted: bool,
 }
 
 fn read_path(value: *const c_char) -> Result<PathBuf, String> {
@@ -64,34 +66,53 @@ pub unsafe extern "C" fn ykw2_mobile_open(
     error_out: *mut c_char,
     error_capacity: usize,
 ) -> *mut MobileRuntime {
-    let result = (|| {
-        let rom = read_path(rom_path)?;
-        let data_dir = read_path(data_directory)?;
-        let recompiled = if recompiled_library.is_null() {
-            None
-        } else {
-            Some(read_path(recompiled_library)?)
-        };
-        let config = Config {
-            data_dir: Some(data_dir),
-            recompiled,
-            find_recompiled: false,
-            hardware_renderer: true,
-            texture_packs: false,
-            ..Config::default()
-        };
-        let system = loader::load(rom, config).map_err(|error| error.to_string())?;
-        Ok::<_, String>(Box::into_raw(Box::new(MobileRuntime {
-            system,
-            audio: VecDeque::new(),
-        })))
-    })();
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        (|| {
+            let rom = read_path(rom_path)?;
+            let data_dir = read_path(data_directory)?;
+            let recompiled = if recompiled_library.is_null() {
+                None
+            } else {
+                Some(read_path(recompiled_library)?)
+            };
+            let config = Config {
+                data_dir: Some(data_dir),
+                recompiled,
+                find_recompiled: false,
+                // Zakuro's accelerated renderer is Vulkan-based. iOS devices
+                // need a Metal host integration that this UIKit shell does
+                // not provide; trying Vulkan here can terminate on startup.
+                // Keep acceleration enabled on Android, where the native
+                // surface integration exists, and use the safe renderer on iOS.
+                hardware_renderer: !cfg!(target_os = "ios"),
+                texture_packs: false,
+                ..Config::default()
+            };
+            let system = loader::load(rom, config).map_err(|error| error.to_string())?;
+            Ok::<_, String>(Box::into_raw(Box::new(MobileRuntime {
+                system,
+                audio: VecDeque::new(),
+                faulted: false,
+            })))
+        })()
+    }));
 
     match result {
-        Ok(runtime) => runtime,
-        Err(message) => {
+        Ok(Ok(runtime)) => runtime,
+        Ok(Err(message)) => {
             // SAFETY: the output buffer is supplied by the caller.
             unsafe { write_error(error_out, error_capacity, &message) };
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            // A panic must not cross the C ABI and terminate the whole mobile app.
+            unsafe {
+                write_error(
+                    error_out,
+                    error_capacity,
+                    "Zakuro encontró un error interno al cargar la ROM.",
+                )
+            };
             std::ptr::null_mut()
         }
     }
@@ -106,14 +127,25 @@ pub unsafe extern "C" fn ykw2_mobile_run_frames(runtime: *mut MobileRuntime, fra
     }
     // SAFETY: runtime pointers are created by open and owned by the frontend.
     let runtime = unsafe { &mut *runtime };
-    for frame in 0..frames {
-        match runtime.system.run_frame() {
-            FrameOutcome::Completed => {}
-            FrameOutcome::Exited | FrameOutcome::Faulted => return frame as i32,
-        }
-        runtime.audio.extend(runtime.system.take_audio());
+    if runtime.faulted {
+        return -3;
     }
-    frames as i32
+    match catch_unwind(AssertUnwindSafe(|| {
+        for frame in 0..frames {
+            match runtime.system.run_frame() {
+                FrameOutcome::Completed => {}
+                FrameOutcome::Exited | FrameOutcome::Faulted => return frame as i32,
+            }
+            runtime.audio.extend(runtime.system.take_audio());
+        }
+        frames as i32
+    })) {
+        Ok(result) => result,
+        Err(_) => {
+            runtime.faulted = true;
+            -3
+        }
+    }
 }
 
 /// Feeds 3DS HID state. Button bits use Zakuro's PadState layout; touch -1,-1

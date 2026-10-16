@@ -6,6 +6,7 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
     private let rightsSwitch = UISwitch()
     private let statusLabel = UILabel()
     private let runtimeButton = UIButton(type: .system)
+    private let controlsButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,11 +35,14 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         runtimeButton.addTarget(self, action: #selector(openRuntime), for: .touchUpInside)
         runtimeButton.isHidden = true
 
+        controlsButton.setTitle("Configurar controles táctiles", for: .normal)
+        controlsButton.addTarget(self, action: #selector(openControlSettings), for: .touchUpInside)
+
         statusLabel.text = "Selecciona una copia local autorizada para comenzar."
         statusLabel.numberOfLines = 0
         statusLabel.textAlignment = .center
 
-        let stack = UIStackView(arrangedSubviews: [titleLabel, rightsRow, button, runtimeButton, statusLabel])
+        let stack = UIStackView(arrangedSubviews: [titleLabel, rightsRow, button, runtimeButton, controlsButton, statusLabel])
         stack.axis = .vertical
         stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -53,6 +57,11 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
             runtimeButton.isHidden = false
             statusLabel.text = "ROM guardada en este iPhone. Zakuro la abrirá desde el almacenamiento privado."
         }
+    }
+
+    @objc private func openControlSettings() {
+        let controller = ZakuroViewController(configurationOnly: true)
+        navigationController?.pushViewController(controller, animated: true)
     }
 
     @objc private func openRuntime() {
