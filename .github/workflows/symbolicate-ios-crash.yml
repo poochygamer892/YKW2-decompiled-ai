@@ -1,0 +1,37 @@
+name: Symbolicate iOS crash
+
+on:
+  push:
+    branches: ["**"]
+    paths: [".github/workflows/symbolicate-ios-crash.yml"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  symbolicate:
+    runs-on: macos-14
+    steps:
+      - name: Download exact v0.4.10 Xcode archive symbols
+        uses: actions/download-artifact@v4
+        with:
+          name: YKW2Port-xcode-logs
+          run-id: 38925653038
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/archive-artifact
+
+      - name: Symbolicate faulting runtime thread
+        shell: bash
+        run: |
+          set -euo pipefail
+          DWARF="$RUNNER_TEMP/archive-artifact/YKW2Port.xcarchive/dSYMs/YKW2Port.app.dSYM/Contents/Resources/DWARF/YKW2Port"
+          test -f "$DWARF"
+          dwarfdump --uuid "$DWARF"
+          BASE=0x104990000
+          OFFSETS=(4487536 3450800 3444016 3365144 3651088 3869752 3874136 3741648 3761104 3663656 3668228 3358824 22012 272324 189196 6568)
+          ADDRESSES=()
+          for offset in "${OFFSETS[@]}"; do
+            ADDRESSES+=("$(printf '0x%x' "$((BASE + offset))")")
+          done
+          atos -arch arm64 -o "$DWARF" -l "$BASE" "${ADDRESSES[@]}"
