@@ -70,7 +70,7 @@
 		220001 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
-		220004 /* libykw2_mobile_host.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "../build/ios-cargo/aarch64-apple-ios/release/libykw2_mobile_host.a"; sourceTree = SOURCE_ROOT; };
+		220004 /* libykw2_mobile_host.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "../build/ios-link/libykw2_mobile_host.a"; sourceTree = SOURCE_ROOT; };
 		230001 /* YKW2Port.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YKW2Port.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -225,11 +225,11 @@
 			);
 			name = "Build Zakuro iOS static library";
 			outputPaths = (
-				"$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release/libykw2_mobile_host.a",
+				"$(SRCROOT)/../build/ios-link/libykw2_mobile_host.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "set -euo pipefail\ncd \"$SRCROOT/..\"\nexport CARGO_TARGET_DIR=\"$SRCROOT/../build/ios-cargo\"\nexport RUSTUP_TOOLCHAIN=stable\ncargo build --locked --release --target aarch64-apple-ios --manifest-path mobile-host/Cargo.toml\n";
+			shellScript = "set -euo pipefail\ncd \"$SRCROOT/..\"\nexport CARGO_TARGET_DIR=\"$SRCROOT/../build/ios-cargo\"\nexport RUSTUP_TOOLCHAIN=stable\ncargo build --locked --release --target aarch64-apple-ios --manifest-path mobile-host/Cargo.toml\nmkdir -p build/ios-link\ncp \"$CARGO_TARGET_DIR/aarch64-apple-ios/release/libykw2_mobile_host.a\" build/ios-link/libykw2_mobile_host.a\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -279,7 +279,7 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-link";
 				OTHER_LDFLAGS = "-lz";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
@@ -297,7 +297,7 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-link";
 				OTHER_LDFLAGS = "-lz";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
@@ -310,7 +310,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				INFOPLIST_FILE = Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -323,7 +323,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				INFOPLIST_FILE = Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
