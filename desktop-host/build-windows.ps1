@@ -33,11 +33,11 @@ $hostImport = Join-Path $cargoTarget 'x86_64-pc-windows-msvc\release\ykw2_mobile
 $sdlDll = Join-Path $env:VCPKG_ROOT 'installed\x64-windows\bin\SDL2.dll'
 
 cmake -S (Join-Path $repoRoot 'desktop-host') -B $buildRoot `
-    -DCMAKE_TOOLCHAIN_FILE=$vcpkgToolchain `
-    -DVCPKG_TARGET_TRIPLET=x64-windows `
-    -DYKW2_MOBILE_HOST_LIBRARY=$hostDll `
-    -DYKW2_MOBILE_HOST_LINK_LIBRARY=$hostImport `
-    -DYKW2_SDL2_RUNTIME_DLL=$sdlDll
+    "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=$vcpkgToolchain" `
+    "-DVCPKG_TARGET_TRIPLET=x64-windows" `
+    "-DYKW2_MOBILE_HOST_LIBRARY:FILEPATH=$hostDll" `
+    "-DYKW2_MOBILE_HOST_LINK_LIBRARY:FILEPATH=$hostImport" `
+    "-DYKW2_SDL2_RUNTIME_DLL:FILEPATH=$sdlDll"
 if ($LASTEXITCODE -ne 0) { throw 'Falló la configuración de CMake para Windows.' }
 
 cmake --build $buildRoot --config Release --parallel
