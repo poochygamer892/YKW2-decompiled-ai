@@ -2,9 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_ykw2"
+        android:icon="@drawable/ykw2_app_icon"
         android:label="Yo-kai Watch 2"
-        android:roundIcon="@drawable/ic_ykw2"
+        android:roundIcon="@drawable/ykw2_app_icon"
         android:supportsRtl="true"
         android:theme="@style/Theme.YKW2">
         <activity

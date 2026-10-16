@@ -35,6 +35,7 @@
 		320002 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220002 /* UIKit.framework */; };
 		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
 		320004 /* libykw2_mobile_host.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 220004 /* libykw2_mobile_host.a */; };
+		320005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200009 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +72,7 @@
 		220002 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		220004 /* libykw2_mobile_host.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "../build/ios-link/libykw2_mobile_host.a"; sourceTree = SOURCE_ROOT; };
+		200009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		230001 /* YKW2Port.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YKW2Port.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -100,6 +102,7 @@
 				200006 /* YKW2Port-Bridging-Header.h */,
 				200007 /* Info.plist */,
 				200008 /* ZakuroViewController.swift */,
+				200009 /* Assets.xcassets */,
 				100006 /* core sources */,
 				100003 /* Products */,
 				100004 /* Frameworks */,
@@ -208,7 +211,9 @@
 		400003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+				320005 /* Assets.xcassets in Resources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -277,6 +282,7 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-link";
@@ -295,6 +301,7 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-link";
@@ -310,7 +317,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 18;
 				INFOPLIST_FILE = Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -323,7 +330,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 18;
 				INFOPLIST_FILE = Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
