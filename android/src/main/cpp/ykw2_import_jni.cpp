@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <android/bitmap.h>
 
 #include <array>
 #include <algorithm>
@@ -6,6 +7,7 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <fcntl.h>
 #include <fstream>
 #include <iterator>
@@ -640,26 +642,51 @@ Java_com_ykw2_port_RomImportBridge_nativeEmulatorSetInput(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_ykw2_port_RomImportBridge_nativeEmulatorCopyScreens(
-    JNIEnv* environment, jobject, jbyteArray top, jbyteArray bottom) {
+Java_com_ykw2_port_RomImportBridge_nativeEmulatorRenderScreens(
+    JNIEnv* environment, jobject, jobject top, jobject bottom) {
     if (top == nullptr || bottom == nullptr) return -1;
-    if (environment->GetArrayLength(top) < YKW2_TOP_RGBA_BYTES ||
-        environment->GetArrayLength(bottom) < YKW2_BOTTOM_RGBA_BYTES) return -1;
-    auto* top_bytes = environment->GetByteArrayElements(top, nullptr);
-    auto* bottom_bytes = environment->GetByteArrayElements(bottom, nullptr);
-    if (top_bytes == nullptr || bottom_bytes == nullptr) {
-        if (top_bytes != nullptr) environment->ReleaseByteArrayElements(top, top_bytes, JNI_ABORT);
-        if (bottom_bytes != nullptr) environment->ReleaseByteArrayElements(bottom, bottom_bytes, JNI_ABORT);
+    AndroidBitmapInfo top_info{};
+    AndroidBitmapInfo bottom_info{};
+    if (AndroidBitmap_getInfo(environment, top, &top_info) != ANDROID_BITMAP_RESULT_SUCCESS ||
+        AndroidBitmap_getInfo(environment, bottom, &bottom_info) != ANDROID_BITMAP_RESULT_SUCCESS ||
+        top_info.width != YKW2_TOP_WIDTH || top_info.height != YKW2_SCREEN_HEIGHT ||
+        bottom_info.width != YKW2_BOTTOM_WIDTH || bottom_info.height != YKW2_SCREEN_HEIGHT ||
+        top_info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        bottom_info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        top_info.stride < YKW2_TOP_WIDTH * 4 || bottom_info.stride < YKW2_BOTTOM_WIDTH * 4) {
         return -1;
     }
+
+    void* top_pixels = nullptr;
+    void* bottom_pixels = nullptr;
+    if (AndroidBitmap_lockPixels(environment, top, &top_pixels) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        return -1;
+    }
+    if (AndroidBitmap_lockPixels(environment, bottom, &bottom_pixels) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        AndroidBitmap_unlockPixels(environment, top);
+        return -1;
+    }
+
+    static std::array<std::uint8_t, YKW2_TOP_RGBA_BYTES> top_rgba{};
+    static std::array<std::uint8_t, YKW2_BOTTOM_RGBA_BYTES> bottom_rgba{};
     std::lock_guard<std::mutex> lock(runtime_mutex);
     const auto result = zakuro_runtime == nullptr ? -1 : ykw2_mobile_copy_screens(
-        zakuro_runtime, reinterpret_cast<std::uint8_t*>(top_bytes),
-        static_cast<std::size_t>(environment->GetArrayLength(top)),
-        reinterpret_cast<std::uint8_t*>(bottom_bytes),
-        static_cast<std::size_t>(environment->GetArrayLength(bottom)));
-    environment->ReleaseByteArrayElements(top, top_bytes, result == 0 ? 0 : JNI_ABORT);
-    environment->ReleaseByteArrayElements(bottom, bottom_bytes, result == 0 ? 0 : JNI_ABORT);
+        zakuro_runtime, top_rgba.data(), top_rgba.size(),
+        bottom_rgba.data(), bottom_rgba.size());
+    if (result == 0) {
+        const auto* top_source = top_rgba.data();
+        const auto* bottom_source = bottom_rgba.data();
+        auto* top_destination = static_cast<std::uint8_t*>(top_pixels);
+        auto* bottom_destination = static_cast<std::uint8_t*>(bottom_pixels);
+        for (std::uint32_t row = 0; row < YKW2_SCREEN_HEIGHT; ++row) {
+            std::memcpy(top_destination + row * top_info.stride,
+                        top_source + row * YKW2_TOP_WIDTH * 4, YKW2_TOP_WIDTH * 4);
+            std::memcpy(bottom_destination + row * bottom_info.stride,
+                        bottom_source + row * YKW2_BOTTOM_WIDTH * 4, YKW2_BOTTOM_WIDTH * 4);
+        }
+    }
+    AndroidBitmap_unlockPixels(environment, bottom);
+    AndroidBitmap_unlockPixels(environment, top);
     return result;
 }
 

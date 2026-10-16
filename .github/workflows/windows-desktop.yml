@@ -1,0 +1,47 @@
+name: Windows desktop build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+    paths:
+      - "desktop-host/**"
+      - "mobile-host/**"
+      - ".github/workflows/windows-desktop.yml"
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build and test Windows desktop app
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+          .\desktop-host\build-windows.ps1
+
+      - name: Package versioned Windows build
+        shell: pwsh
+        run: |
+          $match = Select-String -Path android/build.gradle.kts -Pattern 'versionName = "([^"]+)"'
+          if (-not $match) { throw 'No se pudo leer la versión del proyecto.' }
+          $version = $match.Matches[0].Groups[1].Value
+          $source = 'build/desktop-windows/Release'
+          $package = "YKW2Desktop-v$version-windows-x64.zip"
+          Compress-Archive -Path "$source/ykw2_desktop.exe", "$source/ykw2_mobile_host.dll", "$source/SDL2.dll" -DestinationPath $package
+          "PACKAGE=$package" >> $env:GITHUB_ENV
+
+      - name: Upload Windows desktop build
+        uses: actions/upload-artifact@v4
+        with:
+          name: YKW2Desktop-windows-x64
+          path: ${{ env.PACKAGE }}
+          if-no-files-found: error
+          retention-days: 14

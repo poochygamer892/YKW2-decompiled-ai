@@ -1,6 +1,7 @@
 package com.ykw2.port
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -165,7 +166,7 @@ object RomImportBridge {
         touchX: Int,
         touchY: Int,
     ): Int
-    external fun nativeEmulatorCopyScreens(top: ByteArray, bottom: ByteArray): Int
+    external fun nativeEmulatorRenderScreens(top: Bitmap, bottom: Bitmap): Int
     external fun nativeEmulatorTakeAudio(samples: ShortArray): Int
     external fun nativeEmulatorClose()
 }

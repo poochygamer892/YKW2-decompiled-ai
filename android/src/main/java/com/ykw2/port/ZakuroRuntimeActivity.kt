@@ -136,11 +136,7 @@ class ZakuroRuntimeActivity : Activity() {
         if (!opened || !resumed || !frameLoopRunning.compareAndSet(false, true)) return
         thread(name = "zakuro-frame-loop", isDaemon = true) {
             try {
-            val top = ByteArray(TOP_RGBA_BYTES)
-            val bottom = ByteArray(BOTTOM_RGBA_BYTES)
             val audioDiscard = ShortArray(AUDIO_FRAMES_PER_READ * 2)
-            val topPixels = IntArray(TOP_WIDTH * SCREEN_HEIGHT)
-            val bottomPixels = IntArray(BOTTOM_WIDTH * SCREEN_HEIGHT)
             val topBitmap = Bitmap.createBitmap(TOP_WIDTH, SCREEN_HEIGHT, Bitmap.Config.ARGB_8888)
             val bottomBitmap = Bitmap.createBitmap(BOTTOM_WIDTH, SCREEN_HEIGHT, Bitmap.Config.ARGB_8888)
             display.showScreens(topBitmap, bottomBitmap)
@@ -161,7 +157,7 @@ class ZakuroRuntimeActivity : Activity() {
                     resumed = false
                     break
                 }
-                if (RomImportBridge.nativeEmulatorCopyScreens(top, bottom) != 0) {
+                if (RomImportBridge.nativeEmulatorRenderScreens(topBitmap, bottomBitmap) != 0) {
                     mainHandler.post { status.text = "No se pudieron leer las pantallas de Zakuro." }
                     resumed = false
                     break
@@ -178,10 +174,6 @@ class ZakuroRuntimeActivity : Activity() {
                         touchY.set(-1)
                     }
                 }
-                writeRgbaPixels(top, topPixels)
-                writeRgbaPixels(bottom, bottomPixels)
-                topBitmap.setPixels(topPixels, 0, TOP_WIDTH, 0, 0, TOP_WIDTH, SCREEN_HEIGHT)
-                bottomBitmap.setPixels(bottomPixels, 0, BOTTOM_WIDTH, 0, 0, BOTTOM_WIDTH, SCREEN_HEIGHT)
                 display.postInvalidateOnAnimation()
                 val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
                 val delay = 33 - elapsedMs
@@ -191,17 +183,6 @@ class ZakuroRuntimeActivity : Activity() {
                 frameLoopRunning.set(false)
                 if (resumed && opened) startFrameLoop()
             }
-        }
-    }
-
-    private fun writeRgbaPixels(bytes: ByteArray, pixels: IntArray) {
-        var source = 0
-        for (index in pixels.indices) {
-            val red = bytes[source++].toInt() and 0xff
-            val green = bytes[source++].toInt() and 0xff
-            val blue = bytes[source++].toInt() and 0xff
-            val alpha = bytes[source++].toInt() and 0xff
-            pixels[index] = (alpha shl 24) or (red shl 16) or (green shl 8) or blue
         }
     }
 
@@ -261,8 +242,6 @@ class ZakuroRuntimeActivity : Activity() {
         private const val AUDIO_SAMPLE_RATE = 32_728
         private const val AUDIO_FRAMES_PER_READ = 2048
         private const val AXIS_SCALE = 1000f
-        private const val TOP_RGBA_BYTES = TOP_WIDTH * SCREEN_HEIGHT * 4
-        private const val BOTTOM_RGBA_BYTES = BOTTOM_WIDTH * SCREEN_HEIGHT * 4
     }
 
     private fun createAudioTrack(): AudioTrack {

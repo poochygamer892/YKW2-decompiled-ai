@@ -24,6 +24,8 @@ renderizado y controles; no se utiliza como ejecutable anfitrión del port.
 - `core/`: lógica independiente de la plataforma y formatos documentados.
 - `android/`: cliente y herramientas específicas de Android.
 - `ios/`: cliente y herramientas específicas de iOS.
+- `desktop-host/`: frontend de sobremesa de una sola ventana, inspirado en el
+  enfoque por juego de KH Melon Mix.
 - `tools/`: utilidades de inventario, conversión y validación.
 - `docs/`: arquitectura, metodología y decisiones del proyecto.
 
@@ -75,6 +77,12 @@ Para Android se necesita JDK 21, Android SDK 35, CMake 3.22.1, NDK 27.2 y
 Gradle 8.11.1; el workflow `android.yml` instala esos componentes en GitHub
 Actions. El workflow de iOS usa macOS/Xcode y deja un IPA unsigned si no se
 configuran secretos de firma.
+
+La bifurcación desktop mantiene el runtime Zakuro existente y presenta la pantalla
+superior como área principal, con la pantalla táctil como panel flotante interactivo.
+La implementación y sus límites están documentados en
+[`docs/DESKTOP_SINGLE_SCREEN.md`](docs/DESKTOP_SINGLE_SCREEN.md); no implica que el
+runtime parcial ya sea un port completo jugable.
 
 ## Uso responsable
 

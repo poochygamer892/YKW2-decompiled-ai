@@ -387,6 +387,9 @@ final class ZakuroViewController: UIViewController {
     private func startFrameLoop() {
         displayLink?.invalidate()
         displayLink = CADisplayLink(target: self, selector: #selector(advanceFrame))
+        // Zakuro still advances at 60 emulated frames/s. Presenting at 30 Hz
+        // halves RGBA copies, CGImage/UIImage creation and main-thread updates.
+        displayLink?.preferredFramesPerSecond = 30
         displayLink?.add(to: .main, forMode: .common)
     }
 
@@ -406,17 +409,17 @@ final class ZakuroViewController: UIViewController {
                 touchX: point.map { Int($0.x) } ?? -1,
                 touchY: point.map { Int($0.y) } ?? -1
             )
-            let outcome = YKW2ImportBridge.runZakuroFrames(1)
-            let topData = outcome == 1 ? YKW2ImportBridge.zakuroTopScreenRGBA() : Data()
-            let bottomData = outcome == 1 ? YKW2ImportBridge.zakuroBottomScreenRGBA() : Data()
-            let audioData = outcome == 1 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
-            let topImage = outcome == 1 ? self.image(fromRGBA: topData, width: 400, height: 240) : nil
-            let bottomImage = outcome == 1 ? self.image(fromRGBA: bottomData, width: 320, height: 240) : nil
+            let outcome = YKW2ImportBridge.runZakuroFrames(2)
+            let topData = outcome == 2 ? YKW2ImportBridge.zakuroTopScreenRGBA() : Data()
+            let bottomData = outcome == 2 ? YKW2ImportBridge.zakuroBottomScreenRGBA() : Data()
+            let audioData = outcome == 2 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
+            let topImage = outcome == 2 ? self.image(fromRGBA: topData, width: 400, height: 240) : nil
+            let bottomImage = outcome == 2 ? self.image(fromRGBA: bottomData, width: 320, height: 240) : nil
             if !audioData.isEmpty { self.audioQueue.async { self.playAudio(audioData) } }
             DispatchQueue.main.async {
                 self.frameInFlight = false
                 guard self.isViewLoaded, self.view.window != nil else { return }
-                guard outcome == 1 else {
+                guard outcome == 2 else {
                     self.displayLink?.invalidate()
                     self.statusLabel.text = "Zakuro detuvo la emulación (estado \(outcome))."
                     return
