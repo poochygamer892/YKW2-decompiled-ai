@@ -67,6 +67,9 @@ final class ZakuroViewController: UIViewController {
     }
 
     override func viewWillDisappear(_ animated: Bool) {
+        if configurationOnly && isMovingFromParent {
+            saveControlLayout(forceSynchronize: true)
+        }
         if isMovingFromParent || isBeingDismissed {
             displayLink?.invalidate()
             displayLink = nil
@@ -358,15 +361,25 @@ final class ZakuroViewController: UIViewController {
         setNeedsStatusBarAppearanceUpdate()
     }
 
-    private func saveControlLayout() {
+    private func saveControlLayout(forceSynchronize: Bool = false) {
+        guard !controlPositions.isEmpty else { return }
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v3.\(layoutProfile)."
-        for (key, point) in controlPositions {
-            preferences.set(Double(point.x), forKey: prefix + key + ".x")
-            preferences.set(Double(point.y), forKey: prefix + key + ".y")
-            preferences.set(Double(controlSizes[key] ?? 1), forKey: prefix + key + ".size")
+        // The editor can be opened in portrait while the game is later played
+        // in landscape. Keep both profiles in sync so changing orientation
+        // cannot make the app appear to have discarded the user's layout.
+        for profile in ["portrait", "landscape"] {
+            let prefix = "ykw2.controls.v3.\(profile)."
+            for (key, point) in controlPositions {
+                preferences.set(Double(point.x), forKey: prefix + key + ".x")
+                preferences.set(Double(point.y), forKey: prefix + key + ".y")
+                preferences.set(Double(controlSizes[key] ?? 1), forKey: prefix + key + ".size")
+            }
+            preferences.set(Double(globalControlScale), forKey: prefix + "globalSize")
         }
-        preferences.set(Double(globalControlScale), forKey: prefix + "globalSize")
+        preferences.set(Date().timeIntervalSince1970, forKey: "ykw2.controls.lastSavedAt")
+        if forceSynchronize {
+            preferences.synchronize()
+        }
     }
 
     private func layoutTouchControls() {
@@ -545,7 +558,11 @@ final class ZakuroViewController: UIViewController {
         )
         recognizer.setTranslation(.zero, in: controlsOverlay)
         layoutTouchControls()
-        if recognizer.state == .ended || recognizer.state == .cancelled { saveControlLayout() }
+        if recognizer.state == .changed {
+            saveControlLayout()
+        } else if recognizer.state == .ended || recognizer.state == .cancelled || recognizer.state == .failed {
+            saveControlLayout(forceSynchronize: true)
+        }
     }
 
     @objc private func goBack() {
@@ -554,7 +571,7 @@ final class ZakuroViewController: UIViewController {
 
     @objc private func toggleEditor() {
         if configurationOnly && editorMode {
-            saveControlLayout()
+            saveControlLayout(forceSynchronize: true)
             navigationController?.popViewController(animated: true)
             return
         }
@@ -565,7 +582,7 @@ final class ZakuroViewController: UIViewController {
         controlsOverlay.subviews.compactMap { $0 as? UIButton }.forEach { $0.alpha = editorMode ? 0.88 : 1 }
         selectedControlButton.isHidden = !editorMode
         updateEditorSelectionUI()
-        if !editorMode { saveControlLayout() }
+        if !editorMode { saveControlLayout(forceSynchronize: true) }
     }
 
     @objc private func chooseControl() {

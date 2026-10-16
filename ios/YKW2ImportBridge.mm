@@ -510,7 +510,7 @@ private:
         zakuroRuntime, zakuroTopFrame.data(), zakuroTopFrame.size(),
         zakuroBottomFrame.data(), zakuroBottomFrame.size());
     if (!startupFrameRecorded) {
-        writeStartupState(copied == 0 ? @"first-frame.success" : @"first-frame.failed: copia de imagen");
+        writeStartupState(copied == 0 ? @"runtime.started" : @"first-frame.failed: copia de imagen");
         startupFrameRecorded = true;
     }
     return copied == 0 ? result : -2;
@@ -560,6 +560,7 @@ private:
     if (zakuroRuntime != nullptr) {
         ykw2_mobile_close(zakuroRuntime);
         zakuroRuntime = nullptr;
+        writeStartupState(@"runtime.closed");
     }
 }
 

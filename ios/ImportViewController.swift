@@ -7,11 +7,13 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
     private let statusLabel = UILabel()
     private let runtimeButton = UIButton(type: .system)
     private let controlsButton = UIButton(type: .system)
+    private var controlsSaveTimestampAtDisplay: Double = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         title = "Yo-kai Watch 2"
+        controlsSaveTimestampAtDisplay = UserDefaults.standard.double(forKey: "ykw2.controls.lastSavedAt")
 
         let titleLabel = UILabel()
         titleLabel.text = "Importar una copia autorizada"
@@ -62,9 +64,19 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
                    encoding: .utf8
                ),
                !previousState.isEmpty,
+               previousState != "runtime.closed",
                previousState != "first-frame.success" {
-                statusLabel.text = "Último arranque interrumpido: \(previousState). Si vuelve a fallar, envíame este estado."
+                statusLabel.text = "Última fase del motor: \(previousState). Si el juego se cierra, envíame este estado."
             }
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        let savedAt = UserDefaults.standard.double(forKey: "ykw2.controls.lastSavedAt")
+        if savedAt > controlsSaveTimestampAtDisplay {
+            statusLabel.text = "Controles táctiles guardados correctamente."
+            controlsSaveTimestampAtDisplay = savedAt
         }
     }
 
