@@ -3,6 +3,7 @@
 #include <array>
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
@@ -101,6 +102,7 @@ NSString *runtimeString(const std::string& value) {
 }
 
 NSURL *runtimeCacheURL = nil;
+std::chrono::steady_clock::time_point lastRuntimeSave{};
 
 bool restoreRuntimeSave(NSURL *cacheURL) {
     NSString *path = [cacheURL.path stringByAppendingPathComponent:@"runtime.save"];
@@ -129,6 +131,17 @@ void persistRuntimeSave() {
     NSData *data = [NSData dataWithBytes:bytes.data() length:bytes.size()];
     NSString *path = [runtimeCacheURL.path stringByAppendingPathComponent:@"runtime.save"];
     [data writeToFile:path options:NSDataWritingAtomic error:nil];
+}
+
+void persistRuntimeSaveIfDue(bool force = false) {
+    const auto now = std::chrono::steady_clock::now();
+    constexpr auto saveInterval = std::chrono::seconds(5);
+    if (!force && lastRuntimeSave.time_since_epoch().count() != 0 &&
+        now - lastRuntimeSave < saveInterval) {
+        return;
+    }
+    persistRuntimeSave();
+    lastRuntimeSave = now;
 }
 
 class CacheResourceStore final : public ykw2::core::ResourceStore {
@@ -359,6 +372,8 @@ private:
         runtimeScene.start(boot);
     }
     runtimeStarted = true;
+    lastRuntimeSave = {};
+    persistRuntimeSaveIfDue(true);
     return runtimeString(ykw2::core::serialize_runtime_response(
         {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
 }
@@ -411,7 +426,7 @@ private:
                 {false, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
     }
     const auto transition = runtimeScene.handle(runtimeInput);
-    persistRuntimeSave();
+    persistRuntimeSaveIfDue(true);
     return runtimeString(ykw2::core::serialize_runtime_response(
         transition, runtimeScene.snapshot()));
 }
@@ -425,7 +440,7 @@ private:
         runtimeStarted = true;
     }
     runtimeScene.advance(static_cast<double>(deltaSeconds));
-    persistRuntimeSave();
+    persistRuntimeSaveIfDue();
     return runtimeString(ykw2::core::serialize_runtime_response(
         {true, ykw2::core::RuntimeCommand::None}, runtimeScene.snapshot()));
 }

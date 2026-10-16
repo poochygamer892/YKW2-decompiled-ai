@@ -4,6 +4,7 @@
 #include <array>
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -357,6 +358,7 @@ std::mutex runtime_mutex;
 ykw2::core::RuntimeScene runtime_scene;
 bool runtime_started = false;
 std::string runtime_cache_path;
+std::chrono::steady_clock::time_point last_runtime_save{};
 MobileRuntime* zakuro_runtime = nullptr;
 
 void restore_runtime_save(const std::string& cache_path) {
@@ -384,6 +386,17 @@ void persist_runtime_save() {
     }
 }
 
+void persist_runtime_save_if_due(bool force = false) {
+    const auto now = std::chrono::steady_clock::now();
+    constexpr auto save_interval = std::chrono::seconds(5);
+    if (!force && last_runtime_save.time_since_epoch().count() != 0 &&
+        now - last_runtime_save < save_interval) {
+        return;
+    }
+    persist_runtime_save();
+    last_runtime_save = now;
+}
+
 std::string start_runtime(const std::string& cache_path) {
     runtime_cache_path = cache_path;
     ykw2::core::RuntimeBootInfo boot;
@@ -402,6 +415,8 @@ std::string start_runtime(const std::string& cache_path) {
         runtime_scene.start(boot);
     }
     runtime_started = true;
+    last_runtime_save = {};
+    persist_runtime_save_if_due(true);
     return ykw2::core::serialize_runtime_response(
         {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
 }
@@ -453,7 +468,7 @@ std::string handle_runtime_input(jint input) {
                 {false, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
     }
     const auto transition = runtime_scene.handle(runtime_input);
-    persist_runtime_save();
+    persist_runtime_save_if_due(true);
     return ykw2::core::serialize_runtime_response(transition, runtime_scene.snapshot());
 }
 
@@ -465,7 +480,7 @@ std::string advance_runtime(double delta_seconds) {
         runtime_started = true;
     }
     runtime_scene.advance(delta_seconds);
-    persist_runtime_save();
+    persist_runtime_save_if_due();
     return ykw2::core::serialize_runtime_response(
         {true, ykw2::core::RuntimeCommand::None}, runtime_scene.snapshot());
 }
