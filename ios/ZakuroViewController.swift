@@ -156,7 +156,8 @@ final class ZakuroViewController: UIViewController {
             screen.clipsToBounds = true
         }
         screenStack.axis = .vertical
-        screenStack.spacing = 0
+        screenStack.alignment = .center
+        screenStack.spacing = 8
         screenStack.translatesAutoresizingMaskIntoConstraints = false
         screenStack.addArrangedSubview(topScreen)
         screenStack.addArrangedSubview(bottomScreen)
@@ -173,14 +174,14 @@ final class ZakuroViewController: UIViewController {
         portraitScreenConstraints = [
             topScreen.widthAnchor.constraint(equalTo: screenStack.widthAnchor),
             topScreen.heightAnchor.constraint(equalTo: screenStack.widthAnchor, multiplier: 0.60),
-            bottomScreen.widthAnchor.constraint(equalTo: screenStack.widthAnchor),
-            bottomScreen.heightAnchor.constraint(equalTo: screenStack.widthAnchor, multiplier: 0.75),
+            bottomScreen.widthAnchor.constraint(equalTo: topScreen.widthAnchor, multiplier: 0.8),
+            bottomScreen.heightAnchor.constraint(equalTo: topScreen.heightAnchor),
         ]
         landscapeScreenConstraints = [
             topScreen.heightAnchor.constraint(equalTo: screenStack.heightAnchor),
-            topScreen.widthAnchor.constraint(equalTo: screenStack.heightAnchor, multiplier: 5.0 / 3.0),
-            bottomScreen.heightAnchor.constraint(equalTo: screenStack.heightAnchor),
-            bottomScreen.widthAnchor.constraint(equalTo: screenStack.heightAnchor, multiplier: 4.0 / 3.0),
+            topScreen.widthAnchor.constraint(equalTo: topScreen.heightAnchor, multiplier: 5.0 / 3.0),
+            bottomScreen.heightAnchor.constraint(equalTo: topScreen.heightAnchor),
+            bottomScreen.widthAnchor.constraint(equalTo: topScreen.widthAnchor, multiplier: 0.8),
         ]
         portraitScreenConstraints.forEach { $0.isActive = false }
         landscapeScreenConstraints.forEach { $0.isActive = false }
@@ -335,28 +336,27 @@ final class ZakuroViewController: UIViewController {
         let dpadStepY = referenceSize * 1.12 / safeHeight
         let edgeMargin = (referenceSize / 2 + 8) / safeWidth
         let dpadCenterX = max(0.17, dpadStepX + edgeMargin)
-        let faceCenter = CGPoint(x: min(0.81, 1 - dpadStepX - edgeMargin), y: 0.64)
+        let faceCenter = CGPoint(x: min(0.82, 1 - dpadStepX - edgeMargin), y: 0.76)
         let defaults: [String: CGPoint] = [
-            "UP": CGPoint(x: dpadCenterX, y: 0.56 - dpadStepY),
-            "DOWN": CGPoint(x: dpadCenterX, y: 0.56 + dpadStepY),
-            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: 0.56),
-            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: 0.56),
-            "STICK": CGPoint(x: 0.20, y: 0.83),
+            "UP": CGPoint(x: dpadCenterX, y: 0.66 - dpadStepY),
+            "DOWN": CGPoint(x: dpadCenterX, y: 0.66 + dpadStepY),
+            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: 0.66),
+            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: 0.66),
+            "STICK": CGPoint(x: 0.18, y: 0.91),
             "X": CGPoint(x: faceCenter.x, y: faceCenter.y - dpadStepY),
             "Y": CGPoint(x: faceCenter.x - dpadStepX, y: faceCenter.y),
             "A": CGPoint(x: faceCenter.x + dpadStepX, y: faceCenter.y),
             "B": CGPoint(x: faceCenter.x, y: faceCenter.y + dpadStepY),
-            "SELECT": CGPoint(x: 0.64, y: 0.42), "START": CGPoint(x: 0.88, y: 0.42),
-            "L": CGPoint(x: 0.09, y: 0.11), "R": CGPoint(x: 0.91, y: 0.11),
+            "SELECT": CGPoint(x: 0.64, y: 0.66), "START": CGPoint(x: 0.88, y: 0.66),
+            "L": CGPoint(x: 0.09, y: 0.10), "R": CGPoint(x: 0.91, y: 0.10),
         ]
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v3.\(layoutProfile)."
+        let prefix = "ykw2.controls.v4.\(layoutProfile)."
+        let previousPrefix = "ykw2.controls.v3.\(layoutProfile)."
         let legacySizePrefix = "ykw2.controls.v2.\(layoutProfile)."
         controlPositions = defaults.mapValues { $0 }
-        // Restore the actual saved center for every control. The previous
-        // implementation wrote these values but always replaced them with
-        // defaults on load, so dragging appeared to work only until leaving
-        // the editor.
+        // v4 uses a fresh 3DS-aware default layout. Continue honoring saved
+        // positions edited in v4, while carrying forward size preferences.
         for key in defaults.keys {
             guard let storedX = preferences.object(forKey: prefix + key + ".x") as? NSNumber,
                   let storedY = preferences.object(forKey: prefix + key + ".y") as? NSNumber else { continue }
@@ -367,12 +367,14 @@ final class ZakuroViewController: UIViewController {
         }
         controlSizes = Dictionary(uniqueKeysWithValues: defaults.keys.map { key in
             let currentSize = preferences.object(forKey: prefix + key + ".size") as? Double
-            let previousSize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
-            return (key, CGFloat(currentSize ?? previousSize ?? 1))
+            let previousSize = preferences.object(forKey: previousPrefix + key + ".size") as? Double
+            let legacySize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
+            return (key, CGFloat(currentSize ?? previousSize ?? legacySize ?? 1))
         })
         let currentGlobalSize = preferences.object(forKey: prefix + "globalSize") as? Double
-        let previousGlobalSize = preferences.object(forKey: legacySizePrefix + "globalSize") as? Double
-        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? 1)
+        let previousGlobalSize = preferences.object(forKey: previousPrefix + "globalSize") as? Double
+        let legacyGlobalSize = preferences.object(forKey: legacySizePrefix + "globalSize") as? Double
+        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? legacyGlobalSize ?? 1)
         setNeedsStatusBarAppearanceUpdate()
     }
 
@@ -383,7 +385,7 @@ final class ZakuroViewController: UIViewController {
         // in landscape. Keep both profiles in sync so changing orientation
         // cannot make the app appear to have discarded the user's layout.
         for profile in ["portrait", "landscape"] {
-            let prefix = "ykw2.controls.v3.\(profile)."
+            let prefix = "ykw2.controls.v4.\(profile)."
             for (key, point) in controlPositions {
                 preferences.set(Double(point.x), forKey: prefix + key + ".x")
                 preferences.set(Double(point.y), forKey: prefix + key + ".y")
@@ -666,7 +668,7 @@ final class ZakuroViewController: UIViewController {
 
     @objc private func resetControls() {
         let prefixes = ["portrait", "landscape"].flatMap { profile in
-            ["ykw2.controls.v2.\(profile).", "ykw2.controls.v3.\(profile)."]
+            ["ykw2.controls.v2.\(profile).", "ykw2.controls.v3.\(profile).", "ykw2.controls.v4.\(profile)."]
         }
         for key in UserDefaults.standard.dictionaryRepresentation().keys {
             if prefixes.contains(where: { key.hasPrefix($0) }) {
@@ -703,6 +705,13 @@ private final class AnalogStickControl: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        // The stick is a transparent overlay. Leaving UIView's opaque default
+        // enabled causes its undrawn rectangular backing to appear black over
+        // the game image on iOS.
+        isOpaque = false
+        backgroundColor = .clear
+        layer.isOpaque = false
+        layer.backgroundColor = UIColor.clear.cgColor
         isMultipleTouchEnabled = false
         let pan = UIPanGestureRecognizer(target: self, action: #selector(moveStick(_:)))
         gameplayPan = pan
