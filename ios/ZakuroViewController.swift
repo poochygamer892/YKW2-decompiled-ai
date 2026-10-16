@@ -18,6 +18,8 @@ final class ZakuroViewController: UIViewController {
     private var displayLink: CADisplayLink?
     private let runtimeQueue = DispatchQueue(label: "com.ykw2.port.runtime", qos: .userInteractive)
     private let audioQueue = DispatchQueue(label: "com.ykw2.port.audio", qos: .userInitiated)
+    private let audioBufferLock = NSLock()
+    private var pendingAudioBuffers = 0
     private var frameInFlight = false
     private var buttonsDown = Set<String>()
     private var circleX: Float = 0
@@ -75,6 +77,9 @@ final class ZakuroViewController: UIViewController {
             displayLink = nil
             audioPlayer.stop()
             audioEngine.stop()
+            audioBufferLock.lock()
+            pendingAudioBuffers = 0
+            audioBufferLock.unlock()
             YKW2ImportBridge.closeZakuro()
             navigationController?.setNavigationBarHidden(false, animated: animated)
         }
@@ -495,7 +500,7 @@ final class ZakuroViewController: UIViewController {
             let audioData = outcome == 2 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
             let topImage = outcome == 2 ? self.image(fromRGBA: topData, width: 400, height: 240) : nil
             let bottomImage = outcome == 2 ? self.image(fromRGBA: bottomData, width: 320, height: 240) : nil
-            if !audioData.isEmpty { self.audioQueue.async { self.playAudio(audioData) } }
+            if !audioData.isEmpty { self.enqueueAudio(audioData) }
             DispatchQueue.main.async {
                 self.frameInFlight = false
                 guard self.isViewLoaded, self.view.window != nil else { return }
@@ -522,12 +527,33 @@ final class ZakuroViewController: UIViewController {
         return UIImage(cgImage: cgImage)
     }
 
+    private func enqueueAudio(_ data: Data) {
+        audioBufferLock.lock()
+        guard pendingAudioBuffers < 3 else {
+            audioBufferLock.unlock()
+            return
+        }
+        pendingAudioBuffers += 1
+        audioBufferLock.unlock()
+        audioQueue.async { [weak self] in self?.playAudio(data) }
+    }
+
+    private func finishAudioBuffer() {
+        audioBufferLock.lock()
+        pendingAudioBuffers = max(0, pendingAudioBuffers - 1)
+        audioBufferLock.unlock()
+    }
+
     private func playAudio(_ data: Data) {
         let sampleCount = data.count / MemoryLayout<Int16>.size
         let frameCount = sampleCount / 2
         guard frameCount > 0,
               let buffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: AVAudioFrameCount(frameCount)),
-              let channels = buffer.floatChannelData else { return }
+              let channels = buffer.floatChannelData,
+              audioEngine.isRunning else {
+            finishAudioBuffer()
+            return
+        }
         data.withUnsafeBytes { raw in
             let samples = raw.bindMemory(to: Int16.self)
             for frame in 0..<frameCount {
@@ -536,7 +562,9 @@ final class ZakuroViewController: UIViewController {
             }
         }
         buffer.frameLength = AVAudioFrameCount(frameCount)
-        audioPlayer.scheduleBuffer(buffer)
+        audioPlayer.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            self?.finishAudioBuffer()
+        }
     }
 
     @objc private func controlPressed(_ sender: UIButton) {
