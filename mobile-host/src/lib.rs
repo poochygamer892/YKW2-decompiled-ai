@@ -68,6 +68,15 @@ pub unsafe extern "C" fn ykw2_mobile_open(
 ) -> *mut MobileRuntime {
     let result = catch_unwind(AssertUnwindSafe(|| {
         (|| {
+            // Cranelift's shader JIT allocates executable memory dynamically.
+            // iOS rejects those pages without Apple's restricted JIT
+            // entitlement and terminates the whole process with
+            // CODESIGNING / Invalid Page (it cannot be caught as a Rust panic).
+            // Zakuro supports disabling this path through this environment
+            // switch; set it before loading or running any shader.
+            #[cfg(target_os = "ios")]
+            std::env::set_var("ZAKURO_SHADER_JIT", "0");
+
             let rom = read_path(rom_path)?;
             let data_dir = read_path(data_directory)?;
             let recompiled = if recompiled_library.is_null() {
