@@ -24,6 +24,7 @@ final class ZakuroViewController: UIViewController {
     private var circleY: Float = 0
     private var touchPoint: CGPoint?
     private var controlButtons: [String: UIButton] = [:]
+    private var editDragGestures: [UIPanGestureRecognizer] = []
     private var selectedControl = "ALL"
     private var editorMode = false
     private var layoutProfile = ""
@@ -85,6 +86,7 @@ final class ZakuroViewController: UIViewController {
         if configurationOnly {
             statusLabel.isHidden = true
             editorMode = true
+            editDragGestures.forEach { $0.isEnabled = true }
             editorPanel.isHidden = false
             controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }
                 .forEach { $0.isEditingControls = true }
@@ -204,7 +206,9 @@ final class ZakuroViewController: UIViewController {
             button.addTarget(self, action: #selector(controlReleased(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
             let drag = UIPanGestureRecognizer(target: self, action: #selector(dragControl(_:)))
             drag.delegate = self
+            drag.isEnabled = false
             button.addGestureRecognizer(drag)
+            editDragGestures.append(drag)
             controlsOverlay.addSubview(button)
             controlButtons[definition.key] = button
         }
@@ -217,7 +221,9 @@ final class ZakuroViewController: UIViewController {
         }
         let joystickDrag = UIPanGestureRecognizer(target: self, action: #selector(dragControl(_:)))
         joystickDrag.delegate = self
+        joystickDrag.isEnabled = false
         joystick.addGestureRecognizer(joystickDrag)
+        editDragGestures.append(joystickDrag)
         controlsOverlay.addSubview(joystick)
 
         let back = chromeButton("‹")
@@ -313,33 +319,48 @@ final class ZakuroViewController: UIViewController {
 
     private func loadControlLayout() {
         guard !layoutProfile.isEmpty else { return }
+        let safeWidth = max(1, controlsOverlay.bounds.width - 16)
+        let safeHeight = max(1, controlsOverlay.bounds.height
+            - controlsOverlay.safeAreaInsets.top - controlsOverlay.safeAreaInsets.bottom - 16)
+        let referenceSize = min(54, max(34, min(safeWidth * 0.15, safeHeight * 0.075)))
+        let dpadStepX = referenceSize * 1.12 / safeWidth
+        let dpadStepY = referenceSize * 1.12 / safeHeight
+        let edgeMargin = (referenceSize / 2 + 8) / safeWidth
+        let dpadCenterX = max(0.17, dpadStepX + edgeMargin)
+        let faceCenter = CGPoint(x: min(0.81, 1 - dpadStepX - edgeMargin), y: 0.64)
         let defaults: [String: CGPoint] = [
-            "UP": CGPoint(x: 0.14, y: 0.48), "DOWN": CGPoint(x: 0.14, y: 0.62),
-            "LEFT": CGPoint(x: 0.07, y: 0.55), "RIGHT": CGPoint(x: 0.21, y: 0.55),
-            "STICK": CGPoint(x: 0.17, y: 0.83),
-            "X": CGPoint(x: 0.72, y: 0.57), "Y": CGPoint(x: 0.53, y: 0.68),
-            "A": CGPoint(x: 0.91, y: 0.68), "B": CGPoint(x: 0.72, y: 0.79),
-            "SELECT": CGPoint(x: 0.62, y: 0.43), "START": CGPoint(x: 0.86, y: 0.43),
+            "UP": CGPoint(x: dpadCenterX, y: 0.56 - dpadStepY),
+            "DOWN": CGPoint(x: dpadCenterX, y: 0.56 + dpadStepY),
+            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: 0.56),
+            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: 0.56),
+            "STICK": CGPoint(x: 0.20, y: 0.83),
+            "X": CGPoint(x: faceCenter.x, y: faceCenter.y - dpadStepY),
+            "Y": CGPoint(x: faceCenter.x - dpadStepX, y: faceCenter.y),
+            "A": CGPoint(x: faceCenter.x + dpadStepX, y: faceCenter.y),
+            "B": CGPoint(x: faceCenter.x, y: faceCenter.y + dpadStepY),
+            "SELECT": CGPoint(x: 0.64, y: 0.42), "START": CGPoint(x: 0.88, y: 0.42),
             "L": CGPoint(x: 0.09, y: 0.11), "R": CGPoint(x: 0.91, y: 0.11),
         ]
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v2.\(layoutProfile)."
+        let prefix = "ykw2.controls.v3.\(layoutProfile)."
+        let legacySizePrefix = "ykw2.controls.v2.\(layoutProfile)."
         controlPositions = defaults.mapValues { $0 }
-        for key in defaults.keys {
-            let x = preferences.object(forKey: prefix + key + ".x") as? Double
-            let y = preferences.object(forKey: prefix + key + ".y") as? Double
-            if let x, let y { controlPositions[key] = CGPoint(x: x, y: y) }
-        }
+        // v2 positions were saved from a broken layout and could put controls
+        // on top of one another or at the edge. Start with the corrected layout.
         controlSizes = Dictionary(uniqueKeysWithValues: defaults.keys.map { key in
-            (key, CGFloat(preferences.object(forKey: prefix + key + ".size") as? Double ?? 1))
+            let currentSize = preferences.object(forKey: prefix + key + ".size") as? Double
+            let previousSize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
+            return (key, CGFloat(currentSize ?? previousSize ?? 1))
         })
-        globalControlScale = CGFloat(preferences.object(forKey: prefix + "globalSize") as? Double ?? 1)
+        let currentGlobalSize = preferences.object(forKey: prefix + "globalSize") as? Double
+        let previousGlobalSize = preferences.object(forKey: legacySizePrefix + "globalSize") as? Double
+        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? 1)
         setNeedsStatusBarAppearanceUpdate()
     }
 
     private func saveControlLayout() {
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v2.\(layoutProfile)."
+        let prefix = "ykw2.controls.v3.\(layoutProfile)."
         for (key, point) in controlPositions {
             preferences.set(Double(point.x), forKey: prefix + key + ".x")
             preferences.set(Double(point.y), forKey: prefix + key + ".y")
@@ -538,6 +559,7 @@ final class ZakuroViewController: UIViewController {
             return
         }
         editorMode.toggle()
+        editDragGestures.forEach { $0.isEnabled = editorMode }
         editorPanel.isHidden = !editorMode
         controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }.forEach { $0.isEditingControls = editorMode }
         controlsOverlay.subviews.compactMap { $0 as? UIButton }.forEach { $0.alpha = editorMode ? 0.88 : 1 }
@@ -588,9 +610,11 @@ final class ZakuroViewController: UIViewController {
     }
 
     @objc private func resetControls() {
-        let prefix = "ykw2.controls.v2.\(layoutProfile)."
-        for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
-            UserDefaults.standard.removeObject(forKey: key)
+        let prefixes = ["ykw2.controls.v2.\(layoutProfile).", "ykw2.controls.v3.\(layoutProfile)."]
+        for key in UserDefaults.standard.dictionaryRepresentation().keys {
+            if prefixes.contains(where: { key.hasPrefix($0) }) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
         loadControlLayout()
         selectedControl = "ALL"
@@ -606,13 +630,24 @@ extension ZakuroViewController: UIGestureRecognizerDelegate {
 
 private final class AnalogStickControl: UIView {
     var onAxisChanged: ((Float, Float) -> Void)?
-    var isEditingControls = false
+    var isEditingControls = false {
+        didSet {
+            gameplayPan?.isEnabled = !isEditingControls
+            if isEditingControls {
+                displacement = .zero
+                onAxisChanged?(0, 0)
+                setNeedsDisplay()
+            }
+        }
+    }
     private var displacement = CGPoint.zero
+    private weak var gameplayPan: UIPanGestureRecognizer?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isMultipleTouchEnabled = false
         let pan = UIPanGestureRecognizer(target: self, action: #selector(moveStick(_:)))
+        gameplayPan = pan
         addGestureRecognizer(pan)
     }
 
@@ -640,10 +675,18 @@ private final class AnalogStickControl: UIView {
         let radius = min(bounds.width, bounds.height) * 0.48
         let maxTravel = radius * 0.78
         switch gesture.state {
-        case .began, .changed:
-            let point = gesture.location(in: self)
-            var dx = point.x - bounds.midX
-            var dy = point.y - bounds.midY
+        case .began:
+            // Treat the initial finger contact as the neutral point. This avoids
+            // a jump when the thumb lands off-center and still tracks outside
+            // the visible ring while UIKit keeps the pan gesture alive.
+            gesture.setTranslation(.zero, in: self)
+            displacement = .zero
+            onAxisChanged?(0, 0)
+            setNeedsDisplay()
+        case .changed:
+            let delta = gesture.translation(in: self)
+            var dx = delta.x
+            var dy = delta.y
             let length = max(1, hypot(dx, dy))
             if length > maxTravel {
                 dx *= maxTravel / length

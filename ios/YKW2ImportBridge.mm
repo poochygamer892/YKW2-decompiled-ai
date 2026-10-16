@@ -82,6 +82,19 @@ bool runtimeStarted = false;
 MobileRuntime *zakuroRuntime = nullptr;
 std::array<std::uint8_t, YKW2_TOP_RGBA_BYTES> zakuroTopFrame{};
 std::array<std::uint8_t, YKW2_BOTTOM_RGBA_BYTES> zakuroBottomFrame{};
+NSURL *startupStateURL = nil;
+bool startupFrameRecorded = false;
+
+void writeStartupState(NSString *state) {
+    if (startupStateURL == nil) {
+        return;
+    }
+    NSCharacterSet *newlines = [NSCharacterSet newlineCharacterSet];
+    NSString *safeState = [[state componentsSeparatedByCharactersInSet:newlines]
+        componentsJoinedByString:@" "];
+    [safeState writeToURL:startupStateURL atomically:YES
+                 encoding:NSUTF8StringEncoding error:nil];
+}
 
 NSString *runtimeString(const std::string& value) {
     return [NSString stringWithUTF8String:value.c_str()] ?: @"";
@@ -435,7 +448,12 @@ private:
 
 + (NSString *)openZakuroROMAtURL:(NSURL *)romURL dataDirectoryURL:(NSURL *)dataURL {
     std::lock_guard<std::mutex> lock(runtimeMutex);
+    if (dataURL.isFileURL) {
+        startupStateURL = [dataURL URLByAppendingPathComponent:@"zakuro-startup-state.txt"];
+        startupFrameRecorded = false;
+    }
     if (!romURL.isFileURL || !dataURL.isFileURL) {
+        writeStartupState(@"open.failed: ROM o directorio no local");
         return @"La ROM y el directorio de datos deben ser archivos locales.";
     }
     NSError *directoryError = nil;
@@ -443,8 +461,10 @@ private:
                                   withIntermediateDirectories:YES
                                                    attributes:nil
                                                         error:&directoryError]) {
+        writeStartupState(@"open.failed: no se pudo crear el directorio de datos");
         return directoryError.localizedDescription ?: @"No se pudo crear el directorio de datos.";
     }
+    writeStartupState(@"open.begin");
     if (zakuroRuntime != nullptr) {
         ykw2_mobile_close(zakuroRuntime);
         zakuroRuntime = nullptr;
@@ -453,26 +473,46 @@ private:
     zakuroRuntime = ykw2_mobile_open(
         romURL.fileSystemRepresentation, nullptr, dataURL.fileSystemRepresentation,
         error.data(), error.size());
-    return zakuroRuntime == nullptr
-        ? (runtimeString(std::string(error.data())).length > 0
-            ? runtimeString(std::string(error.data()))
-            : @"Zakuro no pudo abrir la ROM.")
-        : @"";
+    if (zakuroRuntime == nullptr) {
+        NSString *message = runtimeString(std::string(error.data()));
+        if (message.length == 0) {
+            message = @"Zakuro no pudo abrir la ROM.";
+        }
+        writeStartupState([@"open.failed: " stringByAppendingString:message]);
+        return message;
+    }
+    writeStartupState(@"open.success");
+    return @"";
 }
 
 + (NSInteger)runZakuroFrames:(NSInteger)frames {
     std::lock_guard<std::mutex> lock(runtimeMutex);
     if (zakuroRuntime == nullptr || frames <= 0 || frames > 8) {
+        if (!startupFrameRecorded) {
+            writeStartupState(@"first-frame.failed: runtime no disponible");
+            startupFrameRecorded = true;
+        }
         return -1;
+    }
+    if (!startupFrameRecorded) {
+        writeStartupState(@"first-frame.begin");
     }
     const auto result = ykw2_mobile_run_frames(
         zakuroRuntime, static_cast<std::uint32_t>(frames));
     if (result <= 0) {
+        if (!startupFrameRecorded) {
+            writeStartupState([NSString stringWithFormat:@"first-frame.failed: estado %d", result]);
+            startupFrameRecorded = true;
+        }
         return result;
     }
     const auto copied = ykw2_mobile_copy_screens(
         zakuroRuntime, zakuroTopFrame.data(), zakuroTopFrame.size(),
         zakuroBottomFrame.data(), zakuroBottomFrame.size());
+    if (!startupFrameRecorded) {
+        writeStartupState(copied == 0 ? @"first-frame.success" : @"first-frame.failed: copia de imagen");
+        startupFrameRecorded = true;
+    }
     return copied == 0 ? result : -2;
 }
 

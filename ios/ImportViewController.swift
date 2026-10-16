@@ -56,6 +56,15 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         if let romURL = try? romURL(), FileManager.default.fileExists(atPath: romURL.path) {
             runtimeButton.isHidden = false
             statusLabel.text = "ROM guardada en este iPhone. Zakuro la abrirá desde el almacenamiento privado."
+            if let dataURL = try? dataDirectoryURL(),
+               let previousState = try? String(
+                   contentsOf: dataURL.appendingPathComponent("zakuro-startup-state.txt"),
+                   encoding: .utf8
+               ),
+               !previousState.isEmpty,
+               previousState != "first-frame.success" {
+                statusLabel.text = "Último arranque interrumpido: \(previousState). Si vuelve a fallar, envíame este estado."
+            }
         }
     }
 
