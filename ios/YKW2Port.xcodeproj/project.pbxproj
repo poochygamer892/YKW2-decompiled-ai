@@ -280,7 +280,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release";
-				OTHER_LDFLAGS = "-lz -lykw2_mobile_host";
+				OTHER_LDFLAGS = "-lz";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -298,7 +298,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../core/include $(SRCROOT)/../mobile-host/include";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../build/ios-cargo/aarch64-apple-ios/release";
-				OTHER_LDFLAGS = "-lz -lykw2_mobile_host";
+				OTHER_LDFLAGS = "-lz";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -310,7 +310,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -323,7 +323,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ykw2.port.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";

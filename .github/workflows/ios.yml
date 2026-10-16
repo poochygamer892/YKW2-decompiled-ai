@@ -134,6 +134,18 @@ jobs:
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print:CFBundleShortVersionString' ios/Info.plist)
           (cd "$RUNNER_TEMP/unsigned" && zip -qry "$GITHUB_WORKSPACE/YKW2Port-v${VERSION}-unsigned.ipa" Payload)
 
+      - name: Verify archive has no runner-local dynamic libraries
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/YKW2Port.xcarchive/Products/Applications/YKW2Port.app"
+          test -x "$APP/YKW2Port"
+          DEPENDENCIES="$(xcrun --sdk iphoneos otool -L "$APP/YKW2Port")"
+          echo "$DEPENDENCIES"
+          if echo "$DEPENDENCIES" | grep -E '/Users/runner/work|libykw2_mobile_host\.dylib'; then
+            echo "::error::The app links a dynamic library that is not bundled in the IPA."
+            exit 1
+          fi
+
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
