@@ -41,7 +41,7 @@ final class ZakuroViewController: UIViewController {
     private let audioEngine = AVAudioEngine()
     private let audioPlayer = AVAudioPlayerNode()
     private lazy var audioFormat = AVAudioFormat(standardFormatWithSampleRate: 32_728, channels: 2)!
-    private static let screenColorSpace = CGColorSpaceCreateDeviceRGB()!
+    private static let screenColorSpace = CGColorSpaceCreateDeviceRGB()
 
     private let controlDefinitions: [(key: String, title: String, bit: UInt32)] = [
         ("UP", "↑", 1 << 6), ("DOWN", "↓", 1 << 7),
