@@ -9,6 +9,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -174,7 +175,7 @@ class ZakuroRuntimeActivity : Activity() {
                         touchY.set(-1)
                     }
                 }
-                display.postInvalidateOnAnimation()
+                display.markFrameReady()
                 val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
                 val delay = 33 - elapsedMs
                 if (delay > 0) Thread.sleep(delay)
@@ -279,6 +280,24 @@ internal class ZakuroScreenView(
     private val edgePaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
         style = android.graphics.Paint.Style.STROKE
     }
+    private val fpsBackgroundPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xaa0a1019.toInt()
+    }
+    private val fpsTextPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textSize = 12f * resources.displayMetrics.density
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+    }
+    private val topScreenRect = android.graphics.RectF()
+    private val bottomScreenRect = android.graphics.RectF()
+    private val fpsBounds = android.graphics.RectF()
+    private val fpsFontMetrics = android.graphics.Paint.FontMetrics()
+    private val dpadVerticalRect = android.graphics.RectF()
+    private val dpadHorizontalRect = android.graphics.RectF()
+    private val pendingPresentedFrame = AtomicBoolean(false)
+    private var fpsWindowStartNanos = 0L
+    private var fpsWindowFrames = 0
+    private var fpsText = "FPS --"
     private val labelPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
         color = android.graphics.Color.WHITE
         textAlign = android.graphics.Paint.Align.CENTER
@@ -300,6 +319,11 @@ internal class ZakuroScreenView(
     fun showScreens(topScreen: Bitmap, bottomScreen: Bitmap) {
         top = topScreen
         bottom = bottomScreen
+        postInvalidateOnAnimation()
+    }
+
+    fun markFrameReady() {
+        pendingPresentedFrame.set(true)
         postInvalidateOnAnimation()
     }
 
@@ -372,8 +396,8 @@ internal class ZakuroScreenView(
                 if (pointerId == stickPointerId) {
                     val unit = controlUnit()
                     val stickScale = controlLayout.size("STICK")
-                    val dx = (x - width * controlLayout.stickX) / (unit * 2.25f * stickScale)
-                    val dy = (y - height * controlLayout.stickY) / (unit * 2.25f * stickScale)
+                    val dx = (x - stickCenterX(unit)) / (unit * 2.25f * stickScale)
+                    val dy = (y - stickCenterY(unit)) / (unit * 2.25f * stickScale)
                     val magnitude = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
                     padX = (dx / magnitude).coerceIn(-1f, 1f)
                     // Keep the thumb following the finger; Zakuro's game input expects
@@ -444,7 +468,7 @@ internal class ZakuroScreenView(
         fun near(px: Float, py: Float, radius: Float) =
             (x - px) * (x - px) + (y - py) * (y - py) <= radius * radius
         if (near(width * controlLayout.leftX, height * controlLayout.dpadY, u * 2.5f)) return EDIT_DPAD
-        if (near(width * controlLayout.stickX, height * controlLayout.stickY, u * 2.6f)) return EDIT_STICK
+        if (near(stickCenterX(u), stickCenterY(u), u * 2.6f)) return EDIT_STICK
         if (near(width * controlLayout.faceX, height * controlLayout.faceY, u * 3.0f)) return EDIT_FACE
         if (near(width * controlLayout.utilityX, height * controlLayout.utilityY, u * 2.4f)) return EDIT_UTILITY
         if (near(width * controlLayout.leftShoulderX, height * controlLayout.leftShoulderY, u * 1.5f)) return EDIT_LEFT_SHOULDER
@@ -466,7 +490,7 @@ internal class ZakuroScreenView(
         )
         directions.firstOrNull { (key, cx, cy) -> near(cx, cy, u * 0.6f * controlLayout.size(key)) }
             ?.let { return it.first }
-        if (near(width * controlLayout.stickX, height * controlLayout.stickY, u * 2.25f * controlLayout.size("STICK"))) return "STICK"
+        if (near(stickCenterX(u), stickCenterY(u), u * 2.25f * controlLayout.size("STICK"))) return "STICK"
         val right = width * controlLayout.faceX
         val faceY = height * controlLayout.faceY
         val faces = listOf(
@@ -495,8 +519,11 @@ internal class ZakuroScreenView(
                 controlLayout.dpadY = (controlLayout.dpadY + dy).coerceIn(0.05f, 0.95f)
             }
             EDIT_STICK -> {
-                controlLayout.stickX = (controlLayout.stickX + dx).coerceIn(0.04f, 0.96f)
-                controlLayout.stickY = (controlLayout.stickY + dy).coerceIn(0.05f, 0.95f)
+                val radius = controlUnit() * 2.25f * controlLayout.size("STICK")
+                val marginX = (radius / width.coerceAtLeast(1)).coerceAtMost(0.49f)
+                val marginY = (radius / height.coerceAtLeast(1)).coerceAtMost(0.49f)
+                controlLayout.stickX = (controlLayout.stickX + dx).coerceIn(marginX, 1f - marginX)
+                controlLayout.stickY = (controlLayout.stickY + dy).coerceIn(marginY, 1f - marginY)
             }
             EDIT_FACE -> {
                 controlLayout.faceX = (controlLayout.faceX + dx).coerceIn(0.04f, 0.96f)
@@ -519,6 +546,16 @@ internal class ZakuroScreenView(
 
     private fun controlUnit(): Float = (minOf(width * 0.065f, height * 0.105f) * controlLayout.scale).coerceAtLeast(14f)
 
+    private fun stickCenterX(unit: Float = controlUnit()): Float {
+        val margin = (unit * 2.25f * controlLayout.size("STICK")).coerceAtMost(width / 2f)
+        return (width * controlLayout.stickX).coerceIn(margin, width - margin)
+    }
+
+    private fun stickCenterY(unit: Float = controlUnit()): Float {
+        val margin = (unit * 2.25f * controlLayout.size("STICK")).coerceAtMost(height / 2f)
+        return (height * controlLayout.stickY).coerceIn(margin, height - margin)
+    }
+
     private fun controlAt(x: Float, y: Float): Int? {
         val u = controlUnit()
         fun near(cx: Float, cy: Float, radius: Float) =
@@ -530,7 +567,7 @@ internal class ZakuroScreenView(
         if (near(left, dpadY + u * 1.05f, u * 0.6f * controlLayout.size("DOWN"))) return 1 shl 7
         if (near(left - u * 1.05f, dpadY, u * 0.6f * controlLayout.size("LEFT"))) return 1 shl 5
         if (near(left + u * 1.05f, dpadY, u * 0.6f * controlLayout.size("RIGHT"))) return 1 shl 4
-        if (near(width * controlLayout.stickX, height * controlLayout.stickY, u * 2.25f * controlLayout.size("STICK"))) return STICK
+        if (near(stickCenterX(u), stickCenterY(u), u * 2.25f * controlLayout.size("STICK"))) return STICK
 
         val right = width * controlLayout.faceX
         val faceY = height * controlLayout.faceY
@@ -566,18 +603,20 @@ internal class ZakuroScreenView(
         val left = (width - 400f * scale) / 2f
         val topY = (height - totalHeight) / 2f
         top?.let {
-            canvas.drawBitmap(it, null, android.graphics.RectF(
-                left, topY, left + 400f * scale, topY + 240f * scale,
-            ), null)
+            topScreenRect.set(left, topY, left + 400f * scale, topY + 240f * scale)
+            canvas.drawBitmap(it, null, topScreenRect, null)
         }
         bottom?.let {
             val bottomLeft = left + 40f * scale
-            canvas.drawBitmap(it, null, android.graphics.RectF(
+            bottomScreenRect.set(
                 bottomLeft, topY + 240f * scale,
                 bottomLeft + 320f * scale, topY + 480f * scale,
-            ), null)
+            )
+            canvas.drawBitmap(it, null, bottomScreenRect, null)
         }
         drawTouchControls(canvas)
+        updatePresentedFps()
+        drawFps(canvas)
     }
 
     private fun drawTouchControls(canvas: android.graphics.Canvas) {
@@ -587,7 +626,7 @@ internal class ZakuroScreenView(
         val right = width * controlLayout.faceX
         val faceY = height * controlLayout.faceY
         drawDpad(canvas, left, dpadY, u)
-        drawStick(canvas, width * controlLayout.stickX, height * controlLayout.stickY, u)
+        drawStick(canvas, u)
         drawFaceButton(canvas, right, faceY - u * 1.35f, u * 0.72f * controlLayout.size("X"), "X", 1 shl 10)
         drawFaceButton(canvas, right - u * 1.35f, faceY, u * 0.72f * controlLayout.size("Y"), "Y", 1 shl 11)
         drawFaceButton(canvas, right + u * 1.35f, faceY, u * 0.72f * controlLayout.size("A"), "A", 1 shl 0)
@@ -601,35 +640,68 @@ internal class ZakuroScreenView(
     private fun drawDpad(canvas: android.graphics.Canvas, cx: Float, cy: Float, u: Float) {
         val arm = u * 0.82f
         val radius = u * 0.28f
-        val rects = arrayOf(
-            android.graphics.RectF(cx - arm * 0.48f, cy - arm * 1.55f, cx + arm * 0.48f, cy + arm * 1.55f),
-            android.graphics.RectF(cx - arm * 1.55f, cy - arm * 0.48f, cx + arm * 1.55f, cy + arm * 0.48f),
-        )
+        dpadVerticalRect.set(cx - arm * 0.48f, cy - arm * 1.55f, cx + arm * 0.48f, cy + arm * 1.55f)
+        dpadHorizontalRect.set(cx - arm * 1.55f, cy - arm * 0.48f, cx + arm * 1.55f, cy + arm * 0.48f)
         controlPaint.color = 0x990a1019.toInt()
-        rects.forEach { canvas.drawRoundRect(it, radius, radius, controlPaint) }
+        canvas.drawRoundRect(dpadVerticalRect, radius, radius, controlPaint)
+        canvas.drawRoundRect(dpadHorizontalRect, radius, radius, controlPaint)
         edgePaint.color = 0x887f95a8.toInt()
         edgePaint.strokeWidth = (u * 0.09f).coerceAtLeast(1f)
-        rects.forEach { canvas.drawRoundRect(it, radius, radius, edgePaint) }
+        canvas.drawRoundRect(dpadVerticalRect, radius, radius, edgePaint)
+        canvas.drawRoundRect(dpadHorizontalRect, radius, radius, edgePaint)
         drawDpadDirection(canvas, cx, cy - u * 1.05f, u * 0.46f * controlLayout.size("UP"), 1 shl 6)
         drawDpadDirection(canvas, cx, cy + u * 1.05f, u * 0.46f * controlLayout.size("DOWN"), 1 shl 7)
         drawDpadDirection(canvas, cx - u * 1.05f, cy, u * 0.46f * controlLayout.size("LEFT"), 1 shl 5)
         drawDpadDirection(canvas, cx + u * 1.05f, cy, u * 0.46f * controlLayout.size("RIGHT"), 1 shl 4)
     }
 
-    private fun drawStick(canvas: android.graphics.Canvas, cx: Float, cy: Float, u: Float) {
+    private fun drawStick(canvas: android.graphics.Canvas, u: Float) {
         val s = controlLayout.size("STICK")
+        val centerX = stickCenterX(u)
+        val centerY = stickCenterY(u)
+        val radius = u * 2.25f * s
         controlPaint.color = 0x66515d6b
-        canvas.drawCircle(cx, cy, u * 2.25f * s, controlPaint)
+        canvas.drawCircle(centerX, centerY, radius, controlPaint)
         edgePaint.color = 0x995f7385.toInt()
         edgePaint.strokeWidth = (u * 0.12f).coerceAtLeast(1.5f)
-        canvas.drawCircle(cx, cy, u * 2.25f * s, edgePaint)
+        canvas.drawCircle(centerX, centerY, radius, edgePaint)
         controlPaint.color = 0x99505d6a.toInt()
         val dx = stickX * u * 1.1f * s
         val dy = stickY * u * 1.1f * s
-        canvas.drawCircle(cx + dx, cy + dy, u * 1.14f * s, controlPaint)
+        canvas.drawCircle(centerX + dx, centerY + dy, u * 1.14f * s, controlPaint)
         edgePaint.color = 0x99d0dbe4.toInt()
         edgePaint.strokeWidth = (u * 0.1f).coerceAtLeast(1f)
-        canvas.drawCircle(cx + dx, cy + dy, u * 1.14f * s, edgePaint)
+        canvas.drawCircle(centerX + dx, centerY + dy, u * 1.14f * s, edgePaint)
+    }
+
+    private fun updatePresentedFps() {
+        if (!pendingPresentedFrame.getAndSet(false)) return
+        val now = SystemClock.elapsedRealtimeNanos()
+        if (fpsWindowStartNanos == 0L) fpsWindowStartNanos = now
+        fpsWindowFrames++
+        val elapsed = now - fpsWindowStartNanos
+        if (elapsed >= 1_000_000_000L) {
+            fpsText = "FPS ${((fpsWindowFrames * 1_000_000_000L) / elapsed).toInt()}"
+            fpsWindowFrames = 0
+            fpsWindowStartNanos = now
+        }
+    }
+
+    private fun drawFps(canvas: android.graphics.Canvas) {
+        val density = resources.displayMetrics.density
+        val paddingX = 8f * density
+        val paddingY = 5f * density
+        val textWidth = fpsTextPaint.measureText(fpsText)
+        fpsTextPaint.getFontMetrics(fpsFontMetrics)
+        val textHeight = fpsFontMetrics.descent - fpsFontMetrics.ascent
+        val left = 10f * density
+        val top = 10f * density
+        fpsBounds.set(left, top, left + textWidth + paddingX * 2, top + textHeight + paddingY * 2)
+        canvas.drawRoundRect(fpsBounds, 9f * density, 9f * density, fpsBackgroundPaint)
+        canvas.drawText(
+            fpsText, fpsBounds.left + paddingX,
+            fpsBounds.top + paddingY - fpsFontMetrics.ascent, fpsTextPaint,
+        )
     }
 
     private fun drawFaceButton(canvas: android.graphics.Canvas, cx: Float, cy: Float, radius: Float, label: String, bit: Int) {

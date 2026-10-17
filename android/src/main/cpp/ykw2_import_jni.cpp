@@ -682,22 +682,31 @@ Java_com_ykw2_port_RomImportBridge_nativeEmulatorRenderScreens(
         return -1;
     }
 
-    static std::array<std::uint8_t, YKW2_TOP_RGBA_BYTES> top_rgba{};
-    static std::array<std::uint8_t, YKW2_BOTTOM_RGBA_BYTES> bottom_rgba{};
     std::lock_guard<std::mutex> lock(runtime_mutex);
-    const auto result = zakuro_runtime == nullptr ? -1 : ykw2_mobile_copy_screens(
-        zakuro_runtime, top_rgba.data(), top_rgba.size(),
-        bottom_rgba.data(), bottom_rgba.size());
-    if (result == 0) {
-        const auto* top_source = top_rgba.data();
-        const auto* bottom_source = bottom_rgba.data();
-        auto* top_destination = static_cast<std::uint8_t*>(top_pixels);
-        auto* bottom_destination = static_cast<std::uint8_t*>(bottom_pixels);
-        for (std::uint32_t row = 0; row < YKW2_SCREEN_HEIGHT; ++row) {
-            std::memcpy(top_destination + row * top_info.stride,
-                        top_source + row * YKW2_TOP_WIDTH * 4, YKW2_TOP_WIDTH * 4);
-            std::memcpy(bottom_destination + row * bottom_info.stride,
-                        bottom_source + row * YKW2_BOTTOM_WIDTH * 4, YKW2_BOTTOM_WIDTH * 4);
+    const bool tightly_packed = top_info.stride == YKW2_TOP_WIDTH * 4 &&
+                                bottom_info.stride == YKW2_BOTTOM_WIDTH * 4;
+    int result = -1;
+    auto* top_destination = static_cast<std::uint8_t*>(top_pixels);
+    auto* bottom_destination = static_cast<std::uint8_t*>(bottom_pixels);
+    if (zakuro_runtime != nullptr && tightly_packed) {
+        result = ykw2_mobile_copy_screens(
+            zakuro_runtime, top_destination, YKW2_TOP_RGBA_BYTES,
+            bottom_destination, YKW2_BOTTOM_RGBA_BYTES);
+    } else if (zakuro_runtime != nullptr) {
+        static std::array<std::uint8_t, YKW2_TOP_RGBA_BYTES> top_rgba{};
+        static std::array<std::uint8_t, YKW2_BOTTOM_RGBA_BYTES> bottom_rgba{};
+        result = ykw2_mobile_copy_screens(
+            zakuro_runtime, top_rgba.data(), top_rgba.size(),
+            bottom_rgba.data(), bottom_rgba.size());
+        if (result == 0) {
+            const auto* top_source = top_rgba.data();
+            const auto* bottom_source = bottom_rgba.data();
+            for (std::uint32_t row = 0; row < YKW2_SCREEN_HEIGHT; ++row) {
+                std::memcpy(top_destination + row * top_info.stride,
+                            top_source + row * YKW2_TOP_WIDTH * 4, YKW2_TOP_WIDTH * 4);
+                std::memcpy(bottom_destination + row * bottom_info.stride,
+                            bottom_source + row * YKW2_BOTTOM_WIDTH * 4, YKW2_BOTTOM_WIDTH * 4);
+            }
         }
     }
     AndroidBitmap_unlockPixels(environment, bottom);

@@ -7,6 +7,7 @@ final class ZakuroViewController: UIViewController {
     private let dataURL: URL?
     private let configurationOnly: Bool
     private let statusLabel = UILabel()
+    private let fpsLabel = UILabel()
     private let topScreen = UIImageView()
     private let bottomScreen = UIImageView()
     private let screenStack = UIStackView()
@@ -21,6 +22,8 @@ final class ZakuroViewController: UIViewController {
     private let audioBufferLock = NSLock()
     private var pendingAudioBuffers = 0
     private var frameInFlight = false
+    private var fpsWindowStart = CACurrentMediaTime()
+    private var fpsWindowFrames = 0
     private var buttonsDown = Set<String>()
     private var circleX: Float = 0
     private var circleY: Float = 0
@@ -38,6 +41,7 @@ final class ZakuroViewController: UIViewController {
     private let audioEngine = AVAudioEngine()
     private let audioPlayer = AVAudioPlayerNode()
     private lazy var audioFormat = AVAudioFormat(standardFormatWithSampleRate: 32_728, channels: 2)!
+    private static let screenColorSpace = CGColorSpaceCreateDeviceRGB()!
 
     private let controlDefinitions: [(key: String, title: String, bit: UInt32)] = [
         ("UP", "↑", 1 << 6), ("DOWN", "↓", 1 << 7),
@@ -192,6 +196,8 @@ final class ZakuroViewController: UIViewController {
         bottomScreen.addGestureRecognizer(screenTouch)
 
         controlsOverlay.backgroundColor = .clear
+        controlsOverlay.clipsToBounds = false
+        controlsOverlay.layer.masksToBounds = false
         controlsOverlay.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(controlsOverlay)
         NSLayoutConstraint.activate([
@@ -248,10 +254,25 @@ final class ZakuroViewController: UIViewController {
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         controlsOverlay.addSubview(statusLabel)
+        fpsLabel.text = "FPS --"
+        fpsLabel.textColor = .white
+        fpsLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+        fpsLabel.textAlignment = .center
+        fpsLabel.backgroundColor = UIColor.black.withAlphaComponent(0.68)
+        fpsLabel.layer.cornerRadius = 8
+        fpsLabel.clipsToBounds = true
+        fpsLabel.isUserInteractionEnabled = false
+        fpsLabel.isHidden = configurationOnly
+        fpsLabel.translatesAutoresizingMaskIntoConstraints = false
+        controlsOverlay.addSubview(fpsLabel)
         NSLayoutConstraint.activate([
             statusLabel.centerXAnchor.constraint(equalTo: controlsOverlay.centerXAnchor),
             statusLabel.topAnchor.constraint(equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 4),
             statusLabel.widthAnchor.constraint(lessThanOrEqualTo: controlsOverlay.widthAnchor, multiplier: 0.72),
+            fpsLabel.centerXAnchor.constraint(equalTo: controlsOverlay.centerXAnchor),
+            fpsLabel.topAnchor.constraint(equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 10),
+            fpsLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 58),
+            fpsLabel.heightAnchor.constraint(equalToConstant: 24),
         ])
 
         buildEditorPanel()
@@ -429,10 +450,23 @@ final class ZakuroViewController: UIViewController {
         if let stick = controlsOverlay.subviews.compactMap({ $0 as? AnalogStickControl }).first {
             let p = controlPositions["STICK"] ?? CGPoint(x: 0.15, y: 0.84)
             let diameter = min(min(width * 0.48, height * 0.28), base * 3.2 * (controlSizes["STICK"] ?? 1))
-            stick.bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
+            let drawingDiameter = diameter * 1.3
+            stick.controlDiameter = diameter
+            stick.bounds = CGRect(x: 0, y: 0, width: drawingDiameter, height: drawingDiameter)
+            let stickPosition = CGPoint(
+                x: min(1, max(0, p.x)),
+                y: min(1, max(0, p.y))
+            )
+            let normalizedMarginX = drawingDiameter / 2 / width
+            let normalizedMarginY = drawingDiameter / 2 / height
+            let safeStickPosition = CGPoint(
+                x: min(1 - normalizedMarginX, max(normalizedMarginX, stickPosition.x)),
+                y: min(1 - normalizedMarginY, max(normalizedMarginY, stickPosition.y))
+            )
+            controlPositions["STICK"] = safeStickPosition
             stick.center = CGPoint(
-                x: min(safeFrame.maxX - diameter / 2, max(safeFrame.minX + diameter / 2, safeFrame.minX + width * p.x)),
-                y: min(safeFrame.maxY - diameter / 2, max(safeFrame.minY + diameter / 2, safeFrame.minY + height * p.y))
+                x: safeFrame.minX + width * safeStickPosition.x,
+                y: safeFrame.minY + height * safeStickPosition.y
             )
             stick.setNeedsDisplay()
         }
@@ -472,6 +506,10 @@ final class ZakuroViewController: UIViewController {
     }
 
     private func startFrameLoop() {
+        fpsWindowStart = CACurrentMediaTime()
+        fpsWindowFrames = 0
+        fpsLabel.text = "FPS --"
+        fpsLabel.isHidden = false
         displayLink?.invalidate()
         displayLink = CADisplayLink(target: self, selector: #selector(advanceFrame))
         // Zakuro still advances at 60 emulated frames/s. Presenting at 30 Hz
@@ -491,17 +529,25 @@ final class ZakuroViewController: UIViewController {
         let point = touchPoint
         runtimeQueue.async { [weak self] in
             guard let self else { return }
-            _ = YKW2ImportBridge.setZakuroButtons(
-                buttonMask, circleX: inputX, circleY: inputY,
-                touchX: point.map { Int($0.x) } ?? -1,
-                touchY: point.map { Int($0.y) } ?? -1
-            )
-            let outcome = YKW2ImportBridge.runZakuroFrames(2)
-            let topData = outcome == 2 ? YKW2ImportBridge.zakuroTopScreenRGBA() : Data()
-            let bottomData = outcome == 2 ? YKW2ImportBridge.zakuroBottomScreenRGBA() : Data()
-            let audioData = outcome == 2 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
-            let topImage = outcome == 2 ? self.image(fromRGBA: topData, width: 400, height: 240) : nil
-            let bottomImage = outcome == 2 ? self.image(fromRGBA: bottomData, width: 320, height: 240) : nil
+            let frameResult = autoreleasepool { () -> (Int, UIImage?, UIImage?, Data) in
+                _ = YKW2ImportBridge.setZakuroButtons(
+                    buttonMask, circleX: inputX, circleY: inputY,
+                    touchX: point.map { Int($0.x) } ?? -1,
+                    touchY: point.map { Int($0.y) } ?? -1
+                )
+                let runOutcome = YKW2ImportBridge.runZakuroFrames(2)
+                let topData = NSMutableData(length: 400 * 240 * 4)!
+                let bottomData = NSMutableData(length: 320 * 240 * 4)!
+                let copyOutcome = runOutcome == 2
+                    ? YKW2ImportBridge.copyZakuroScreens(toTop: topData, bottom: bottomData)
+                    : -1
+                let outcome = runOutcome == 2 && copyOutcome != 0 ? -2 : runOutcome
+                let audioData = outcome == 2 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
+                let topImage = outcome == 2 ? self.image(fromRGBA: topData as Data, width: 400, height: 240) : nil
+                let bottomImage = outcome == 2 ? self.image(fromRGBA: bottomData as Data, width: 320, height: 240) : nil
+                return (outcome, topImage, bottomImage, audioData)
+            }
+            let (outcome, topImage, bottomImage, audioData) = frameResult
             if !audioData.isEmpty { self.enqueueAudio(audioData) }
             DispatchQueue.main.async {
                 self.frameInFlight = false
@@ -515,6 +561,7 @@ final class ZakuroViewController: UIViewController {
                 }
                 self.topScreen.image = topImage
                 self.bottomScreen.image = bottomImage
+                self.recordPresentedFrame()
             }
         }
     }
@@ -523,10 +570,20 @@ final class ZakuroViewController: UIViewController {
         guard data.count == width * height * 4,
               let provider = CGDataProvider(data: data as CFData),
               let cgImage = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
-                                    bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                    bytesPerRow: width * 4, space: Self.screenColorSpace,
                                     bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue).union(.byteOrder32Big),
                                     provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return nil }
         return UIImage(cgImage: cgImage)
+    }
+
+    private func recordPresentedFrame() {
+        let now = CACurrentMediaTime()
+        fpsWindowFrames += 1
+        let elapsed = now - fpsWindowStart
+        guard elapsed >= 1 else { return }
+        fpsLabel.text = "FPS \(Int((Double(fpsWindowFrames) / elapsed).rounded()))"
+        fpsWindowFrames = 0
+        fpsWindowStart = now
     }
 
     private func enqueueAudio(_ data: Data) {
@@ -592,9 +649,11 @@ final class ZakuroViewController: UIViewController {
             bottom: controlsOverlay.safeAreaInsets.bottom + 8, right: 8
         ))
         let start = controlPositions[key] ?? CGPoint(x: 0.5, y: 0.5)
+        let minX = key == "STICK" ? control.bounds.width / 2 / safeFrame.width : 0
+        let minY = key == "STICK" ? control.bounds.height / 2 / safeFrame.height : 0
         controlPositions[key] = CGPoint(
-            x: min(1, max(0, start.x + translation.x / safeFrame.width)),
-            y: min(1, max(0, start.y + translation.y / safeFrame.height))
+            x: min(1 - minX, max(minX, start.x + translation.x / safeFrame.width)),
+            y: min(1 - minY, max(minY, start.y + translation.y / safeFrame.height))
         )
         recognizer.setTranslation(.zero, in: controlsOverlay)
         layoutTouchControls()
@@ -702,6 +761,12 @@ private final class AnalogStickControl: UIView {
     }
     private var displacement = CGPoint.zero
     private weak var gameplayPan: UIPanGestureRecognizer?
+    var controlDiameter: CGFloat = 0
+
+    private var stickRadius: CGFloat {
+        let diameter = controlDiameter > 0 ? controlDiameter : min(bounds.width, bounds.height) / 1.3
+        return diameter * 0.48
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -710,7 +775,9 @@ private final class AnalogStickControl: UIView {
         // the game image on iOS.
         isOpaque = false
         backgroundColor = .clear
+        clipsToBounds = false
         layer.isOpaque = false
+        layer.masksToBounds = false
         layer.backgroundColor = UIColor.clear.cgColor
         isMultipleTouchEnabled = false
         let pan = UIPanGestureRecognizer(target: self, action: #selector(moveStick(_:)))
@@ -720,9 +787,17 @@ private final class AnalogStickControl: UIView {
 
     required init?(coder: NSCoder) { fatalError("AnalogStickControl does not use storyboards") }
 
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        if isEditingControls { return bounds.contains(point) }
+        let dx = point.x - bounds.midX
+        let dy = point.y - bounds.midY
+        let hitRadius = stickRadius * 1.08
+        return dx * dx + dy * dy <= hitRadius * hitRadius
+    }
+
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext() else { return }
-        let radius = min(bounds.width, bounds.height) * 0.48
+        let radius = stickRadius
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
         context.setFillColor(UIColor(red: 0.09, green: 0.11, blue: 0.14, alpha: 0.70).cgColor)
         context.setStrokeColor(UIColor(red: 0.46, green: 0.55, blue: 0.63, alpha: 0.86).cgColor)
@@ -739,7 +814,7 @@ private final class AnalogStickControl: UIView {
 
     @objc private func moveStick(_ gesture: UIPanGestureRecognizer) {
         guard !isEditingControls else { return }
-        let radius = min(bounds.width, bounds.height) * 0.48
+        let radius = stickRadius
         let maxTravel = radius * 0.78
         switch gesture.state {
         case .began:

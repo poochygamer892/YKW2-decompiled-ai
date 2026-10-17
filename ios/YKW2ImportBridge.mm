@@ -81,8 +81,6 @@ std::mutex runtimeMutex;
 ykw2::core::RuntimeScene runtimeScene;
 bool runtimeStarted = false;
 MobileRuntime *zakuroRuntime = nullptr;
-std::array<std::uint8_t, YKW2_TOP_RGBA_BYTES> zakuroTopFrame{};
-std::array<std::uint8_t, YKW2_BOTTOM_RGBA_BYTES> zakuroBottomFrame{};
 NSURL *startupStateURL = nil;
 bool startupFrameRecorded = false;
 
@@ -521,14 +519,7 @@ private:
         }
         return result;
     }
-    const auto copied = ykw2_mobile_copy_screens(
-        zakuroRuntime, zakuroTopFrame.data(), zakuroTopFrame.size(),
-        zakuroBottomFrame.data(), zakuroBottomFrame.size());
-    if (!startupFrameRecorded) {
-        writeStartupState(copied == 0 ? @"runtime.started" : @"first-frame.failed: copia de imagen");
-        startupFrameRecorded = true;
-    }
-    return copied == 0 ? result : -2;
+    return result;
 }
 
 + (NSInteger)setZakuroButtons:(uint32_t)buttons
@@ -545,14 +536,22 @@ private:
         static_cast<std::int32_t>(touchX), static_cast<std::int32_t>(touchY));
 }
 
-+ (NSData *)zakuroTopScreenRGBA {
++ (NSInteger)copyZakuroScreensToTop:(NSMutableData *)top bottom:(NSMutableData *)bottom {
+    if (top.length < YKW2_TOP_RGBA_BYTES || bottom.length < YKW2_BOTTOM_RGBA_BYTES) {
+        return -1;
+    }
     std::lock_guard<std::mutex> lock(runtimeMutex);
-    return [NSData dataWithBytes:zakuroTopFrame.data() length:zakuroTopFrame.size()];
-}
-
-+ (NSData *)zakuroBottomScreenRGBA {
-    std::lock_guard<std::mutex> lock(runtimeMutex);
-    return [NSData dataWithBytes:zakuroBottomFrame.data() length:zakuroBottomFrame.size()];
+    if (zakuroRuntime == nullptr) {
+        return -1;
+    }
+    const auto result = ykw2_mobile_copy_screens(
+        zakuroRuntime, static_cast<std::uint8_t *>(top.mutableBytes), top.length,
+        static_cast<std::uint8_t *>(bottom.mutableBytes), bottom.length);
+    if (!startupFrameRecorded) {
+        writeStartupState(result == 0 ? @"runtime.started" : @"first-frame.failed: copia de imagen");
+        startupFrameRecorded = true;
+    }
+    return result;
 }
 
 + (NSData *)takeZakuroAudioFrames:(NSInteger)maximumFrames {

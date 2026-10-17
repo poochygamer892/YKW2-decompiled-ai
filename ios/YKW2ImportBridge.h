@@ -20,8 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
                        circleY:(float)circleY
                       touchX:(NSInteger)touchX
                       touchY:(NSInteger)touchY;
-+ (NSData *)zakuroTopScreenRGBA;
-+ (NSData *)zakuroBottomScreenRGBA;
++ (NSInteger)copyZakuroScreensToTop:(NSMutableData *)top bottom:(NSMutableData *)bottom;
 + (NSData *)takeZakuroAudioFrames:(NSInteger)maximumFrames;
 + (void)closeZakuro;
 
