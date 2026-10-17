@@ -18,8 +18,8 @@ android {
         applicationId = "com.ykw2.port"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.4.14"
+        versionCode = 10
+        versionName = "0.4.15"
 
         ndk {
             abiFilters += "arm64-v8a"
@@ -51,6 +51,7 @@ android {
     sourceSets.getByName("main").jniLibs.srcDir(
         layout.buildDirectory.dir("generated/zakuroJniLibs"),
     )
+    sourceSets.getByName("main").assets.srcDir("../cheats")
 }
 
 val cargoTargetRoot = providers.environmentVariable("CARGO_TARGET_DIR")
