@@ -25,10 +25,12 @@ final class ZakuroViewController: UIViewController {
     private var fpsWindowStart = CACurrentMediaTime()
     private var fpsWindowFrames = 0
     private var buttonsDown = Set<String>()
+    private var dpadButtons: UInt32 = 0
     private var circleX: Float = 0
     private var circleY: Float = 0
     private var touchPoint: CGPoint?
     private var controlButtons: [String: UIButton] = [:]
+    private var dpadControl: DPadControl?
     private var editDragGestures: [UIPanGestureRecognizer] = []
     private var selectedControl = "ALL"
     private var editorMode = false
@@ -46,8 +48,6 @@ final class ZakuroViewController: UIViewController {
     private static let screenColorSpace = CGColorSpaceCreateDeviceRGB()
 
     private let controlDefinitions: [(key: String, title: String, bit: UInt32)] = [
-        ("UP", "↑", 1 << 6), ("DOWN", "↓", 1 << 7),
-        ("LEFT", "←", 1 << 5), ("RIGHT", "→", 1 << 4),
         ("A", "A", 1 << 0), ("B", "B", 1 << 1),
         ("X", "X", 1 << 10), ("Y", "Y", 1 << 11),
         ("SELECT", "SEL", 1 << 2), ("START", "START", 1 << 3),
@@ -99,6 +99,7 @@ final class ZakuroViewController: UIViewController {
             editorMode = true
             editDragGestures.forEach { $0.isEnabled = true }
             editorPanel.isHidden = false
+            dpadControl?.isEditingControls = true
             controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }
                 .forEach { $0.isEditingControls = true }
         } else {
@@ -232,8 +233,21 @@ final class ZakuroViewController: UIViewController {
             controlButtons[definition.key] = button
         }
 
+        let dpad = DPadControl()
+        dpad.accessibilityLabel = "DPAD"
+        dpad.onButtonsChanged = { [weak self] mask in self?.dpadButtons = mask }
+        dpad.onSelected = { [weak self] in self?.selectControl("DPAD") }
+        let dpadDrag = UIPanGestureRecognizer(target: self, action: #selector(dragControl(_:)))
+        dpadDrag.delegate = self
+        dpadDrag.cancelsTouchesInView = false
+        dpadDrag.isEnabled = false
+        dpad.addGestureRecognizer(dpadDrag)
+        editDragGestures.append(dpadDrag)
+        controlsOverlay.addSubview(dpad)
+        dpadControl = dpad
+
         let joystick = AnalogStickControl()
-        joystick.accessibilityLabel = "Joystick"
+        joystick.accessibilityLabel = "STICK"
         joystick.onAxisChanged = { [weak self] x, y in
             self?.circleX = x
             self?.circleY = y
@@ -253,8 +267,9 @@ final class ZakuroViewController: UIViewController {
 
         let edit = chromeButton("⚙")
         edit.addTarget(self, action: #selector(toggleEditor), for: .touchUpInside)
-        controlsOverlay.addSubview(edit)
         edit.accessibilityIdentifier = "EDITOR"
+        edit.isHidden = !configurationOnly
+        controlsOverlay.addSubview(edit)
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         controlsOverlay.addSubview(statusLabel)
@@ -373,14 +388,10 @@ final class ZakuroViewController: UIViewController {
         guard !layoutProfile.isEmpty else { return }
         let defaults = defaultControlPositions()
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v6.\(layoutProfile)."
-        let previousPrefix = "ykw2.controls.v5.\(layoutProfile)."
-        let olderPrefix = "ykw2.controls.v4.\(layoutProfile)."
-        let legacySizePrefix = "ykw2.controls.v3.\(layoutProfile)."
-        let oldestSizePrefix = "ykw2.controls.v2.\(layoutProfile)."
+        let prefix = "ykw2.controls.v7.\(layoutProfile)."
+        let olderPrefixes = (2...6).reversed().map { "ykw2.controls.v\($0).\(layoutProfile)." }
+        let sizePrefixes = [prefix] + olderPrefixes
         controlPositions = defaults
-        // v6 resets the broken overlapping defaults while retaining each
-        // control's saved size from earlier layouts.
         for key in defaults.keys {
             guard let storedX = preferences.object(forKey: prefix + key + ".x") as? NSNumber,
                   let storedY = preferences.object(forKey: prefix + key + ".y") as? NSNumber else { continue }
@@ -390,19 +401,22 @@ final class ZakuroViewController: UIViewController {
             controlPositions[key] = CGPoint(x: min(1, max(0, x)), y: min(1, max(0, y)))
         }
         controlSizes = Dictionary(uniqueKeysWithValues: defaults.keys.map { key in
-            let currentSize = preferences.object(forKey: prefix + key + ".size") as? Double
-            let previousSize = preferences.object(forKey: previousPrefix + key + ".size") as? Double
-            let olderSize = preferences.object(forKey: olderPrefix + key + ".size") as? Double
-            let legacySize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
-            let oldestSize = preferences.object(forKey: oldestSizePrefix + key + ".size") as? Double
-            return (key, CGFloat(currentSize ?? previousSize ?? olderSize ?? legacySize ?? oldestSize ?? 1))
+            let storedSize = sizePrefixes.compactMap {
+                preferences.object(forKey: $0 + key + ".size") as? Double
+            }.first
+            let legacyDpadSizes = ["UP", "DOWN", "LEFT", "RIGHT"].compactMap { direction in
+                sizePrefixes.dropFirst().compactMap {
+                    preferences.object(forKey: $0 + direction + ".size") as? Double
+                }.first
+            }
+            let migratedDpadSize = legacyDpadSizes.isEmpty ? 1 :
+                legacyDpadSizes.reduce(0, +) / Double(legacyDpadSizes.count)
+            return (key, CGFloat(storedSize ?? (key == "DPAD" ? migratedDpadSize : 1)))
         })
-        let currentGlobalSize = preferences.object(forKey: prefix + "globalSize") as? Double
-        let previousGlobalSize = preferences.object(forKey: previousPrefix + "globalSize") as? Double
-        let olderGlobalSize = preferences.object(forKey: olderPrefix + "globalSize") as? Double
-        let legacyGlobalSize = preferences.object(forKey: legacySizePrefix + "globalSize") as? Double
-        let oldestGlobalSize = preferences.object(forKey: oldestSizePrefix + "globalSize") as? Double
-        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? olderGlobalSize ?? legacyGlobalSize ?? oldestGlobalSize ?? 1)
+        let storedGlobalSize = sizePrefixes.compactMap {
+            preferences.object(forKey: $0 + "globalSize") as? Double
+        }.first
+        globalControlScale = CGFloat(storedGlobalSize ?? 1)
         setNeedsStatusBarAppearanceUpdate()
     }
 
@@ -411,24 +425,21 @@ final class ZakuroViewController: UIViewController {
         let safeHeight = max(1, controlsOverlay.bounds.height
             - controlsOverlay.safeAreaInsets.top - controlsOverlay.safeAreaInsets.bottom - 16)
         let referenceSize = min(72, max(46, min(safeWidth * 0.15, safeHeight * 0.095)))
-        let dpadStepX = referenceSize / safeWidth
-        let dpadStepY = referenceSize * 1.08 / safeHeight
-        let edgeMargin = (referenceSize / 2 + 8) / safeWidth
-        let dpadCenterX = max(0.17, dpadStepX + edgeMargin)
-        let faceCenter = CGPoint(x: min(0.82, 1 - dpadStepX - edgeMargin), y: 0.57)
+        let dpadMarginX = (referenceSize * 1.4 + 8) / safeWidth
+        let faceStepX = referenceSize * 0.76 / safeWidth
+        let faceStepY = referenceSize * 0.82 / safeHeight
+        let faceMarginX = (referenceSize * 1.55 + 8) / safeWidth
+        let faceCenter = CGPoint(x: min(0.82, 1 - faceMarginX), y: 0.57)
         let dpadCenterY: CGFloat = layoutProfile == "landscape" ? 0.55 : 0.59
         let stickCenterY: CGFloat = layoutProfile == "landscape" ? 0.86 : 0.83
         let utilityCenterY: CGFloat = layoutProfile == "landscape" ? 0.92 : 0.89
         return [
-            "UP": CGPoint(x: dpadCenterX, y: dpadCenterY - dpadStepY),
-            "DOWN": CGPoint(x: dpadCenterX, y: dpadCenterY + dpadStepY),
-            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: dpadCenterY),
-            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: dpadCenterY),
+            "DPAD": CGPoint(x: max(0.18, dpadMarginX), y: dpadCenterY),
             "STICK": CGPoint(x: 0.19, y: stickCenterY),
-            "X": CGPoint(x: faceCenter.x, y: faceCenter.y - dpadStepY),
-            "Y": CGPoint(x: faceCenter.x - dpadStepX, y: faceCenter.y),
-            "A": CGPoint(x: faceCenter.x + dpadStepX, y: faceCenter.y),
-            "B": CGPoint(x: faceCenter.x, y: faceCenter.y + dpadStepY),
+            "X": CGPoint(x: faceCenter.x, y: faceCenter.y - faceStepY),
+            "Y": CGPoint(x: faceCenter.x - faceStepX, y: faceCenter.y),
+            "A": CGPoint(x: faceCenter.x + faceStepX, y: faceCenter.y),
+            "B": CGPoint(x: faceCenter.x, y: faceCenter.y + faceStepY),
             "SELECT": CGPoint(x: 0.66, y: utilityCenterY), "START": CGPoint(x: 0.88, y: utilityCenterY),
             "L": CGPoint(x: 0.09, y: layoutProfile == "landscape" ? 0.20 : 0.10),
             "R": CGPoint(x: 0.91, y: layoutProfile == "landscape" ? 0.20 : 0.10),
@@ -441,7 +452,7 @@ final class ZakuroViewController: UIViewController {
         // Save placement only for the active orientation; syncing coordinates
         // across portrait and landscape made the controls jump and overlap.
         for profile in ["portrait", "landscape"] {
-            let prefix = "ykw2.controls.v6.\(profile)."
+            let prefix = "ykw2.controls.v7.\(profile)."
             for (key, point) in controlPositions {
                 preferences.set(Double(controlSizes[key] ?? 1), forKey: prefix + key + ".size")
                 if profile == layoutProfile {
@@ -484,6 +495,25 @@ final class ZakuroViewController: UIViewController {
             button.layer.cornerRadius = isShoulder || isUtility ? frameSize.height / 2 : frameSize.width / 2
             button.titleLabel?.font = .systemFont(ofSize: min(20, max(11, frameSize.height * 0.35)), weight: .bold)
         }
+        if let dpad = dpadControl {
+            let unit = base * (controlSizes["DPAD"] ?? 1)
+            let side = unit * 3.1
+            let point = controlPositions["DPAD"] ?? CGPoint(x: 0.2, y: 0.6)
+            dpad.controlUnit = unit
+            dpad.bounds = CGRect(x: 0, y: 0, width: side, height: side)
+            let marginX = (side / 2 + 4) / width
+            let marginY = (side / 2 + 4) / height
+            let safePoint = CGPoint(
+                x: min(1 - marginX, max(marginX, point.x)),
+                y: min(1 - marginY, max(marginY, point.y))
+            )
+            controlPositions["DPAD"] = safePoint
+            dpad.center = CGPoint(
+                x: safeFrame.minX + width * safePoint.x,
+                y: safeFrame.minY + height * safePoint.y
+            )
+            dpad.setNeedsDisplay()
+        }
         if let stick = controlsOverlay.subviews.compactMap({ $0 as? AnalogStickControl }).first {
             let p = controlPositions["STICK"] ?? CGPoint(x: 0.15, y: 0.84)
             let diameter = min(min(width * 0.48, height * 0.28), base * 2.5 * (controlSizes["STICK"] ?? 1))
@@ -512,7 +542,7 @@ final class ZakuroViewController: UIViewController {
             case "BACK":
                 button.frame = CGRect(x: 12, y: controlsOverlay.safeAreaInsets.top + 8, width: 42, height: 36)
             case "EDITOR":
-                button.isHidden = false
+                button.isHidden = !configurationOnly
                 button.frame = CGRect(
                     x: controlsOverlay.bounds.width - 54,
                     y: controlsOverlay.safeAreaInsets.top + 8,
@@ -555,8 +585,8 @@ final class ZakuroViewController: UIViewController {
         fpsLabel.isHidden = false
         displayLink?.invalidate()
         displayLink = CADisplayLink(target: self, selector: #selector(advanceFrame))
-        // Keep host presentation in step with the bundled YW2 60-FPS patch.
-        // The former 30-Hz cap batched two game frames and hid the unlocked rate.
+        // Present one emulated frame per display refresh; game timing stays
+        // native because the bundled FPS patches are opt-in.
         displayLink?.preferredFramesPerSecond = 60
         displayLink?.add(to: .main, forMode: .common)
     }
@@ -566,7 +596,7 @@ final class ZakuroViewController: UIViewController {
         frameInFlight = true
         let buttonMask = controlDefinitions.reduce(UInt32(0)) { result, item in
             buttonsDown.contains(item.key) ? result | item.bit : result
-        }
+        } | dpadButtons
         let inputX = circleX
         let inputY = circleY
         let point = touchPoint
@@ -631,7 +661,9 @@ final class ZakuroViewController: UIViewController {
 
     private func enqueueAudio(_ data: Data) {
         audioBufferLock.lock()
-        guard pendingAudioBuffers < 3 else {
+        // Keep a short reserve for frames that take longer on mobile CPUs.
+        // Dropping an entire per-frame PCM block is heard as a sharp audio gap.
+        guard pendingAudioBuffers < 12 else {
             audioBufferLock.unlock()
             return
         }
@@ -685,15 +717,15 @@ final class ZakuroViewController: UIViewController {
 
     @objc private func dragControl(_ recognizer: UIPanGestureRecognizer) {
         guard editorMode, let control = recognizer.view else { return }
-        let key = (control as? UIButton)?.accessibilityLabel ?? "STICK"
+        let key = control.accessibilityLabel ?? "STICK"
         let translation = recognizer.translation(in: controlsOverlay)
         let safeFrame = controlsOverlay.bounds.inset(by: UIEdgeInsets(
             top: controlsOverlay.safeAreaInsets.top + 8, left: 8,
             bottom: controlsOverlay.safeAreaInsets.bottom + 8, right: 8
         ))
         let start = controlPositions[key] ?? CGPoint(x: 0.5, y: 0.5)
-        let minX = key == "STICK" ? control.bounds.width / 2 / safeFrame.width : 0
-        let minY = key == "STICK" ? control.bounds.height / 2 / safeFrame.height : 0
+        let minX = key == "STICK" || key == "DPAD" ? control.bounds.width / 2 / safeFrame.width : 0
+        let minY = key == "STICK" || key == "DPAD" ? control.bounds.height / 2 / safeFrame.height : 0
         controlPositions[key] = CGPoint(
             x: min(1 - minX, max(minX, start.x + translation.x / safeFrame.width)),
             y: min(1 - minY, max(minY, start.y + translation.y / safeFrame.height))
@@ -707,12 +739,8 @@ final class ZakuroViewController: UIViewController {
     }
 
     @objc private func toggleEditor() {
-        if editorMode {
-            // The gear only hides/shows the editor; «Listo» is the sole save action.
-            editorPanel.isHidden.toggle()
-        } else {
-            setEditorMode(true)
-        }
+        guard configurationOnly else { return }
+        editorPanel.isHidden.toggle()
     }
 
     @objc private func hideEditorPanel() {
@@ -732,9 +760,11 @@ final class ZakuroViewController: UIViewController {
 
     private func setEditorMode(_ enabled: Bool) {
         editorMode = enabled
+        dpadButtons = 0
         editDragGestures.forEach { $0.isEnabled = editorMode }
         editorPanel.isHidden = !editorMode
         controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }.forEach { $0.isEditingControls = editorMode }
+        dpadControl?.isEditingControls = editorMode
         controlsOverlay.subviews.compactMap { $0 as? UIButton }.forEach { $0.alpha = editorMode ? 0.88 : 1 }
         selectedControlButton.isHidden = !editorMode
         updateEditorSelectionUI()
@@ -742,12 +772,11 @@ final class ZakuroViewController: UIViewController {
 
     @objc private func chooseControl() {
         let alert = UIAlertController(title: "Cambiar tamaño", message: "Selecciona un control", preferredStyle: .actionSheet)
-        var labels = ["ALL": "Todos", "UP": "Cruceta · arriba", "DOWN": "Cruceta · abajo",
-                      "LEFT": "Cruceta · izquierda", "RIGHT": "Cruceta · derecha", "STICK": "Joystick"]
-        for definition in controlDefinitions where !["UP", "DOWN", "LEFT", "RIGHT"].contains(definition.key) {
+        var labels = ["ALL": "Todos", "DPAD": "Cruceta", "STICK": "Joystick"]
+        for definition in controlDefinitions {
             labels[definition.key] = definition.key == "SELECT" ? "Select" : definition.title
         }
-        for key in ["ALL", "UP", "DOWN", "LEFT", "RIGHT", "STICK", "A", "B", "X", "Y", "SELECT", "START", "L", "R"] {
+        for key in ["ALL", "DPAD", "STICK", "A", "B", "X", "Y", "SELECT", "START", "L", "R"] {
             let title = labels[key] ?? key
             alert.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in self?.selectControl(key) })
         }
@@ -765,7 +794,8 @@ final class ZakuroViewController: UIViewController {
     }
 
     private func updateEditorSelectionUI() {
-        let title = selectedControl == "ALL" ? "Todos" : selectedControl == "STICK" ? "Joystick" : selectedControl
+        let title = selectedControl == "ALL" ? "Todos" :
+            selectedControl == "STICK" ? "Joystick" : selectedControl == "DPAD" ? "Cruceta" : selectedControl
         selectedControlButton.setTitle("Tamaño · \(title) ▾", for: .normal)
         let current = selectedControl == "ALL" ? globalControlScale : controlSizes[selectedControl] ?? 1
         sizeSlider.value = Float(current)
@@ -793,6 +823,140 @@ final class ZakuroViewController: UIViewController {
 extension ZakuroViewController: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
+}
+
+private final class DPadControl: UIView {
+    var onButtonsChanged: ((UInt32) -> Void)?
+    var onSelected: (() -> Void)?
+    var controlUnit: CGFloat = 0
+    var isEditingControls = false {
+        didSet {
+            activeTouch = nil
+            onButtonsChanged?(0)
+            setNeedsDisplay()
+        }
+    }
+
+    private var activeMask: UInt32 = 0
+    private weak var activeTouch: UITouch?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        clipsToBounds = false
+        isMultipleTouchEnabled = false
+    }
+
+    required init?(coder: NSCoder) { fatalError("DPadControl does not use storyboards") }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        if isEditingControls { return bounds.contains(point) }
+        let cell = min(bounds.width, bounds.height) / 3.1
+        let dx = abs(point.x - bounds.midX)
+        let dy = abs(point.y - bounds.midY)
+        let halfWidth = cell * 0.48
+        let reach = cell * 1.5
+        return (dx <= halfWidth && dy <= reach) || (dy <= halfWidth && dx <= reach)
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        let cell = min(bounds.width, bounds.height) / 3.1
+        let halfBar = cell * 0.48
+        let armReach = cell * 1.5
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let vertical = CGRect(x: center.x - halfBar, y: center.y - armReach,
+                              width: halfBar * 2, height: armReach * 2)
+        let horizontal = CGRect(x: center.x - armReach, y: center.y - halfBar,
+                                width: armReach * 2, height: halfBar * 2)
+        let corner = cell * 0.22
+
+        context.setFillColor(UIColor(red: 0.08, green: 0.10, blue: 0.13, alpha: 0.82).cgColor)
+        context.setStrokeColor(UIColor(red: 0.48, green: 0.57, blue: 0.66, alpha: 0.9).cgColor)
+        context.setLineWidth(max(2, cell * 0.075))
+        context.addPath(UIBezierPath(roundedRect: vertical, cornerRadius: corner).cgPath)
+        context.addPath(UIBezierPath(roundedRect: horizontal, cornerRadius: corner).cgPath)
+        context.drawPath(using: .fillStroke)
+
+        let segments: [(UInt32, CGRect, String, CGPoint)] = [
+            (1 << 6, CGRect(x: center.x - halfBar * 0.72, y: center.y - armReach + cell * 0.12,
+                            width: halfBar * 1.44, height: cell * 0.78), "↑",
+             CGPoint(x: center.x, y: center.y - cell)),
+            (1 << 7, CGRect(x: center.x - halfBar * 0.72, y: center.y + armReach - cell * 0.90,
+                            width: halfBar * 1.44, height: cell * 0.78), "↓",
+             CGPoint(x: center.x, y: center.y + cell)),
+            (1 << 5, CGRect(x: center.x - armReach + cell * 0.12, y: center.y - halfBar * 0.72,
+                            width: cell * 0.78, height: halfBar * 1.44), "←",
+             CGPoint(x: center.x - cell, y: center.y)),
+            (1 << 4, CGRect(x: center.x + armReach - cell * 0.90, y: center.y - halfBar * 0.72,
+                            width: cell * 0.78, height: halfBar * 1.44), "→",
+             CGPoint(x: center.x + cell, y: center.y)),
+        ]
+        for (bit, segment, arrow, labelCenter) in segments {
+            if activeMask & bit != 0 {
+                context.setFillColor(UIColor(red: 0.17, green: 0.54, blue: 0.72, alpha: 0.94).cgColor)
+                context.addPath(UIBezierPath(roundedRect: segment, cornerRadius: corner * 0.65).cgPath)
+                context.fillPath()
+            }
+            let font = UIFont.systemFont(ofSize: cell * 0.53, weight: .bold)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white.withAlphaComponent(activeMask & bit != 0 ? 1 : 0.78),
+            ]
+            let textSize = (arrow as NSString).size(withAttributes: attributes)
+            (arrow as NSString).draw(at: CGPoint(x: labelCenter.x - textSize.width / 2,
+                                                 y: labelCenter.y - textSize.height / 2),
+                                     withAttributes: attributes)
+        }
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if isEditingControls {
+            onSelected?()
+            super.touchesBegan(touches, with: event)
+            return
+        }
+        guard activeTouch == nil, let touch = touches.first else { return }
+        activeTouch = touch
+        updateDirection(at: touch.location(in: self))
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = activeTouch, touches.contains(touch) else { return }
+        updateDirection(at: touch.location(in: self))
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = activeTouch, touches.contains(touch) else { return }
+        activeTouch = nil
+        updateMask(0)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        activeTouch = nil
+        updateMask(0)
+    }
+
+    private func updateDirection(at point: CGPoint) {
+        let cell = min(bounds.width, bounds.height) / 3.1
+        let dx = point.x - bounds.midX
+        let dy = point.y - bounds.midY
+        let limit = cell * 0.48
+        var mask: UInt32 = 0
+        if abs(dx) <= limit && dy < -cell * 0.20 { mask |= 1 << 6 }
+        if abs(dx) <= limit && dy > cell * 0.20 { mask |= 1 << 7 }
+        if abs(dy) <= limit && dx < -cell * 0.20 { mask |= 1 << 5 }
+        if abs(dy) <= limit && dx > cell * 0.20 { mask |= 1 << 4 }
+        updateMask(mask)
+    }
+
+    private func updateMask(_ mask: UInt32) {
+        guard activeMask != mask else { return }
+        activeMask = mask
+        onButtonsChanged?(mask)
+        setNeedsDisplay()
+    }
 }
 
 private final class AnalogStickControl: UIView {

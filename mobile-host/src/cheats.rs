@@ -2,6 +2,8 @@
 //!
 //! Using the core's engine is important when a recompiled library is loaded:
 //! it tracks code-page writes and invalidates stale translated functions.
+//! These patches stay opt-in: enabling them during boot can leave the title
+//! screen black on the current game/core combination.
 
 use zakuro_core::System;
 
@@ -18,16 +20,17 @@ pub(super) fn install_builtin(system: &mut System) {
     }
 
     for mut bundled in zakuro_core::cheats::parse(CHEAT_SOURCE) {
-        bundled.enabled = true;
+        // Keep the codes available to the native cheat engine, but don't
+        // force them on. In particular, the bundled FPS and speed patches
+        // make YW2 stall at the LEVEL-5 startup logo on the tested ROM.
+        bundled.enabled = false;
         bundled.builtin = true;
 
-        if let Some(existing) = system
+        if !system
             .cheats
-            .iter_mut()
-            .find(|cheat| cheat.name == bundled.name && cheat.lines() == bundled.lines())
+            .iter()
+            .any(|cheat| cheat.name == bundled.name && cheat.lines() == bundled.lines())
         {
-            existing.enabled = true;
-        } else {
             system.cheats.push(bundled);
         }
     }
@@ -46,6 +49,7 @@ mod tests {
             ["60FPS (FPS++)", "60FPS (Hold R button for 30FPS)", "Game Speed Normal"]
         );
         assert!(cheats.iter().all(|cheat| !cheat.lines().is_empty()));
+        assert!(cheats.iter().all(|cheat| !cheat.enabled));
         assert!(cheats.iter().any(|cheat| {
             cheat.name == "60FPS (FPS++)"
                 && cheat.lines().iter().any(|line| line == "2086128D 00000001")
