@@ -40,6 +40,7 @@ add_custom_command(
         "${YKW2_MOBILE_HOST_ROOT}/Cargo.toml"
         "${YKW2_MOBILE_HOST_ROOT}/Cargo.lock"
         "${YKW2_MOBILE_HOST_ROOT}/src/lib.rs"
+        "${YKW2_MOBILE_HOST_ROOT}/src/cheats.rs"
         "${YKW2_MOBILE_HOST_ROOT}/include/ykw2_mobile_host.h"
     WORKING_DIRECTORY "${YKW2_MOBILE_HOST_ROOT}"
     COMMENT "Building the Zakuro ARM64 Android runtime host"

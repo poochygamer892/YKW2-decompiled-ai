@@ -1,7 +1,6 @@
 package com.ykw2.port
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.graphics.Bitmap
 import android.content.Intent
 import android.net.Uri
@@ -71,26 +70,6 @@ class ImportActivity : Activity() {
             }
         }
         layout.addView(runtimeButton)
-
-        layout.addView(Button(this).apply {
-            text = MobileCheats.buttonTitle(this@ImportActivity)
-            setOnClickListener {
-                val choices = MobileCheats.fpsModes +
-                    "Velocidad normal: ${if (MobileCheats.normalSpeed(this@ImportActivity)) "activada" else "desactivada"} (alternar)"
-                AlertDialog.Builder(this@ImportActivity)
-                    .setTitle("Cheats de rendimiento")
-                    .setItems(choices) { _, which ->
-                        if (which < MobileCheats.fpsModes.size) {
-                            MobileCheats.setFpsMode(this@ImportActivity, which)
-                        } else {
-                            MobileCheats.toggleNormalSpeed(this@ImportActivity)
-                        }
-                        text = MobileCheats.buttonTitle(this@ImportActivity)
-                    }
-                    .setNegativeButton("Cancelar", null)
-                    .show()
-            }
-        })
 
         layout.addView(Button(this).apply {
             text = "Configurar controles táctiles"

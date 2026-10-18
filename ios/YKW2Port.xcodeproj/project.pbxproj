@@ -36,7 +36,6 @@
 		320003 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 220003 /* UniformTypeIdentifiers.framework */; };
 		320004 /* libykw2_mobile_host.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 220004 /* libykw2_mobile_host.a */; };
 		320005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200009 /* Assets.xcassets */; };
-		320006 /* 00040000001B2900.txt in Resources */ = {isa = PBXBuildFile; fileRef = 200010 /* 00040000001B2900.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -74,7 +73,6 @@
 		220003 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		220004 /* libykw2_mobile_host.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "../build/ios-link/libykw2_mobile_host.a"; sourceTree = SOURCE_ROOT; };
 		200009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		200010 /* 00040000001B2900.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ../cheats/00040000001B2900.txt; sourceTree = SOURCE_ROOT; };
 		230001 /* YKW2Port.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YKW2Port.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -105,7 +103,6 @@
 				200007 /* Info.plist */,
 				200008 /* ZakuroViewController.swift */,
 				200009 /* Assets.xcassets */,
-				200010 /* 00040000001B2900.txt */,
 				100006 /* core sources */,
 				100003 /* Products */,
 				100004 /* Frameworks */,
@@ -216,7 +213,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				320005 /* Assets.xcassets in Resources */,
-				320006 /* 00040000001B2900.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -7,7 +7,6 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
     private let statusLabel = UILabel()
     private let runtimeButton = UIButton(type: .system)
     private let controlsButton = UIButton(type: .system)
-    private let cheatsButton = UIButton(type: .system)
     private var controlsSaveTimestampAtDisplay: Double = 0
 
     override func viewDidLoad() {
@@ -41,14 +40,11 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         controlsButton.setTitle("Configurar controles táctiles", for: .normal)
         controlsButton.addTarget(self, action: #selector(openControlSettings), for: .touchUpInside)
 
-        cheatsButton.addTarget(self, action: #selector(configureCheats), for: .touchUpInside)
-        refreshCheatsButtonTitle()
-
         statusLabel.text = "Selecciona una copia local autorizada para comenzar."
         statusLabel.numberOfLines = 0
         statusLabel.textAlignment = .center
 
-        let stack = UIStackView(arrangedSubviews: [titleLabel, rightsRow, button, runtimeButton, controlsButton, cheatsButton, statusLabel])
+        let stack = UIStackView(arrangedSubviews: [titleLabel, rightsRow, button, runtimeButton, controlsButton, statusLabel])
         stack.axis = .vertical
         stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -89,54 +85,11 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         navigationController?.pushViewController(controller, animated: true)
     }
 
-    @objc private func configureCheats() {
-        let alert = UIAlertController(title: "Cheats de rendimiento", message: "Selecciona un solo parche de FPS. La velocidad normal se puede combinar.", preferredStyle: .actionSheet)
-        let fpsModes = [
-            "FPS desactivados",
-            "60 FPS (mantener R para 30 FPS)",
-            "60 FPS (FPS++)",
-        ]
-        for (index, title) in fpsModes.enumerated() {
-            alert.addAction(UIAlertAction(title: title, style: .default) { _ in
-                UserDefaults.standard.set(index, forKey: "ykw2.cheats.fpsMode")
-                self.refreshCheatsButtonTitle()
-            })
-        }
-        let speedEnabled = UserDefaults.standard.bool(forKey: "ykw2.cheats.normalSpeed")
-        alert.addAction(UIAlertAction(
-            title: "Velocidad normal: \(speedEnabled ? "activada" : "desactivada") (alternar)",
-            style: .default
-        ) { _ in
-            UserDefaults.standard.set(!speedEnabled, forKey: "ykw2.cheats.normalSpeed")
-            self.refreshCheatsButtonTitle()
-        })
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = cheatsButton
-            popover.sourceRect = cheatsButton.bounds
-            popover.permittedArrowDirections = []
-        }
-        present(alert, animated: true)
-    }
-
-    private func refreshCheatsButtonTitle() {
-        let mode = min(max(UserDefaults.standard.integer(forKey: "ykw2.cheats.fpsMode"), 0), 2)
-        let fpsTitle = ["FPS desactivados", "60 FPS · R=30", "60 FPS++"][mode]
-        let speedTitle = UserDefaults.standard.bool(forKey: "ykw2.cheats.normalSpeed") ? " · velocidad normal" : ""
-        cheatsButton.setTitle("Cheats de rendimiento · \(fpsTitle)\(speedTitle)", for: .normal)
-    }
-
     @objc private func openRuntime() {
         guard let romURL = try? romURL(),
               let dataURL = try? dataDirectoryURL(),
               FileManager.default.fileExists(atPath: romURL.path) else {
             statusLabel.text = "Selecciona primero tu copia autorizada de la ROM."
-            return
-        }
-        do {
-            try installConfiguredCheats(in: dataURL)
-        } catch {
-            statusLabel.text = "No se pudieron preparar los cheats: \(error.localizedDescription)"
             return
         }
         let controller = ZakuroViewController(romURL: romURL, dataURL: dataURL)
@@ -237,52 +190,4 @@ final class ImportViewController: UIViewController, UIDocumentPickerDelegate {
         try dataDirectoryURL().appendingPathComponent("authorized-rom.3ds")
     }
 
-    private func installConfiguredCheats(in dataURL: URL) throws {
-        guard let bundledURL = Bundle.main.url(forResource: "00040000001B2900", withExtension: "txt") else {
-            throw NSError(domain: "YKW2Cheats", code: 1, userInfo: [NSLocalizedDescriptionKey: "Falta el archivo de cheats integrado."])
-        }
-        let bundled = try String(contentsOf: bundledURL, encoding: .utf8)
-        let cheatDirectory = dataURL.appendingPathComponent("cheats", isDirectory: true)
-        try FileManager.default.createDirectory(at: cheatDirectory, withIntermediateDirectories: true)
-        let targetURL = cheatDirectory.appendingPathComponent("00040000001B2900.txt")
-        let existing = (try? String(contentsOf: targetURL, encoding: .utf8)) ?? ""
-        let managedNames: Set<String> = [
-            "60FPS (Hold R button for 30FPS)",
-            "60FPS (FPS++)",
-            "Game Speed Normal",
-        ]
-
-        var retainedLines: [String] = []
-        var skipManagedSection = false
-        for line in existing.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("["), trimmed.hasSuffix("]") {
-                skipManagedSection = managedNames.contains(String(trimmed.dropFirst().dropLast()))
-            }
-            if !skipManagedSection { retainedLines.append(line) }
-        }
-
-        let mode = min(max(UserDefaults.standard.integer(forKey: "ykw2.cheats.fpsMode"), 0), 2)
-        var enabledNames: Set<String> = []
-        if mode == 1 { enabledNames.insert("60FPS (Hold R button for 30FPS)") }
-        if mode == 2 { enabledNames.insert("60FPS (FPS++)") }
-        if UserDefaults.standard.bool(forKey: "ykw2.cheats.normalSpeed") {
-            enabledNames.insert("Game Speed Normal")
-        }
-
-        var configuredLines: [String] = []
-        for line in bundled.components(separatedBy: .newlines) {
-            configuredLines.append(line)
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("["), trimmed.hasSuffix("]"),
-               enabledNames.contains(String(trimmed.dropFirst().dropLast())) {
-                configuredLines.append("*citra_enabled")
-            }
-        }
-
-        let preservedText = retainedLines.joined(separator: "\n").trimmingCharacters(in: .newlines)
-        let bundledText = configuredLines.joined(separator: "\n").trimmingCharacters(in: .newlines)
-        let sections = [preservedText, bundledText].filter { !$0.isEmpty }
-        try (sections.joined(separator: "\n\n") + "\n").write(to: targetURL, atomically: true, encoding: .utf8)
-    }
 }

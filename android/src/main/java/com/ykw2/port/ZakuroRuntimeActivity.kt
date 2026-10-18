@@ -85,7 +85,6 @@ class ZakuroRuntimeActivity : Activity() {
             val result = try {
                 val uri = android.net.Uri.parse(uriText)
                 val romDirectory = File(filesDir, "ykw2-data").apply { mkdirs() }
-                MobileCheats.install(this, romDirectory)
                 val romKey = MessageDigest.getInstance("SHA-256")
                     .digest(uriText.toByteArray(Charsets.UTF_8))
                     .joinToString("") { "%02x".format(it) }
