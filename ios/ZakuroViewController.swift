@@ -322,7 +322,7 @@ final class ZakuroViewController: UIViewController {
         reset.addTarget(self, action: #selector(resetControls), for: .touchUpInside)
         let done = UIButton(type: .system)
         done.setTitle("Listo", for: .normal)
-        done.addTarget(self, action: #selector(toggleEditor), for: .touchUpInside)
+        done.addTarget(self, action: #selector(commitEditor), for: .touchUpInside)
         let actions = UIStackView(arrangedSubviews: [reset, done])
         actions.axis = .horizontal
         actions.distribution = .fillEqually
@@ -677,19 +677,33 @@ final class ZakuroViewController: UIViewController {
     }
 
     @objc private func toggleEditor() {
-        if configurationOnly && editorMode {
-            saveControlLayout(forceSynchronize: true)
-            navigationController?.popViewController(animated: true)
-            return
+        if editorMode {
+            // Closing with the gear/back affordance cancels; only «Listo» commits.
+            loadControlLayout()
+            setEditorMode(false)
+        } else {
+            setEditorMode(true)
         }
-        editorMode.toggle()
+    }
+
+    @objc private func commitEditor() {
+        guard editorMode else { return }
+        saveControlLayout(forceSynchronize: true)
+        if configurationOnly {
+            navigationController?.popViewController(animated: true)
+        } else {
+            setEditorMode(false)
+        }
+    }
+
+    private func setEditorMode(_ enabled: Bool) {
+        editorMode = enabled
         editDragGestures.forEach { $0.isEnabled = editorMode }
         editorPanel.isHidden = !editorMode
         controlsOverlay.subviews.compactMap { $0 as? AnalogStickControl }.forEach { $0.isEditingControls = editorMode }
         controlsOverlay.subviews.compactMap { $0 as? UIButton }.forEach { $0.alpha = editorMode ? 0.88 : 1 }
         selectedControlButton.isHidden = !editorMode
         updateEditorSelectionUI()
-        if !editorMode { saveControlLayout(forceSynchronize: true) }
     }
 
     @objc private func chooseControl() {
