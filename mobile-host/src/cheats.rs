@@ -41,6 +41,10 @@ mod tests {
     fn bundled_cheats_parse_with_native_zakuro_engine() {
         let cheats = zakuro_core::cheats::parse(CHEAT_SOURCE);
         assert_eq!(cheats.len(), 3);
+        assert_eq!(
+            cheats.iter().map(|cheat| cheat.name.as_str()).collect::<Vec<_>>(),
+            ["60FPS (FPS++)", "60FPS (Hold R button for 30FPS)", "Game Speed Normal"]
+        );
         assert!(cheats.iter().all(|cheat| !cheat.lines().is_empty()));
         assert!(cheats.iter().any(|cheat| {
             cheat.name == "60FPS (FPS++)"

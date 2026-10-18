@@ -35,6 +35,8 @@ final class ZakuroViewController: UIViewController {
     private var layoutProfile = ""
     private var portraitScreenConstraints: [NSLayoutConstraint] = []
     private var landscapeScreenConstraints: [NSLayoutConstraint] = []
+    private var portraitEditorTopConstraint: NSLayoutConstraint?
+    private var landscapeEditorTopConstraint: NSLayoutConstraint?
     private var controlPositions: [String: CGPoint] = [:]
     private var controlSizes: [String: CGFloat] = [:]
     private var globalControlScale: CGFloat = 1
@@ -138,6 +140,8 @@ final class ZakuroViewController: UIViewController {
             screenStack.axis = nextProfile == "portrait" ? .vertical : .horizontal
             NSLayoutConstraint.deactivate(portraitScreenConstraints + landscapeScreenConstraints)
             NSLayoutConstraint.activate(nextProfile == "portrait" ? portraitScreenConstraints : landscapeScreenConstraints)
+            portraitEditorTopConstraint?.isActive = nextProfile == "portrait"
+            landscapeEditorTopConstraint?.isActive = nextProfile == "landscape"
             if isInitialProfile || !editorMode {
                 loadControlLayout()
             }
@@ -300,7 +304,8 @@ final class ZakuroViewController: UIViewController {
         instructions.textColor = .white
         instructions.font = .systemFont(ofSize: 11, weight: .medium)
         instructions.textAlignment = .center
-        instructions.numberOfLines = 1
+        instructions.numberOfLines = 2
+        instructions.adjustsFontSizeToFitWidth = true
 
         selectedControlButton.setTitle("Tamaño · Todos ▾", for: .normal)
         selectedControlButton.setTitleColor(.white, for: .normal)
@@ -323,9 +328,13 @@ final class ZakuroViewController: UIViewController {
         let done = UIButton(type: .system)
         done.setTitle("Listo", for: .normal)
         done.addTarget(self, action: #selector(commitEditor), for: .touchUpInside)
-        let actions = UIStackView(arrangedSubviews: [reset, done])
+        let hide = UIButton(type: .system)
+        hide.setTitle("Ocultar", for: .normal)
+        hide.addTarget(self, action: #selector(hideEditorPanel), for: .touchUpInside)
+        let actions = UIStackView(arrangedSubviews: [reset, hide, done])
         actions.axis = .horizontal
         actions.distribution = .fillEqually
+        actions.spacing = 4
 
         let content = UIStackView(arrangedSubviews: [instructions, selectedControlButton, selectionText, sizeSlider, actions])
         content.axis = .vertical
@@ -339,17 +348,24 @@ final class ZakuroViewController: UIViewController {
             content.trailingAnchor.constraint(equalTo: editorPanel.contentView.trailingAnchor, constant: -10),
             content.topAnchor.constraint(equalTo: editorPanel.contentView.topAnchor, constant: 6),
             content.bottomAnchor.constraint(equalTo: editorPanel.contentView.bottomAnchor, constant: -6),
-            instructions.heightAnchor.constraint(equalToConstant: 16),
+            instructions.heightAnchor.constraint(equalToConstant: 28),
             selectedControlButton.heightAnchor.constraint(equalToConstant: 28),
             selectionText.heightAnchor.constraint(equalToConstant: 14),
             sizeSlider.heightAnchor.constraint(equalToConstant: 24),
             actions.heightAnchor.constraint(equalToConstant: 30),
             editorPanel.centerXAnchor.constraint(equalTo: controlsOverlay.centerXAnchor),
             // Keep the editor below the L/R row and above the main control groups.
-            editorPanel.topAnchor.constraint(equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 104),
             panelWidth,
             editorPanel.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
         ])
+        portraitEditorTopConstraint = editorPanel.topAnchor.constraint(
+            equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 128
+        )
+        landscapeEditorTopConstraint = editorPanel.topAnchor.constraint(
+            equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 112
+        )
+        portraitEditorTopConstraint?.isActive = true
+        landscapeEditorTopConstraint?.isActive = false
         editorPanel.isHidden = true
     }
 
@@ -357,13 +373,14 @@ final class ZakuroViewController: UIViewController {
         guard !layoutProfile.isEmpty else { return }
         let defaults = defaultControlPositions()
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v5.\(layoutProfile)."
-        let previousPrefix = "ykw2.controls.v4.\(layoutProfile)."
-        let olderPrefix = "ykw2.controls.v3.\(layoutProfile)."
-        let legacySizePrefix = "ykw2.controls.v2.\(layoutProfile)."
+        let prefix = "ykw2.controls.v6.\(layoutProfile)."
+        let previousPrefix = "ykw2.controls.v5.\(layoutProfile)."
+        let olderPrefix = "ykw2.controls.v4.\(layoutProfile)."
+        let legacySizePrefix = "ykw2.controls.v3.\(layoutProfile)."
+        let oldestSizePrefix = "ykw2.controls.v2.\(layoutProfile)."
         controlPositions = defaults
-        // v5 refreshes the default placement while retaining the user's sizes.
-        // A position is adopted only after it has been saved in v5.
+        // v6 resets the broken overlapping defaults while retaining each
+        // control's saved size from earlier layouts.
         for key in defaults.keys {
             guard let storedX = preferences.object(forKey: prefix + key + ".x") as? NSNumber,
                   let storedY = preferences.object(forKey: prefix + key + ".y") as? NSNumber else { continue }
@@ -377,13 +394,15 @@ final class ZakuroViewController: UIViewController {
             let previousSize = preferences.object(forKey: previousPrefix + key + ".size") as? Double
             let olderSize = preferences.object(forKey: olderPrefix + key + ".size") as? Double
             let legacySize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
-            return (key, CGFloat(currentSize ?? previousSize ?? olderSize ?? legacySize ?? 1))
+            let oldestSize = preferences.object(forKey: oldestSizePrefix + key + ".size") as? Double
+            return (key, CGFloat(currentSize ?? previousSize ?? olderSize ?? legacySize ?? oldestSize ?? 1))
         })
         let currentGlobalSize = preferences.object(forKey: prefix + "globalSize") as? Double
         let previousGlobalSize = preferences.object(forKey: previousPrefix + "globalSize") as? Double
         let olderGlobalSize = preferences.object(forKey: olderPrefix + "globalSize") as? Double
         let legacyGlobalSize = preferences.object(forKey: legacySizePrefix + "globalSize") as? Double
-        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? olderGlobalSize ?? legacyGlobalSize ?? 1)
+        let oldestGlobalSize = preferences.object(forKey: oldestSizePrefix + "globalSize") as? Double
+        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? olderGlobalSize ?? legacyGlobalSize ?? oldestGlobalSize ?? 1)
         setNeedsStatusBarAppearanceUpdate()
     }
 
@@ -391,39 +410,44 @@ final class ZakuroViewController: UIViewController {
         let safeWidth = max(1, controlsOverlay.bounds.width - 16)
         let safeHeight = max(1, controlsOverlay.bounds.height
             - controlsOverlay.safeAreaInsets.top - controlsOverlay.safeAreaInsets.bottom - 16)
-        let referenceSize = min(40, max(30, min(safeWidth * 0.09, safeHeight * 0.05)))
+        let referenceSize = min(72, max(46, min(safeWidth * 0.15, safeHeight * 0.095)))
         let dpadStepX = referenceSize / safeWidth
-        let dpadStepY = referenceSize * 0.92 / safeHeight
+        let dpadStepY = referenceSize * 1.08 / safeHeight
         let edgeMargin = (referenceSize / 2 + 8) / safeWidth
         let dpadCenterX = max(0.17, dpadStepX + edgeMargin)
-        let faceCenter = CGPoint(x: min(0.82, 1 - dpadStepX - edgeMargin), y: 0.43)
+        let faceCenter = CGPoint(x: min(0.82, 1 - dpadStepX - edgeMargin), y: 0.57)
+        let dpadCenterY: CGFloat = layoutProfile == "landscape" ? 0.55 : 0.59
+        let stickCenterY: CGFloat = layoutProfile == "landscape" ? 0.86 : 0.83
+        let utilityCenterY: CGFloat = layoutProfile == "landscape" ? 0.92 : 0.89
         return [
-            "UP": CGPoint(x: dpadCenterX, y: 0.38 - dpadStepY),
-            "DOWN": CGPoint(x: dpadCenterX, y: 0.38 + dpadStepY),
-            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: 0.38),
-            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: 0.38),
-            "STICK": CGPoint(x: 0.18, y: 0.47),
+            "UP": CGPoint(x: dpadCenterX, y: dpadCenterY - dpadStepY),
+            "DOWN": CGPoint(x: dpadCenterX, y: dpadCenterY + dpadStepY),
+            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: dpadCenterY),
+            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: dpadCenterY),
+            "STICK": CGPoint(x: 0.19, y: stickCenterY),
             "X": CGPoint(x: faceCenter.x, y: faceCenter.y - dpadStepY),
             "Y": CGPoint(x: faceCenter.x - dpadStepX, y: faceCenter.y),
             "A": CGPoint(x: faceCenter.x + dpadStepX, y: faceCenter.y),
             "B": CGPoint(x: faceCenter.x, y: faceCenter.y + dpadStepY),
-            "SELECT": CGPoint(x: 0.64, y: 0.38), "START": CGPoint(x: 0.88, y: 0.38),
-            "L": CGPoint(x: 0.09, y: 0.10), "R": CGPoint(x: 0.91, y: 0.10),
+            "SELECT": CGPoint(x: 0.66, y: utilityCenterY), "START": CGPoint(x: 0.88, y: utilityCenterY),
+            "L": CGPoint(x: 0.09, y: layoutProfile == "landscape" ? 0.20 : 0.10),
+            "R": CGPoint(x: 0.91, y: layoutProfile == "landscape" ? 0.20 : 0.10),
         ]
     }
 
     private func saveControlLayout(forceSynchronize: Bool = false) {
         guard !controlPositions.isEmpty else { return }
         let preferences = UserDefaults.standard
-        // The editor can be opened in portrait while the game is later played
-        // in landscape. Keep both profiles in sync so changing orientation
-        // cannot make the app appear to have discarded the user's layout.
+        // Save placement only for the active orientation; syncing coordinates
+        // across portrait and landscape made the controls jump and overlap.
         for profile in ["portrait", "landscape"] {
-            let prefix = "ykw2.controls.v5.\(profile)."
+            let prefix = "ykw2.controls.v6.\(profile)."
             for (key, point) in controlPositions {
-                preferences.set(Double(point.x), forKey: prefix + key + ".x")
-                preferences.set(Double(point.y), forKey: prefix + key + ".y")
                 preferences.set(Double(controlSizes[key] ?? 1), forKey: prefix + key + ".size")
+                if profile == layoutProfile {
+                    preferences.set(Double(point.x), forKey: prefix + key + ".x")
+                    preferences.set(Double(point.y), forKey: prefix + key + ".y")
+                }
             }
             preferences.set(Double(globalControlScale), forKey: prefix + "globalSize")
         }
@@ -470,8 +494,8 @@ final class ZakuroViewController: UIViewController {
                 x: min(1, max(0, p.x)),
                 y: min(1, max(0, p.y))
             )
-            let normalizedMarginX = drawingDiameter / 2 / width
-            let normalizedMarginY = drawingDiameter / 2 / height
+            let normalizedMarginX = (diameter / 2 + 4) / width
+            let normalizedMarginY = (diameter / 2 + 4) / height
             let safeStickPosition = CGPoint(
                 x: min(1 - normalizedMarginX, max(normalizedMarginX, stickPosition.x)),
                 y: min(1 - normalizedMarginY, max(normalizedMarginY, stickPosition.y))
@@ -488,7 +512,13 @@ final class ZakuroViewController: UIViewController {
             case "BACK":
                 button.frame = CGRect(x: 12, y: controlsOverlay.safeAreaInsets.top + 8, width: 42, height: 36)
             case "EDITOR":
-                button.isHidden = true
+                button.isHidden = false
+                button.frame = CGRect(
+                    x: controlsOverlay.bounds.width - 54,
+                    y: controlsOverlay.safeAreaInsets.top + 8,
+                    width: 42,
+                    height: 36
+                )
             default: break
             }
         }
@@ -678,12 +708,16 @@ final class ZakuroViewController: UIViewController {
 
     @objc private func toggleEditor() {
         if editorMode {
-            // Closing with the gear/back affordance cancels; only «Listo» commits.
-            loadControlLayout()
-            setEditorMode(false)
+            // The gear only hides/shows the editor; «Listo» is the sole save action.
+            editorPanel.isHidden.toggle()
         } else {
             setEditorMode(true)
         }
+    }
+
+    @objc private func hideEditorPanel() {
+        guard editorMode else { return }
+        editorPanel.isHidden = true
     }
 
     @objc private func commitEditor() {
