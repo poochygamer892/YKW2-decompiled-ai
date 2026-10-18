@@ -73,9 +73,6 @@ final class ZakuroViewController: UIViewController {
     }
 
     override func viewWillDisappear(_ animated: Bool) {
-        if configurationOnly && isMovingFromParent {
-            saveControlLayout(forceSynchronize: true)
-        }
         if isMovingFromParent || isBeingDismissed {
             displayLink?.invalidate()
             displayLink = nil
@@ -136,11 +133,14 @@ final class ZakuroViewController: UIViewController {
         super.viewDidLayoutSubviews()
         let nextProfile = view.bounds.height >= view.bounds.width ? "portrait" : "landscape"
         if nextProfile != layoutProfile {
+            let isInitialProfile = layoutProfile.isEmpty
             layoutProfile = nextProfile
             screenStack.axis = nextProfile == "portrait" ? .vertical : .horizontal
             NSLayoutConstraint.deactivate(portraitScreenConstraints + landscapeScreenConstraints)
             NSLayoutConstraint.activate(nextProfile == "portrait" ? portraitScreenConstraints : landscapeScreenConstraints)
-            loadControlLayout()
+            if isInitialProfile || !editorMode {
+                loadControlLayout()
+            }
         }
         layoutTouchControls()
     }
@@ -296,11 +296,11 @@ final class ZakuroViewController: UIViewController {
         controlsOverlay.addSubview(editorPanel)
 
         let instructions = UILabel()
-        instructions.text = "Elige un control y ajusta su tamaño · arrástralo para moverlo"
+        instructions.text = "Elige control, ajusta tamaño y arrastra para mover"
         instructions.textColor = .white
-        instructions.font = .systemFont(ofSize: 12, weight: .medium)
+        instructions.font = .systemFont(ofSize: 11, weight: .medium)
         instructions.textAlignment = .center
-        instructions.numberOfLines = 2
+        instructions.numberOfLines = 1
 
         selectedControlButton.setTitle("Tamaño · Todos ▾", for: .normal)
         selectedControlButton.setTitleColor(.white, for: .normal)
@@ -310,7 +310,7 @@ final class ZakuroViewController: UIViewController {
         selectionText.text = "Todos · 100%"
         selectionText.textColor = UIColor(white: 0.85, alpha: 1)
         selectionText.textAlignment = .center
-        selectionText.font = .systemFont(ofSize: 11)
+        selectionText.font = .systemFont(ofSize: 10)
 
         sizeSlider.minimumValue = 0.5
         sizeSlider.maximumValue = 2
@@ -329,7 +329,7 @@ final class ZakuroViewController: UIViewController {
 
         let content = UIStackView(arrangedSubviews: [instructions, selectedControlButton, selectionText, sizeSlider, actions])
         content.axis = .vertical
-        content.spacing = 4
+        content.spacing = 2
         content.translatesAutoresizingMaskIntoConstraints = false
         editorPanel.contentView.addSubview(content)
         let panelWidth = editorPanel.widthAnchor.constraint(equalTo: controlsOverlay.widthAnchor, multiplier: 0.82)
@@ -339,8 +339,14 @@ final class ZakuroViewController: UIViewController {
             content.trailingAnchor.constraint(equalTo: editorPanel.contentView.trailingAnchor, constant: -10),
             content.topAnchor.constraint(equalTo: editorPanel.contentView.topAnchor, constant: 6),
             content.bottomAnchor.constraint(equalTo: editorPanel.contentView.bottomAnchor, constant: -6),
+            instructions.heightAnchor.constraint(equalToConstant: 16),
+            selectedControlButton.heightAnchor.constraint(equalToConstant: 28),
+            selectionText.heightAnchor.constraint(equalToConstant: 14),
+            sizeSlider.heightAnchor.constraint(equalToConstant: 24),
+            actions.heightAnchor.constraint(equalToConstant: 30),
             editorPanel.centerXAnchor.constraint(equalTo: controlsOverlay.centerXAnchor),
-            editorPanel.topAnchor.constraint(equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 8),
+            // Keep the editor below the L/R row and above the main control groups.
+            editorPanel.topAnchor.constraint(equalTo: controlsOverlay.safeAreaLayoutGuide.topAnchor, constant: 104),
             panelWidth,
             editorPanel.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
         ])
@@ -349,35 +355,15 @@ final class ZakuroViewController: UIViewController {
 
     private func loadControlLayout() {
         guard !layoutProfile.isEmpty else { return }
-        let safeWidth = max(1, controlsOverlay.bounds.width - 16)
-        let safeHeight = max(1, controlsOverlay.bounds.height
-            - controlsOverlay.safeAreaInsets.top - controlsOverlay.safeAreaInsets.bottom - 16)
-        let referenceSize = min(54, max(34, min(safeWidth * 0.15, safeHeight * 0.075)))
-        let dpadStepX = referenceSize * 1.12 / safeWidth
-        let dpadStepY = referenceSize * 1.12 / safeHeight
-        let edgeMargin = (referenceSize / 2 + 8) / safeWidth
-        let dpadCenterX = max(0.17, dpadStepX + edgeMargin)
-        let faceCenter = CGPoint(x: min(0.82, 1 - dpadStepX - edgeMargin), y: 0.76)
-        let defaults: [String: CGPoint] = [
-            "UP": CGPoint(x: dpadCenterX, y: 0.66 - dpadStepY),
-            "DOWN": CGPoint(x: dpadCenterX, y: 0.66 + dpadStepY),
-            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: 0.66),
-            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: 0.66),
-            "STICK": CGPoint(x: 0.18, y: 0.91),
-            "X": CGPoint(x: faceCenter.x, y: faceCenter.y - dpadStepY),
-            "Y": CGPoint(x: faceCenter.x - dpadStepX, y: faceCenter.y),
-            "A": CGPoint(x: faceCenter.x + dpadStepX, y: faceCenter.y),
-            "B": CGPoint(x: faceCenter.x, y: faceCenter.y + dpadStepY),
-            "SELECT": CGPoint(x: 0.64, y: 0.66), "START": CGPoint(x: 0.88, y: 0.66),
-            "L": CGPoint(x: 0.09, y: 0.10), "R": CGPoint(x: 0.91, y: 0.10),
-        ]
+        let defaults = defaultControlPositions()
         let preferences = UserDefaults.standard
-        let prefix = "ykw2.controls.v4.\(layoutProfile)."
-        let previousPrefix = "ykw2.controls.v3.\(layoutProfile)."
+        let prefix = "ykw2.controls.v5.\(layoutProfile)."
+        let previousPrefix = "ykw2.controls.v4.\(layoutProfile)."
+        let olderPrefix = "ykw2.controls.v3.\(layoutProfile)."
         let legacySizePrefix = "ykw2.controls.v2.\(layoutProfile)."
-        controlPositions = defaults.mapValues { $0 }
-        // v4 uses a fresh 3DS-aware default layout. Continue honoring saved
-        // positions edited in v4, while carrying forward size preferences.
+        controlPositions = defaults
+        // v5 refreshes the default placement while retaining the user's sizes.
+        // A position is adopted only after it has been saved in v5.
         for key in defaults.keys {
             guard let storedX = preferences.object(forKey: prefix + key + ".x") as? NSNumber,
                   let storedY = preferences.object(forKey: prefix + key + ".y") as? NSNumber else { continue }
@@ -389,14 +375,41 @@ final class ZakuroViewController: UIViewController {
         controlSizes = Dictionary(uniqueKeysWithValues: defaults.keys.map { key in
             let currentSize = preferences.object(forKey: prefix + key + ".size") as? Double
             let previousSize = preferences.object(forKey: previousPrefix + key + ".size") as? Double
+            let olderSize = preferences.object(forKey: olderPrefix + key + ".size") as? Double
             let legacySize = preferences.object(forKey: legacySizePrefix + key + ".size") as? Double
-            return (key, CGFloat(currentSize ?? previousSize ?? legacySize ?? 1))
+            return (key, CGFloat(currentSize ?? previousSize ?? olderSize ?? legacySize ?? 1))
         })
         let currentGlobalSize = preferences.object(forKey: prefix + "globalSize") as? Double
         let previousGlobalSize = preferences.object(forKey: previousPrefix + "globalSize") as? Double
+        let olderGlobalSize = preferences.object(forKey: olderPrefix + "globalSize") as? Double
         let legacyGlobalSize = preferences.object(forKey: legacySizePrefix + "globalSize") as? Double
-        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? legacyGlobalSize ?? 1)
+        globalControlScale = CGFloat(currentGlobalSize ?? previousGlobalSize ?? olderGlobalSize ?? legacyGlobalSize ?? 1)
         setNeedsStatusBarAppearanceUpdate()
+    }
+
+    private func defaultControlPositions() -> [String: CGPoint] {
+        let safeWidth = max(1, controlsOverlay.bounds.width - 16)
+        let safeHeight = max(1, controlsOverlay.bounds.height
+            - controlsOverlay.safeAreaInsets.top - controlsOverlay.safeAreaInsets.bottom - 16)
+        let referenceSize = min(40, max(30, min(safeWidth * 0.09, safeHeight * 0.05)))
+        let dpadStepX = referenceSize / safeWidth
+        let dpadStepY = referenceSize * 0.92 / safeHeight
+        let edgeMargin = (referenceSize / 2 + 8) / safeWidth
+        let dpadCenterX = max(0.17, dpadStepX + edgeMargin)
+        let faceCenter = CGPoint(x: min(0.82, 1 - dpadStepX - edgeMargin), y: 0.43)
+        return [
+            "UP": CGPoint(x: dpadCenterX, y: 0.38 - dpadStepY),
+            "DOWN": CGPoint(x: dpadCenterX, y: 0.38 + dpadStepY),
+            "LEFT": CGPoint(x: dpadCenterX - dpadStepX, y: 0.38),
+            "RIGHT": CGPoint(x: dpadCenterX + dpadStepX, y: 0.38),
+            "STICK": CGPoint(x: 0.18, y: 0.47),
+            "X": CGPoint(x: faceCenter.x, y: faceCenter.y - dpadStepY),
+            "Y": CGPoint(x: faceCenter.x - dpadStepX, y: faceCenter.y),
+            "A": CGPoint(x: faceCenter.x + dpadStepX, y: faceCenter.y),
+            "B": CGPoint(x: faceCenter.x, y: faceCenter.y + dpadStepY),
+            "SELECT": CGPoint(x: 0.64, y: 0.38), "START": CGPoint(x: 0.88, y: 0.38),
+            "L": CGPoint(x: 0.09, y: 0.10), "R": CGPoint(x: 0.91, y: 0.10),
+        ]
     }
 
     private func saveControlLayout(forceSynchronize: Bool = false) {
@@ -406,7 +419,7 @@ final class ZakuroViewController: UIViewController {
         // in landscape. Keep both profiles in sync so changing orientation
         // cannot make the app appear to have discarded the user's layout.
         for profile in ["portrait", "landscape"] {
-            let prefix = "ykw2.controls.v4.\(profile)."
+            let prefix = "ykw2.controls.v5.\(profile)."
             for (key, point) in controlPositions {
                 preferences.set(Double(point.x), forKey: prefix + key + ".x")
                 preferences.set(Double(point.y), forKey: prefix + key + ".y")
@@ -449,7 +462,7 @@ final class ZakuroViewController: UIViewController {
         }
         if let stick = controlsOverlay.subviews.compactMap({ $0 as? AnalogStickControl }).first {
             let p = controlPositions["STICK"] ?? CGPoint(x: 0.15, y: 0.84)
-            let diameter = min(min(width * 0.48, height * 0.28), base * 3.2 * (controlSizes["STICK"] ?? 1))
+            let diameter = min(min(width * 0.48, height * 0.28), base * 2.5 * (controlSizes["STICK"] ?? 1))
             let drawingDiameter = diameter * 1.3
             stick.controlDiameter = diameter
             stick.bounds = CGRect(x: 0, y: 0, width: drawingDiameter, height: drawingDiameter)
@@ -657,11 +670,6 @@ final class ZakuroViewController: UIViewController {
         )
         recognizer.setTranslation(.zero, in: controlsOverlay)
         layoutTouchControls()
-        if recognizer.state == .changed {
-            saveControlLayout()
-        } else if recognizer.state == .ended || recognizer.state == .cancelled || recognizer.state == .failed {
-            saveControlLayout(forceSynchronize: true)
-        }
     }
 
     @objc private func goBack() {
@@ -722,23 +730,15 @@ final class ZakuroViewController: UIViewController {
         else { controlSizes[selectedControl] = value }
         updateEditorSelectionUI()
         layoutTouchControls()
-        saveControlLayout()
     }
 
     @objc private func resetControls() {
-        let prefixes = ["portrait", "landscape"].flatMap { profile in
-            ["ykw2.controls.v2.\(profile).", "ykw2.controls.v3.\(profile).", "ykw2.controls.v4.\(profile)."]
-        }
-        for key in UserDefaults.standard.dictionaryRepresentation().keys {
-            if prefixes.contains(where: { key.hasPrefix($0) }) {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        loadControlLayout()
+        controlPositions = defaultControlPositions()
+        controlSizes = Dictionary(uniqueKeysWithValues: controlPositions.keys.map { ($0, 1) })
+        globalControlScale = 1
         selectedControl = "ALL"
         updateEditorSelectionUI()
         layoutTouchControls()
-        saveControlLayout(forceSynchronize: true)
     }
 }
 

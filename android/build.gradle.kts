@@ -18,8 +18,8 @@ android {
         applicationId = "com.ykw2.port"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.4.16"
+        versionCode = 12
+        versionName = "0.4.17"
 
         ndk {
             abiFilters += "arm64-v8a"

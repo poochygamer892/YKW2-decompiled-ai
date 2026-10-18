@@ -309,6 +309,8 @@ internal class ZakuroScreenView(
     private var stickPointerId = INVALID_POINTER
     private var controlLayout = TouchControlLayout.load(context, 0, 0)
     var editorMode = false
+    private var editorProfileInitialized = false
+    private val editorDrafts = mutableMapOf<String, TouchControlLayout>()
     var onEditorSelectionChanged: ((String) -> Unit)? = null
     private var editorPointerId = INVALID_POINTER
     private var editorGroup = EDIT_NONE
@@ -342,26 +344,47 @@ internal class ZakuroScreenView(
         if (selectedControl == TouchControlLayout.ALL) {
             controlLayout.scale = scale.coerceIn(TouchControlLayout.MIN_SIZE, TouchControlLayout.MAX_SIZE)
         } else controlLayout.setSize(selectedControl, scale)
-        controlLayout.save(context)
+        if (!editorMode) controlLayout.save(context)
         invalidate()
     }
 
     fun resetLayout() {
         controlLayout = TouchControlLayout.defaults(width, height)
-        controlLayout.save(context)
+        if (editorMode) {
+            editorDrafts.clear()
+            editorDrafts[if (controlLayout.profile == "portrait") "landscape" else "portrait"] =
+                TouchControlLayout.defaults(height, width)
+        } else {
+            controlLayout.save(context)
+        }
         invalidate()
     }
 
     fun setControlScale(scale: Float) {
         controlLayout.scale = scale.coerceIn(TouchControlLayout.MIN_SIZE, TouchControlLayout.MAX_SIZE)
-        controlLayout.save(context)
+        if (!editorMode) controlLayout.save(context)
         invalidate()
+    }
+
+    fun commitEditorLayout() {
+        editorDrafts.values.forEach { it.save(context) }
+        controlLayout.save(context)
+        editorDrafts.clear()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
-            controlLayout = TouchControlLayout.load(context, w, h)
+            val nextProfile = if (h >= w) "portrait" else "landscape"
+            if (!editorMode) {
+                controlLayout = TouchControlLayout.load(context, w, h)
+            } else if (!editorProfileInitialized) {
+                controlLayout = TouchControlLayout.load(context, w, h)
+                editorProfileInitialized = true
+            } else if (controlLayout.profile != nextProfile) {
+                editorDrafts[controlLayout.profile] = controlLayout.duplicate()
+                controlLayout = editorDrafts.remove(nextProfile) ?: TouchControlLayout.load(context, w, h)
+            }
             invalidate()
         }
     }
@@ -454,7 +477,6 @@ internal class ZakuroScreenView(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
                 if (event.actionMasked == MotionEvent.ACTION_CANCEL ||
                     (event.pointerCount > 0 && event.getPointerId(event.actionIndex) == editorPointerId)) {
-                    controlLayout.save(context)
                     editorPointerId = INVALID_POINTER
                     editorGroup = EDIT_NONE
                 }

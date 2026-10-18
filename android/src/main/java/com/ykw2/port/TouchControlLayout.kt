@@ -7,13 +7,13 @@ internal data class TouchControlLayout(
     val profile: String,
     var scale: Float = 1f,
     var leftX: Float = 0.15f,
-    var dpadY: Float = 0.65f,
+    var dpadY: Float = 0.38f,
     var stickX: Float = 0.15f,
-    var stickY: Float = 0.84f,
+    var stickY: Float = 0.47f,
     var faceX: Float = 0.85f,
-    var faceY: Float = 0.77f,
+    var faceY: Float = 0.43f,
     var utilityX: Float = 0.84f,
-    var utilityY: Float = 0.58f,
+    var utilityY: Float = 0.38f,
     var leftShoulderX: Float = 0.09f,
     var leftShoulderY: Float = 0.11f,
     var rightShoulderX: Float = 0.91f,
@@ -37,9 +37,12 @@ internal data class TouchControlLayout(
             .putFloat(prefix + "leftShoulderY", leftShoulderY)
             .putFloat(prefix + "rightShoulderX", rightShoulderX)
             .putFloat(prefix + "rightShoulderY", rightShoulderY)
+            .putInt(prefix + "layoutVersion", LAYOUT_VERSION)
             .also { editor -> sizes.forEach { (key, value) -> editor.putFloat(prefix + "size_" + key, value) } }
             .apply()
     }
+
+    fun duplicate(): TouchControlLayout = copy(sizes = sizes.toMutableMap())
 
     fun size(control: String): Float = sizes[control] ?: 1f
 
@@ -49,6 +52,7 @@ internal data class TouchControlLayout(
 
     companion object {
         private const val PREFERENCES = "touch_controls"
+        private const val LAYOUT_VERSION = 2
 
         fun defaults(width: Int, height: Int): TouchControlLayout {
             val profile = if (height >= width) "portrait" else "landscape"
@@ -57,6 +61,7 @@ internal data class TouchControlLayout(
                     dpadY = 0.32f
                     stickY = 0.75f
                     faceY = 0.72f
+                    utilityY = 0.58f
                 }
             }
         }
@@ -66,24 +71,25 @@ internal data class TouchControlLayout(
             val profile = defaults.profile
             val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             val prefix = "${profile}_"
+            val hasCurrentLayout = preferences.getInt(prefix + "layoutVersion", 0) >= LAYOUT_VERSION
             val loadedSizes = defaults.sizes.toMutableMap()
             loadedSizes.keys.forEach { key ->
                 loadedSizes[key] = preferences.getFloat(prefix + "size_" + key, 1f).coerceIn(MIN_SIZE, MAX_SIZE)
             }
             return defaults.copy(
                 scale = preferences.getFloat(prefix + "scale", defaults.scale).coerceIn(MIN_SIZE, MAX_SIZE),
-                leftX = preferences.getFloat(prefix + "leftX", defaults.leftX).coerceIn(0.04f, 0.96f),
-                dpadY = preferences.getFloat(prefix + "dpadY", defaults.dpadY).coerceIn(0.05f, 0.95f),
-                stickX = preferences.getFloat(prefix + "stickX", defaults.stickX).coerceIn(0.04f, 0.96f),
-                stickY = preferences.getFloat(prefix + "stickY", defaults.stickY).coerceIn(0.05f, 0.95f),
-                faceX = preferences.getFloat(prefix + "faceX", defaults.faceX).coerceIn(0.04f, 0.96f),
-                faceY = preferences.getFloat(prefix + "faceY", defaults.faceY).coerceIn(0.05f, 0.95f),
-                utilityX = preferences.getFloat(prefix + "utilityX", defaults.utilityX).coerceIn(0.04f, 0.96f),
-                utilityY = preferences.getFloat(prefix + "utilityY", defaults.utilityY).coerceIn(0.05f, 0.95f),
-                leftShoulderX = preferences.getFloat(prefix + "leftShoulderX", defaults.leftShoulderX).coerceIn(0.04f, 0.96f),
-                leftShoulderY = preferences.getFloat(prefix + "leftShoulderY", defaults.leftShoulderY).coerceIn(0.05f, 0.95f),
-                rightShoulderX = preferences.getFloat(prefix + "rightShoulderX", defaults.rightShoulderX).coerceIn(0.04f, 0.96f),
-                rightShoulderY = preferences.getFloat(prefix + "rightShoulderY", defaults.rightShoulderY).coerceIn(0.05f, 0.95f),
+                leftX = if (hasCurrentLayout) preferences.getFloat(prefix + "leftX", defaults.leftX).coerceIn(0.04f, 0.96f) else defaults.leftX,
+                dpadY = if (hasCurrentLayout) preferences.getFloat(prefix + "dpadY", defaults.dpadY).coerceIn(0.05f, 0.95f) else defaults.dpadY,
+                stickX = if (hasCurrentLayout) preferences.getFloat(prefix + "stickX", defaults.stickX).coerceIn(0.04f, 0.96f) else defaults.stickX,
+                stickY = if (hasCurrentLayout) preferences.getFloat(prefix + "stickY", defaults.stickY).coerceIn(0.05f, 0.95f) else defaults.stickY,
+                faceX = if (hasCurrentLayout) preferences.getFloat(prefix + "faceX", defaults.faceX).coerceIn(0.04f, 0.96f) else defaults.faceX,
+                faceY = if (hasCurrentLayout) preferences.getFloat(prefix + "faceY", defaults.faceY).coerceIn(0.05f, 0.95f) else defaults.faceY,
+                utilityX = if (hasCurrentLayout) preferences.getFloat(prefix + "utilityX", defaults.utilityX).coerceIn(0.04f, 0.96f) else defaults.utilityX,
+                utilityY = if (hasCurrentLayout) preferences.getFloat(prefix + "utilityY", defaults.utilityY).coerceIn(0.05f, 0.95f) else defaults.utilityY,
+                leftShoulderX = if (hasCurrentLayout) preferences.getFloat(prefix + "leftShoulderX", defaults.leftShoulderX).coerceIn(0.04f, 0.96f) else defaults.leftShoulderX,
+                leftShoulderY = if (hasCurrentLayout) preferences.getFloat(prefix + "leftShoulderY", defaults.leftShoulderY).coerceIn(0.05f, 0.95f) else defaults.leftShoulderY,
+                rightShoulderX = if (hasCurrentLayout) preferences.getFloat(prefix + "rightShoulderX", defaults.rightShoulderX).coerceIn(0.04f, 0.96f) else defaults.rightShoulderX,
+                rightShoulderY = if (hasCurrentLayout) preferences.getFloat(prefix + "rightShoulderY", defaults.rightShoulderY).coerceIn(0.05f, 0.95f) else defaults.rightShoulderY,
                 sizes = loadedSizes,
             )
         }

@@ -40,8 +40,8 @@ class TouchControlsActivity : Activity() {
         root.addView(controls, FrameLayout.LayoutParams(-1, -1))
 
         val instructions = TextView(this).apply {
-            text = "Toca un control para elegirlo o arrastra un grupo para moverlo"
-            textSize = 13f
+            text = "Elige un control para cambiar su tamaño · arrástralo para moverlo"
+            textSize = 12f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
         }
@@ -75,6 +75,8 @@ class TouchControlsActivity : Activity() {
             })
         }
         scaleBar = scale
+        val density = resources.displayMetrics.density
+        val dp = { value: Int -> (density * value).toInt() }
         controls.onEditorSelectionChanged = { key ->
             val position = targetKeys.indexOf(key).takeIf { it >= 0 } ?: 0
             updatingSelection = true
@@ -87,30 +89,49 @@ class TouchControlsActivity : Activity() {
         val actions = LinearLayout(this).apply { gravity = Gravity.CENTER }
         actions.addView(Button(this).apply {
             text = "Restablecer"
+            minWidth = 0
+            minHeight = dp(30)
+            minimumHeight = dp(30)
+            setPadding(dp(4), 0, dp(4), 0)
             setOnClickListener {
                 controls.resetLayout()
                 scale.progress = 50
             }
-        })
+        }, LinearLayout.LayoutParams(0, dp(32), 1f))
         actions.addView(Button(this).apply {
             text = "Listo"
-            setOnClickListener { finish() }
-        })
+            minWidth = 0
+            minHeight = dp(30)
+            minimumHeight = dp(30)
+            setPadding(dp(4), 0, dp(4), 0)
+            setOnClickListener {
+                controls.commitEditorLayout()
+                finish()
+            }
+        }, LinearLayout.LayoutParams(0, dp(32), 1f))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(12, 8, 12, 4)
             setBackgroundColor(0xdd111820.toInt())
-            addView(instructions, LinearLayout.LayoutParams(-1, -2))
-            addView(targetSpinner, LinearLayout.LayoutParams(-1, -2))
-            addView(selectionLabel, LinearLayout.LayoutParams(-1, -2))
-            addView(scale, LinearLayout.LayoutParams(-1, -2))
-            addView(actions, LinearLayout.LayoutParams(-1, -2))
+            addView(instructions, LinearLayout.LayoutParams(-1, dp(28)))
+            addView(targetSpinner, LinearLayout.LayoutParams(-1, dp(34)))
+            addView(selectionLabel, LinearLayout.LayoutParams(-1, dp(20)))
+            addView(scale, LinearLayout.LayoutParams(-1, dp(30)))
+            addView(actions, LinearLayout.LayoutParams(-1, dp(32)))
         }
         root.addView(panel, FrameLayout.LayoutParams(
             (resources.displayMetrics.density * 245).toInt().coerceAtMost(resources.displayMetrics.widthPixels),
             -2,
             Gravity.TOP or Gravity.CENTER_HORIZONTAL,
-        ).apply { topMargin = (resources.displayMetrics.density * 8).toInt() })
+        ))
+        root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val params = panel.layoutParams as FrameLayout.LayoutParams
+            val topMargin = maxOf((root.height * 0.14f).toInt(), dp(72))
+            if (params.topMargin != topMargin) {
+                params.topMargin = topMargin
+                panel.layoutParams = params
+            }
+        }
         setContentView(root)
         controls.post {
             scale.progress = ((controls.selectedControlScale() - TouchControlLayout.MIN_SIZE) * 100)
