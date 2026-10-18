@@ -525,9 +525,9 @@ final class ZakuroViewController: UIViewController {
         fpsLabel.isHidden = false
         displayLink?.invalidate()
         displayLink = CADisplayLink(target: self, selector: #selector(advanceFrame))
-        // Zakuro still advances at 60 emulated frames/s. Presenting at 30 Hz
-        // halves RGBA copies, CGImage/UIImage creation and main-thread updates.
-        displayLink?.preferredFramesPerSecond = 30
+        // Keep host presentation in step with the bundled YW2 60-FPS patch.
+        // The former 30-Hz cap batched two game frames and hid the unlocked rate.
+        displayLink?.preferredFramesPerSecond = 60
         displayLink?.add(to: .main, forMode: .common)
     }
 
@@ -548,16 +548,16 @@ final class ZakuroViewController: UIViewController {
                     touchX: point.map { Int($0.x) } ?? -1,
                     touchY: point.map { Int($0.y) } ?? -1
                 )
-                let runOutcome = YKW2ImportBridge.runZakuroFrames(2)
+                let runOutcome = YKW2ImportBridge.runZakuroFrames(1)
                 let topData = NSMutableData(length: 400 * 240 * 4)!
                 let bottomData = NSMutableData(length: 320 * 240 * 4)!
-                let copyOutcome = runOutcome == 2
+                let copyOutcome = runOutcome == 1
                     ? YKW2ImportBridge.copyZakuroScreens(toTop: topData, bottom: bottomData)
                     : -1
-                let outcome = runOutcome == 2 && copyOutcome != 0 ? -2 : runOutcome
-                let audioData = outcome == 2 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
-                let topImage = outcome == 2 ? self.image(fromRGBA: topData as Data, width: 400, height: 240) : nil
-                let bottomImage = outcome == 2 ? self.image(fromRGBA: bottomData as Data, width: 320, height: 240) : nil
+                let outcome = runOutcome == 1 && copyOutcome != 0 ? -2 : runOutcome
+                let audioData = outcome == 1 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
+                let topImage = outcome == 1 ? self.image(fromRGBA: topData as Data, width: 400, height: 240) : nil
+                let bottomImage = outcome == 1 ? self.image(fromRGBA: bottomData as Data, width: 320, height: 240) : nil
                 return (outcome, topImage, bottomImage, audioData)
             }
             let (outcome, topImage, bottomImage, audioData) = frameResult
@@ -565,7 +565,7 @@ final class ZakuroViewController: UIViewController {
             DispatchQueue.main.async {
                 self.frameInFlight = false
                 guard self.isViewLoaded, self.view.window != nil else { return }
-                guard outcome == 2 else {
+                guard outcome == 1 else {
                     self.displayLink?.invalidate()
                     self.statusLabel.text = outcome == -3
                         ? "Zakuro encontró un error interno al ejecutar la ROM. Revisa que sea una copia descifrada compatible."

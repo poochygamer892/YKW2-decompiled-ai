@@ -3,7 +3,6 @@
 //! The frontend owns file selection, lifecycle, display, sound output and
 //! controls. This library owns only the emulated system and its frame buffers.
 
-use cheats::apply_all;
 use std::collections::VecDeque;
 use std::ffi::{c_char, CStr};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -25,7 +24,6 @@ mod cheats;
 pub struct MobileRuntime {
     system: System,
     audio: VecDeque<[i16; 2]>,
-    buttons: u32,
     faulted: bool,
 }
 
@@ -101,11 +99,11 @@ pub unsafe extern "C" fn ykw2_mobile_open(
                 texture_packs: false,
                 ..Config::default()
             };
-            let system = loader::load(rom, config).map_err(|error| error.to_string())?;
+            let mut system = loader::load(rom, config).map_err(|error| error.to_string())?;
+            cheats::install_builtin(&mut system);
             Ok::<_, String>(Box::into_raw(Box::new(MobileRuntime {
                 system,
                 audio: VecDeque::new(),
-                buttons: 0,
                 faulted: false,
             })))
         })()
@@ -146,8 +144,6 @@ pub unsafe extern "C" fn ykw2_mobile_run_frames(runtime: *mut MobileRuntime, fra
     }
     match catch_unwind(AssertUnwindSafe(|| {
         for frame in 0..frames {
-            let buttons = runtime.buttons;
-            apply_all(&mut runtime.system, buttons);
             match runtime.system.run_frame() {
                 FrameOutcome::Completed => {}
                 FrameOutcome::Exited | FrameOutcome::Faulted => return frame as i32,
@@ -180,7 +176,6 @@ pub unsafe extern "C" fn ykw2_mobile_set_input(
     }
     // SAFETY: runtime pointers are created by open and owned by the frontend.
     let runtime = unsafe { &mut *runtime };
-    runtime.buttons = buttons;
     let touch = if (0..BOTTOM_WIDTH as i32).contains(&touch_x)
         && (0..SCREEN_HEIGHT as i32).contains(&touch_y)
     {
