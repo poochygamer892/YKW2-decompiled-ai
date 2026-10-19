@@ -11,6 +11,8 @@ use zakuro_common::Screen;
 use zakuro_core::services::hid::{InputState, PadState};
 use zakuro_core::{loader, Config, FrameOutcome, System};
 
+mod audio;
+
 pub const TOP_WIDTH: usize = 400;
 pub const BOTTOM_WIDTH: usize = 320;
 pub const SCREEN_HEIGHT: usize = 240;
@@ -18,12 +20,16 @@ pub const RGBA_BYTES: usize = 4;
 
 pub const TOP_BYTES: usize = TOP_WIDTH * SCREEN_HEIGHT * RGBA_BYTES;
 pub const BOTTOM_BYTES: usize = BOTTOM_WIDTH * SCREEN_HEIGHT * RGBA_BYTES;
+const AUDIO_QUEUE_LIMIT: usize = 32_728 / 2;
+const AUDIO_QUEUE_RECOVERY: usize = 4_096;
 
 mod cheats;
 
 pub struct MobileRuntime {
     system: System,
     audio: VecDeque<[i16; 2]>,
+    audio_stretch: audio::AudioStretch,
+    audio_scratch: Vec<[i16; 2]>,
     faulted: bool,
 }
 
@@ -104,6 +110,8 @@ pub unsafe extern "C" fn ykw2_mobile_open(
             Ok::<_, String>(Box::into_raw(Box::new(MobileRuntime {
                 system,
                 audio: VecDeque::new(),
+                audio_stretch: audio::AudioStretch::new(),
+                audio_scratch: Vec::with_capacity(2048),
                 faulted: false,
             })))
         })()
@@ -148,7 +156,16 @@ pub unsafe extern "C" fn ykw2_mobile_run_frames(runtime: *mut MobileRuntime, fra
                 FrameOutcome::Completed => {}
                 FrameOutcome::Exited | FrameOutcome::Faulted => return frame as i32,
             }
-            runtime.audio.extend(runtime.system.take_audio());
+            let samples = runtime.system.take_audio();
+            runtime.audio_scratch.clear();
+            runtime
+                .audio_stretch
+                .push(&samples, &mut runtime.audio_scratch);
+            runtime.audio.extend(runtime.audio_scratch.drain(..));
+            if runtime.audio.len() > AUDIO_QUEUE_LIMIT {
+                let discard = runtime.audio.len() - AUDIO_QUEUE_RECOVERY;
+                runtime.audio.drain(..discard);
+            }
         }
         frames as i32
     })) {

@@ -24,6 +24,7 @@ final class ZakuroViewController: UIViewController {
     private var frameInFlight = false
     private var fpsWindowStart = CACurrentMediaTime()
     private var fpsWindowFrames = 0
+    private var emulatedFrameNumber = 0
     private var buttonsDown = Set<String>()
     private var dpadButtons: UInt32 = 0
     private var circleX: Float = 0
@@ -602,6 +603,8 @@ final class ZakuroViewController: UIViewController {
         let point = touchPoint
         runtimeQueue.async { [weak self] in
             guard let self else { return }
+            let captureScreens = self.emulatedFrameNumber.isMultiple(of: 2)
+            self.emulatedFrameNumber &+= 1
             let frameResult = autoreleasepool { () -> (Int, UIImage?, UIImage?, Data) in
                 _ = YKW2ImportBridge.setZakuroButtons(
                     buttonMask, circleX: inputX, circleY: inputY,
@@ -609,15 +612,20 @@ final class ZakuroViewController: UIViewController {
                     touchY: point.map { Int($0.y) } ?? -1
                 )
                 let runOutcome = YKW2ImportBridge.runZakuroFrames(1)
-                let topData = NSMutableData(length: 400 * 240 * 4)!
-                let bottomData = NSMutableData(length: 320 * 240 * 4)!
-                let copyOutcome = runOutcome == 1
-                    ? YKW2ImportBridge.copyZakuroScreens(toTop: topData, bottom: bottomData)
-                    : -1
+                let topData = captureScreens ? NSMutableData(length: 400 * 240 * 4)! : nil
+                let bottomData = captureScreens ? NSMutableData(length: 320 * 240 * 4)! : nil
+                let copyOutcome: Int
+                if runOutcome != 1 {
+                    copyOutcome = -1
+                } else if let topData, let bottomData {
+                    copyOutcome = YKW2ImportBridge.copyZakuroScreens(toTop: topData, bottom: bottomData)
+                } else {
+                    copyOutcome = 0
+                }
                 let outcome = runOutcome == 1 && copyOutcome != 0 ? -2 : runOutcome
                 let audioData = outcome == 1 ? YKW2ImportBridge.takeZakuroAudioFrames(2048) : Data()
-                let topImage = outcome == 1 ? self.image(fromRGBA: topData as Data, width: 400, height: 240) : nil
-                let bottomImage = outcome == 1 ? self.image(fromRGBA: bottomData as Data, width: 320, height: 240) : nil
+                let topImage = outcome == 1 ? topData.flatMap { self.image(fromRGBA: $0 as Data, width: 400, height: 240) } : nil
+                let bottomImage = outcome == 1 ? bottomData.flatMap { self.image(fromRGBA: $0 as Data, width: 320, height: 240) } : nil
                 return (outcome, topImage, bottomImage, audioData)
             }
             let (outcome, topImage, bottomImage, audioData) = frameResult
@@ -632,9 +640,11 @@ final class ZakuroViewController: UIViewController {
                         : "Zakuro detuvo la emulación (estado \(outcome))."
                     return
                 }
-                self.topScreen.image = topImage
-                self.bottomScreen.image = bottomImage
-                self.recordPresentedFrame()
+                if let topImage, let bottomImage {
+                    self.topScreen.image = topImage
+                    self.bottomScreen.image = bottomImage
+                    self.recordPresentedFrame()
+                }
             }
         }
     }
